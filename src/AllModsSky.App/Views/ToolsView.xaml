@@ -1,0 +1,281 @@
+<UserControl x:Class="AllModsSky.App.Views.ToolsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:AllModsSky.App.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:ToolsViewModel}"
+             d:DesignHeight="760" d:DesignWidth="1040">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,14">
+            <TextBlock Text="工具" Style="{StaticResource H1}" />
+            <TextBlock Text="冲突检测 · 日志诊断 · 加载顺序 · AMUMSS 重建" Style="{StaticResource MutedText}"
+                       VerticalAlignment="Bottom" Margin="12,0,0,5" />
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel MaxWidth="1000" HorizontalAlignment="Stretch">
+
+                <!-- ===================== 冲突检测 ===================== -->
+                <Border Style="{StaticResource Card}" Margin="0,0,0,14">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock Text="冲突检测" Style="{StaticResource H2}" />
+                                <TextBlock Text="找出改到同一个 vanilla 文件的模组" Style="{StaticResource SmallText}"
+                                           Margin="0,5,0,0" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="扫描冲突"
+                                    VerticalAlignment="Top" Command="{Binding ScanConflictsCommand}" />
+                        </Grid>
+
+                        <TextBlock Text="{Binding ConflictSummary}" Style="{StaticResource MutedText}"
+                                   Margin="0,10,0,0" TextWrapping="Wrap" />
+
+                        <Border Style="{StaticResource CardSoft}" Padding="0" Margin="0,10,0,0"
+                                Visibility="{Binding HasConflicts, Converter={StaticResource BoolToVisibility}}">
+                            <ScrollViewer MaxHeight="320" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding Conflicts}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Padding="12,9" BorderBrush="{DynamicResource BorderSoft}"
+                                                    BorderThickness="0,0,0,1">
+                                                <StackPanel>
+                                                    <Grid>
+                                                        <TextBlock Text="{Binding Path}" Style="{StaticResource MonoText}"
+                                                                   FontSize="11.5" TextTrimming="CharacterEllipsis"
+                                                                   Margin="0,0,90,0" />
+                                                        <Border Style="{StaticResource BadgeWarn}" HorizontalAlignment="Right">
+                                                            <TextBlock Text="{Binding Kind}" FontSize="10"
+                                                                       Foreground="{DynamicResource Warn}" />
+                                                        </Border>
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding Mods}" Style="{StaticResource SmallText}"
+                                                               Margin="0,5,0,0" TextWrapping="Wrap" />
+                                                    <TextBlock Text="{Binding WinnerText}" Style="{StaticResource CaptionText}"
+                                                               Margin="0,3,0,0" />
+                                                    <TextBlock Text="{Binding Properties}" Style="{StaticResource CaptionText}"
+                                                               Margin="0,2,0,0" TextWrapping="Wrap"
+                                                               Visibility="{Binding HasProperties, Converter={StaticResource BoolToVisibility}}" />
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Border>
+
+                        <TextBlock Text="提示：列表越靠上，优先级越高；冲突时靠上的覆盖靠下的。改「加载顺序」后记得写入游戏设置。"
+                                   Style="{StaticResource CaptionText}" Margin="0,8,0,0" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <!-- ===================== 日志诊断 ===================== -->
+                <Border Style="{StaticResource Card}" Margin="0,0,0,14">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock Text="日志诊断" Style="{StaticResource H2}" />
+                                <TextBlock Text="从游戏日志里找出报错提到的模组" Style="{StaticResource SmallText}"
+                                           Margin="0,5,0,0" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+                                <Button Style="{StaticResource GhostButton}" Content="打开日志目录"
+                                        Command="{Binding OpenLogsFolderCommand}" Margin="0,0,8,0" />
+                                <Button Style="{StaticResource SecondaryButton}" Content="扫描日志"
+                                        Command="{Binding ScanLogsCommand}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <TextBlock Text="{Binding DiagnosticsSummary}" Style="{StaticResource MutedText}"
+                                   Margin="0,10,0,0" TextWrapping="Wrap" />
+
+                        <ItemsControl ItemsSource="{Binding Suspects}" Margin="0,10,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource CardSoft}" Padding="12,9" Margin="0,0,0,6">
+                                        <StackPanel>
+                                            <Grid>
+                                                <TextBlock Text="{Binding Name}" FontSize="12.5" FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding CountText}" Style="{StaticResource CaptionText}"
+                                                           HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                            </Grid>
+                                            <TextBlock Text="{Binding Preview}" Style="{StaticResource CaptionText}"
+                                                       Margin="0,5,0,0" TextWrapping="Wrap" FontFamily="Consolas" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Border Style="{StaticResource CardSoft}" Padding="0" Margin="0,8,0,0"
+                                Visibility="{Binding HasErrors, Converter={StaticResource BoolToVisibility}}">
+                            <StackPanel>
+                                <TextBlock Text="最近的报错行" Style="{StaticResource CaptionText}" Margin="12,9,12,4" />
+                                <ScrollViewer MaxHeight="220" VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding ErrorRows}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Display}" FontFamily="Consolas" FontSize="10.5"
+                                                           Foreground="{DynamicResource TextMuted}"
+                                                           Margin="12,2,12,2" TextWrapping="Wrap" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- ===================== 加载顺序 ===================== -->
+                <Border Style="{StaticResource Card}" Margin="0,0,0,14">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock Text="加载顺序" Style="{StaticResource H2}" />
+                                <TextBlock Text="读取 / 写入 GCMODSETTINGS.MXML 的 ModPriority" Style="{StaticResource SmallText}"
+                                           Margin="0,5,0,0" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+                                <Button Style="{StaticResource GhostButton}" Content="读取游戏设置"
+                                        Command="{Binding ReadLoadOrderCommand}" Margin="0,0,8,0" />
+                                <Button Style="{StaticResource SecondaryButton}" Content="写入当前顺序"
+                                        Command="{Binding ApplyLoadOrderCommand}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <TextBlock Text="{Binding LoadOrderSummary}" Style="{StaticResource MutedText}"
+                                   Margin="0,10,0,0" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding LoadOrderError}" Style="{StaticResource SmallText}"
+                                   Foreground="{DynamicResource Danger}" Margin="0,4,0,0" TextWrapping="Wrap" />
+
+                        <Border Style="{StaticResource CardSoft}" Padding="0" Margin="0,10,0,0"
+                                Visibility="{Binding HasLoadOrder, Converter={StaticResource BoolToVisibility}}">
+                            <ScrollViewer MaxHeight="280" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding LoadOrderRows}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="12,6">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="34" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding PriorityText}" Style="{StaticResource CaptionText}"
+                                                           VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="11.5"
+                                                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="2" Text="{Binding StateText}"
+                                                           Style="{StaticResource CaptionText}" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- ===================== AMUMSS ===================== -->
+                <Border Style="{StaticResource Card}" Margin="0,0,0,4">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock Text="AMUMSS 修复" Style="{StaticResource H2}" />
+                                <TextBlock Text="按当前游戏版本重新生成 lua 模组" Style="{StaticResource SmallText}"
+                                           Margin="0,5,0,0" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+                                <Button Style="{StaticResource GhostButton}" Content="自动检测"
+                                        Command="{Binding DetectAmumssCommand}" Margin="0,0,8,0" />
+                                <Button Style="{StaticResource SecondaryButton}" Content="指定目录…"
+                                        Command="{Binding BrowseAmumssCommand}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <TextBlock Text="{Binding AmumssVersionLine}" Style="{StaticResource SmallText}"
+                                   Margin="0,10,0,0" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding AmumssPath}" Style="{StaticResource MonoText}" FontSize="10.5"
+                                   Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />
+
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                            <Button Style="{StaticResource GhostButton}" Content="打开 AMUMSS 目录" Padding="11,5"
+                                    Command="{Binding OpenAmumssCommand}" />
+                            <Button Style="{StaticResource GhostButton}" Content="ModScript" Padding="11,5" Margin="6,0,0,0"
+                                    Command="{Binding OpenAmumssScriptsCommand}" />
+                            <Button Style="{StaticResource GhostButton}" Content="CreatedMODS" Padding="11,5" Margin="6,0,0,0"
+                                    Command="{Binding OpenCreatedModsCommand}" />
+                        </StackPanel>
+
+                        <Border Style="{StaticResource Divider}" Margin="0,14,0,12" />
+
+                        <TextBlock Text="选择要重建的模组" Style="{StaticResource SmallText}" Margin="0,0,0,6" />
+                        <Grid>
+                            <ListBox ItemsSource="{Binding ModChoices}"
+                                     SelectedItem="{Binding SelectedMod}"
+                                     Style="{StaticResource PlainListBox}"
+                                     ItemContainerStyle="{StaticResource PlainListItem}"
+                                     Height="110"
+                                     Visibility="{Binding HasMods, Converter={StaticResource BoolToVisibility}}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid>
+                                            <TextBlock Text="{Binding Name}" FontSize="12" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding SubText}" Style="{StaticResource CaptionText}"
+                                                       HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+
+                            <Border Height="96" Style="{StaticResource CardSoft}" Padding="14"
+                                    Visibility="{Binding HasMods, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}">
+                                <TextBlock Text="模组库还是空的。先在「模组库」导入模组，再回来用 AMUMSS 重建。"
+                                           Style="{StaticResource SmallText}" TextWrapping="Wrap"
+                                           VerticalAlignment="Center" HorizontalAlignment="Center" />
+                            </Border>
+                        </Grid>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                            <Button Style="{StaticResource SecondaryButton}" Content="分析选中模组"
+                                    Command="{Binding AnalyzeCommand}" IsEnabled="{Binding HasMods}" />
+                            <Button Style="{StaticResource SecondaryButton}" Content="用 AMUMSS 重建" Margin="8,0,0,0"
+                                    Command="{Binding RebuildCommand}" IsEnabled="{Binding HasMods}" />
+                            <Button Style="{StaticResource PrimaryButton}" Content="收录结果" Margin="8,0,0,0"
+                                    Command="{Binding CollectCommand}" IsEnabled="{Binding CanCollect}" />
+                        </StackPanel>
+
+                        <TextBlock Text="{Binding PlanSummary}" Style="{StaticResource SmallText}"
+                                   Margin="0,10,0,0" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding RebuildStatus}" Style="{StaticResource CaptionText}"
+                                   Margin="0,4,0,0" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

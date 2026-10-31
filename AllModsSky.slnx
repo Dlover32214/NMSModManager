@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AllModsSky.App/AllModsSky.App.csproj" />
+    <Project Path="src/AllModsSky.Core/AllModsSky.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AllModsSky.SelfTest/AllModsSky.SelfTest.csproj" />
+  </Folder>
+</Solution>
