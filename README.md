@@ -1,529 +1,532 @@
 # All Mod's Sky 2.0.0
 
-> 《No Man's Sky》Windows 模组管理器  
-> .NET 8 + WPF · 单文件发布 · 中文界面 · 兼容旧版 NMSModManager 数据
+**English** | [简体中文](README.zh-CN.md)
 
-All Mod's Sky 是一个面向《No Man's Sky》的本地模组管理器。它不把模组复制到另一套“库”里，而是直接管理游戏真实的：
+> A Windows mod manager for *No Man's Sky*  
+> .NET 8 + WPF · single-file release · Chinese UI · NMSModManager data compatibility
+
+All Mod's Sky is a local mod manager for *No Man's Sky*. It does **not** copy mods into a separate library. Instead, it directly manages the game's real directories:
 
 ```text
-<游戏目录>\GAMEDATA\MODS
-<游戏目录>\GAMEDATA\MODS_disabled
+<Game>\GAMEDATA\MODS
+<Game>\GAMEDATA\MODS_disabled
 ```
 
-启用模组就是让文件留在 `MODS`，停用就是把目录或 `.pak` 文件移动到同级的 `MODS_disabled`。因此启停是同一块盘上的重命名/移动操作，不占额外空间，也不会因为“库”和游戏目录不同步而产生两份文件。
+Enabling a mod means keeping its folder or `.pak` file in `MODS`; disabling means moving it to the sibling `MODS_disabled`. Both operations are same-volume moves/renames, so they are fast, use no extra disk space, and cannot create a second out-of-sync copy of the same mod.
 
 ---
 
-## 目录
+## Contents
 
-- [1. 项目概览](#1-项目概览)
-- [2. 核心概念](#2-核心概念)
-- [3. 功能详解](#3-功能详解)
-  - [3.1 模组库](#31-模组库)
-  - [3.2 启用、停用与同步](#32-启用停用与同步)
-  - [3.3 外部模组与收编](#33-外部模组与收编)
-  - [3.4 批量选择与拖拽排序](#34-批量选择与拖拽排序)
-  - [3.5 冲突检测与加载顺序](#35-冲突检测与加载顺序)
-  - [3.6 日志诊断](#36-日志诊断)
-  - [3.7 AMUMSS 工具链](#37-amumss-工具链)
-  - [3.8 发现模组（Nexus / oogc）](#38-发现模组nexus--oogc)
-  - [3.9 存档读取](#39-存档读取)
-  - [3.10 设置](#310-设置)
-  - [3.11 界面与交互](#311-界面与交互)
-- [4. 数据目录与兼容格式](#4-数据目录与兼容格式)
-- [5. 系统要求](#5-系统要求)
-- [6. 运行方式](#6-运行方式)
-- [7. 构建、测试与发布](#7-构建测试与发布)
-- [8. 项目结构](#8-项目结构)
-- [9. 架构说明](#9-架构说明)
-- [10. 常见问题](#10-常见问题)
-- [11. 已知限制与设计取舍](#11-已知限制与设计取舍)
+- [1. Project Overview](#1-project-overview)
+- [2. Core Concepts](#2-core-concepts)
+- [3. Feature Reference](#3-feature-reference)
+  - [3.1 Mod Library](#31-mod-library)
+  - [3.2 Enable, Disable and Sync](#32-enable-disable-and-sync)
+  - [3.3 External Mods and Adoption](#33-external-mods-and-adoption)
+  - [3.4 Batch Selection and Drag Reordering](#34-batch-selection-and-drag-reordering)
+  - [3.5 Conflict Detection and Load Order](#35-conflict-detection-and-load-order)
+  - [3.6 Log Diagnostics](#36-log-diagnostics)
+  - [3.7 AMUMSS Toolchain](#37-amumss-toolchain)
+  - [3.8 Discover (Nexus / oogc)](#38-discover-nexus--oogc)
+  - [3.9 Save Game Reader](#39-save-game-reader)
+  - [3.10 Settings](#310-settings)
+  - [3.11 UI and Interaction](#311-ui-and-interaction)
+- [4. Data Directories and Compatibility](#4-data-directories-and-compatibility)
+- [5. Requirements](#5-requirements)
+- [6. Running the App](#6-running-the-app)
+- [7. Build, Test and Publish](#7-build-test-and-publish)
+- [8. Project Structure](#8-project-structure)
+- [9. Architecture](#9-architecture)
+- [10. FAQ](#10-faq)
+- [11. Known Limitations and Trade-offs](#11-known-limitations-and-trade-offs)
 - [12. License](#12-license)
 
 ---
 
-## 1. 项目概览
+## 1. Project Overview
 
-### 它解决什么问题
+### What problem does it solve?
 
-《No Man's Sky》从 5.50 开始直接读取 `GAMEDATA\MODS` 里的散装 `EXML` / `MBIN` 目录，旧式 `.pak` 仍可能出现在一些模组中。手动管理这些文件时常见的问题是：
+Since *No Man's Sky* 5.50, the game reads loose `EXML` / `MBIN` directories directly from `GAMEDATA\MODS`; legacy `.pak` mods may still appear. Managing these files manually is error-prone:
 
-- 想快速启用/停用一个模组，只能手动剪切目录；
-- 分不清哪些目录是管理器导入的，哪些是手动放进 `MODS` 的；
-- 多个模组改同一个 `EXML` 路径或替换同一个 `MBIN` 时，不知道谁覆盖谁；
-- 改完文件后忘了处理 `DISABLEMODS.TXT`；
-- 安装 AMUMSS、生成模组、收集 `CreatedMODS` 的流程很分散；
-- Nexus / oogc 的模组需要下载后再手动解压、拖入。
+- Enabling/disabling a mod requires manually moving folders around.
+- It is hard to tell which folders were imported by a manager and which were placed manually.
+- When several mods touch the same `EXML` path or replace the same `MBIN`, it is unclear which one wins.
+- It is easy to forget `DISABLEMODS.TXT`.
+- Installing AMUMSS, generating mods and collecting `CreatedMODS` output is a scattered workflow.
+- Nexus / oogc downloads must be unpacked and dragged into `MODS` manually.
 
-本项目把上述流程集中到一个 WPF 桌面程序里。
+This project brings those workflows into one WPF desktop application.
 
-### 主要能力
+### Main capabilities
 
-| 能力 | 说明 |
+| Capability | Description |
 |---|---|
-| 模组库 | 导入 zip / rar / 7z / pak / 文件夹，启用/停用、排序、批量操作 |
-| 外部模组 | 识别不由本程序管理的 `MODS` 内容，可直接启停或“收编” |
-| 部署同步 | 把界面状态同步到游戏目录，自动维护 `DISABLEMODS.TXT` |
-| 冲突检测 | 扫描 `EXML` / `MBIN` 的路径重叠，按加载顺序判断覆盖关系 |
-| 加载顺序 | 读取/写入 `GCMODSETTINGS.MXML` 的 `ModPriority`，自动备份 |
-| 日志诊断 | 从游戏日志里提取报错，并尝试归因到具体模组 |
-| AMUMSS | 检测 AMUMSS、分析修复方案、调用 `BUILDMOD.bat`、收录输出 |
-| 发现 | Nexus（API Key）与 oogc.cc 的浏览、搜索、分页、详情、下载导入 |
-| 存档 | 读取 `.hg` 存档的版本、名称、平台、模式、游玩时长 |
-| 兼容 | 读写旧版 `NMSModManager` 的 `settings.json` / `library.json` |
-| 便携 | 默认 AppData，支持 `--data` 指定任意数据目录 |
+| Mod library | Import zip / rar / 7z / pak / folders; enable, disable, reorder and batch-manage |
+| External mods | Detect `MODS` content not owned by the app; enable/disable directly or adopt it |
+| Deployment sync | Reconcile the UI state with the game directory and maintain `DISABLEMODS.TXT` |
+| Conflict detection | Scan `EXML` / `MBIN` path overlaps and predict the winner from load order |
+| Load order | Read/write `GCMODSETTINGS.MXML` `ModPriority` with automatic backup |
+| Log diagnostics | Extract errors from game logs and attribute them to mods where possible |
+| AMUMSS | Detect AMUMSS, analyze repair plans, run `BUILDMOD.bat`, collect output |
+| Discover | Browse/search Nexus (API key) and oogc.cc with paging, details and download import |
+| Save games | Read `.hg` save version, name, platform, mode and play time |
+| Compatibility | Read/write legacy `NMSModManager` `settings.json` / `library.json` fields |
+| Portability | AppData by default; `--data` can point at any writable directory |
 
-### 技术栈
+### Technology
 
 - C# / .NET 8
-- WPF（Windows Presentation Foundation）
-- MVVM（项目内手写 `ObservableObject` / `RelayCommand` / `AsyncRelayCommand`）
+- WPF (Windows Presentation Foundation)
+- MVVM with hand-written `ObservableObject` / `RelayCommand` / `AsyncRelayCommand`
 - `System.Text.Json`
-- 无第三方 NuGet 依赖
-- 单文件发布（框架依赖，需要 .NET 8 Desktop Runtime）
+- No third-party NuGet dependencies
+- Framework-dependent single-file publishing (requires the .NET 8 Desktop Runtime)
 
 ---
 
-## 2. 核心概念
+## 2. Core Concepts
 
-### 2.1 库就是 MODS
+### 2.1 The library is `MODS`
 
-本程序没有独立的“模组仓库目录”。界面里的库记录只是索引，真实文件始终在：
+There is no separate "mod warehouse". The UI records are only an index; the real files always live in:
 
 ```text
-<游戏目录>\GAMEDATA\MODS
+<Game>\GAMEDATA\MODS
 ```
 
-记录中的 `FolderName`（旧版叫 `LibraryPath` / `DeployName`）就是 `MODS` 下的目录名。这样无论从资源管理器手动放模组，还是从本程序导入，游戏看到的都是同一份文件。
+The record field `FolderName` (called `LibraryPath` / `DeployName` in the legacy format) is the directory name under `MODS`. Whether a mod was imported by this app or placed manually, the game sees the same single copy.
 
-### 2.2 启用与停用
+### 2.2 Enabled and disabled
 
-- **启用**：模组目录/文件位于 `GAMEDATA\MODS`
-- **停用**：模组目录/文件位于 `GAMEDATA\MODS_disabled`
+- **Enabled:** the mod folder/file is in `GAMEDATA\MODS`.
+- **Disabled:** the mod folder/file is in `GAMEDATA\MODS_disabled`.
 
-停用不是删除，随时可以重新启用。关闭的模组不会丢，只有明确选择“永久删除”才会删除磁盘文件。
+Disabling is **not** deletion. The mod can be enabled again at any time. Files are only removed from disk when the user explicitly chooses "Permanently delete".
 
-### 2.3 外部模组
+### 2.3 External mods
 
-如果 `MODS` 或 `MODS_disabled` 里存在本程序索引中没有的目录/`.pak`，它们会被识别为“外部模组”。外部模组：
+Any folder or `.pak` in `MODS` / `MODS_disabled` that is not present in this app's index is treated as an **external mod**. External mods can be:
 
-- 可以直接点“启用/停用”，程序会移动它们；
-- 也可以点“收编”，把它加入本程序的 `library.json`，之后出现在主列表中；
-- 收编不会移动文件，只是登记。
+- enabled/disabled directly (the app moves the files);
+- **adopted** into `library.json`, after which they appear in the main library list.
 
-库为空时会自动展开外部模组面板，避免用户误以为“程序把模组弄丢了”。
+Adoption does not move files; it only creates an index record.
 
-### 2.4 列表顺序 = 加载优先级
+When the library is empty, the external mod panel opens automatically so existing mods do not appear to be "lost".
 
-模组库列表的顺序就是加载顺序。列表越靠上，优先级越高；发生冲突时，靠上的模组覆盖靠下的模组。
+### 2.4 List order = load priority
 
-“同步到游戏”不会自动改 `GCMODSETTINGS.MXML`；需要显式点“应用顺序”，把当前列表顺序写入游戏的加载顺序配置。
+The order of the library list is the load order. Items higher in the list have higher priority; when mods conflict, the higher item overrides the lower one.
 
-### 2.5 5.50+ 的散装模组与旧式 pak
+"Sync to Game" does not rewrite `GCMODSETTINGS.MXML`. Use "Apply Order" explicitly to write the current list order into the game's load-order configuration.
 
-- 5.50+：模组通常是包含 `EXML` / `MBIN` 的目录；
-- 旧式 `.pak`：仍可作为兼容项导入，程序会把 `.pak` 放到 `MODS` 下并登记；
-- 一个记录可以是“目录模组”或“pak 模组”，由 `PakFiles` 是否为空区分。
+### 2.5 Loose 5.50+ mods vs. legacy `.pak`
+
+- 5.50+: mods are usually folders containing `EXML` / `MBIN` files.
+- Legacy `.pak`: still supported as a compatibility import; the `.pak` is placed in `MODS` and recorded.
+- A record is either a folder mod or a pak mod, distinguished by whether `PakFiles` is empty.
 
 ### 2.6 DISABLEMODS.TXT
 
-《No Man's Sky》用 `GAMEDATA\PCBANKS\DISABLEMODS.TXT` 控制是否加载模组。程序在同步时会：
+*No Man's Sky* uses `GAMEDATA\PCBANKS\DISABLEMODS.TXT` to control mod loading. During sync:
 
-- 只要还有启用的模组：删除/不保留 `DISABLEMODS.TXT`；
-- 所有模组都停用，且设置里允许时：创建 `DISABLEMODS.TXT`。
+- if at least one mod is enabled: remove/do not keep `DISABLEMODS.TXT`;
+- if every mod is disabled and the setting allows it: create `DISABLEMODS.TXT`.
 
-设置项 `CreateDisableModsFile` 控制是否自动创建该文件。
+The setting `CreateDisableModsFile` controls automatic creation.
 
 ---
 
-## 3. 功能详解
+## 3. Feature Reference
 
-### 3.1 模组库
+### 3.1 Mod Library
 
-模组库是程序的主页面。
+The library is the main page.
 
-#### 导入
+#### Import
 
-支持：
+Supported formats:
 
 - `.zip`
-- `.rar`（需要本机安装 7-Zip）
-- `.7z`（需要本机安装 7-Zip）
+- `.rar` (requires a local 7-Zip installation)
+- `.7z` (requires a local 7-Zip installation)
 - `.pak`
-- 普通模组文件夹
+- normal mod folders
 
-导入方式：
+Ways to import:
 
-1. 点右上角“导入模组”，多选文件；
-2. 点“添加文件夹”；
-3. 把文件/文件夹直接拖进窗口任意位置。
+1. Click **Import Mods** and select multiple files.
+2. Click **Add Folder**.
+3. Drag files/folders anywhere onto the window.
 
-导入流程大致为：
+The import flow:
 
-1. 解压/复制到临时目录；
-2. 自动寻找压缩包里的“内容根目录”，避免多套一层文件夹；
-3. 生成不冲突的目标目录名；
-4. 放入 `GAMEDATA\MODS`；
-5. 写入 `library.json`，默认启用；
-6. 同步一次游戏状态。
+1. Extract/copy into a temporary directory.
+2. Detect the content root inside archives, avoiding an extra nested folder.
+3. Choose a non-conflicting destination folder name.
+4. Move the content into `GAMEDATA\MODS`.
+5. Write `library.json`; the mod is enabled by default.
+6. Run a sync once.
 
-RAR/7z 的提示：程序不内置 7-Zip，找不到 `7z.exe` 时会提示先安装 7-Zip，或把压缩包转成 zip。
+RAR/7z note: the app does not bundle 7-Zip. If `7z.exe` cannot be found, convert the archive to zip or install 7-Zip.
 
-#### 搜索与筛选
+#### Search and filters
 
-- 搜索框：按模组名、版本、来源、目录名过滤；
-- 筛选：全部 / 已启用 / 已停用 / 有问题；
-- 顶部计数：总模组数、已启用数、已选数；
-- “有问题”基于冲突/健康检查结果。
+- Search box: filter by mod name, version, source or folder name.
+- Filters: All / Enabled / Disabled / Issues.
+- Top counters: total mods, enabled mods, selected mods.
+- "Issues" is based on conflict/health scan results.
 
-#### 行内操作
+#### Row actions
 
-每个模组行提供：
+Each mod row provides:
 
-- 启用/停用开关；
-- 打开模组目录；
-- 删除/移除菜单；
-- 拖拽手柄（用于排序）；
-- 状态、大小、版本、格式等信息。
+- enable/disable toggle;
+- open the mod folder;
+- remove/delete menu;
+- drag grip for reordering;
+- status, size, version and format information.
 
-#### 删除的两种语义
+#### Two meanings of "delete"
 
-点删除时程序会区分：
+The delete action distinguishes:
 
-- **移出列表**：先把模组停用（文件进入 `MODS_disabled`），再从索引中移除，文件仍保留；
-- **永久删除…**：二次确认后，删除 `MODS` 与 `MODS_disabled` 中对应的目录/文件，无法通过程序恢复。
+- **Remove from library:** disable the mod first (files go to `MODS_disabled`), then remove the index record. Files are kept.
+- **Permanently delete…:** after a second confirmation, delete the corresponding folder/files in both `MODS` and `MODS_disabled`. This cannot be undone by the app.
 
-批量删除同样是永久删除，会明确显示模组数量和总大小。
+Batch delete is also permanent and shows the selected mod count and total size before confirming.
 
-#### 其他
+#### Other library actions
 
-- 打开 `MODS` 文件夹；
-- 刷新游戏状态；
-- 同步到游戏；
-- 应用顺序；
-- 外部模组面板；
-- 批量操作条。
+- Open the `MODS` folder.
+- Refresh game state.
+- Sync to game.
+- Apply order.
+- External mod panel.
+- Batch action bar.
 
-### 3.2 启用、停用与同步
+### 3.2 Enable, Disable and Sync
 
-#### 行内开关
+#### Row toggle
 
-切换某一行的开关时，程序会：
+Toggling a row:
 
-1. 更新记录并保存 `library.json`；
-2. 调用部署同步；
-3. 把目录/`.pak` 从 `MODS` 移到 `MODS_disabled`，或反向移动；
-4. 更新 `DISABLEMODS.TXT`；
-5. 刷新外部模组和界面状态。
+1. updates the record and saves `library.json`;
+2. runs deployment sync;
+3. moves the folder/`.pak` between `MODS` and `MODS_disabled`;
+4. updates `DISABLEMODS.TXT`;
+5. refreshes external mods and UI state.
 
-#### “同步到游戏”按钮
+#### "Sync to Game"
 
-用于把当前索引状态与磁盘状态重新对齐，适合：
+Use this to reconcile the index with disk state after:
 
-- 手动改过 `MODS` 目录；
-- 从别处复制了模组；
-- 程序异常退出后状态不一致；
-- 批量操作后想再确认一次。
+- manually modifying `MODS`;
+- copying mods from elsewhere;
+- an abnormal exit;
+- batch operations.
 
-同步会报告：
+The sync report includes:
 
-- 成功移动/同步数量；
-- 失败项；
-- 缺失项（索引里有、磁盘上找不到）。
+- how many mods were moved/synced;
+- failures;
+- missing entries (recorded but not found on disk).
 
-#### 注意
+#### Important
 
-游戏只在启动时扫描 `MODS`。启用/停用后需要**重启游戏**才会生效。
+The game scans `MODS` only at startup. Restart *No Man's Sky* after enabling or disabling mods.
 
-### 3.3 外部模组与收编
+### 3.3 External Mods and Adoption
 
-外部模组面板会列出：
+The external mod panel lists:
 
-- `MODS` 里不由本程序管理的目录；
-- `MODS_disabled` 里不由本程序管理的目录；
-- 根目录下的 `.pak` 文件。
+- folders in `MODS` not owned by this app;
+- folders in `MODS_disabled` not owned by this app;
+- `.pak` files in the root.
 
-每个外部模组提供：
+Each external mod offers:
 
-- 当前状态（启用中/已停用）；
-- 启用/停用；
-- 收编。
+- current state (enabled/disabled);
+- enable/disable;
+- adopt.
 
-收编后会创建一条 `ModRecord`，加入 `library.json`；文件位置不变。之后可以用主列表的开关统一管理。
+Adoption creates a `ModRecord` in `library.json` without moving files. The mod can then be managed by the normal library toggles.
 
-库为空时，程序会自动打开外部模组面板，帮助用户接管已有模组。
+When the library is empty, this panel opens automatically.
 
-### 3.4 批量选择与拖拽排序
+### 3.4 Batch Selection and Drag Reordering
 
-#### 批量选择
+#### Batch selection
 
-工具栏有“批量选择”按钮：
+The toolbar has a **Batch Select** button:
 
-- 进入批量模式后，单击整行任意非交互区域即可选中/取消；
-- 不需要按住 `Ctrl`；
-- 开关、按钮、滚动条等交互控件不会误触选中；
-- 批量条在 0 个选中时也保持显示；
-- 再点“退出批量”、点“取消选择”或按 `Esc` 退出。
+- In batch mode, click anywhere on a row except interactive controls to select/deselect it.
+- No `Ctrl` key is needed.
+- Toggles, buttons and scrollbars do not accidentally toggle selection.
+- The batch bar stays visible even with zero selected.
+- Exit with **Exit Batch**, **Clear Selection**, or `Esc`.
 
-批量条支持：
+Batch actions:
 
-- 批量启用；
-- 批量停用；
-- 置顶/置底；
-- 永久删除所选。
+- enable selected;
+- disable selected;
+- move to top/bottom;
+- permanently delete selected.
 
-#### 拖拽排序
+#### Drag reordering
 
-- 抓住行左侧的拖拽手柄/行区域拖动；
-- 拖起的行有抬起、阴影效果；
-- 松手后，所有受影响的行会从旧位置平滑滑到新位置，避免瞬间“挤压”；
-- 顺序会写回 `library.json`；
-- 需要让游戏读取新顺序时，再点“应用顺序”。
+- Drag a row by its grip/row area.
+- The dragged row lifts and gets a shadow.
+- After dropping, all affected rows animate smoothly from their old positions to their new positions instead of snapping.
+- The order is written back to `library.json`.
+- Click **Apply Order** when the game should read the new order.
 
-### 3.5 冲突检测与加载顺序
+### 3.5 Conflict Detection and Load Order
 
-#### 冲突检测
+#### Conflict detection
 
-“工具 → 冲突检测”会扫描库内模组的 `EXML` / `MBIN` 文件，按“是否碰到同一个 vanilla 路径”分组：
+**Tools → Conflict Detection** scans the library's `EXML` / `MBIN` files and groups them by "the same vanilla path is touched by multiple mods":
 
-- **MBIN 替换冲突**：多个模组替换同一个 `MBIN` 路径，只有最后加载的生效，属于硬冲突；
-- **EXML 同属性冲突**：多个 `EXML` 补丁改同一路径的同一属性，最后加载的生效；
-- **EXML 同文件（属性不同）**：只是路径重叠，属性不同，可能可以共存；
-- **EXML 补丁 + MBIN 替换**：允许叠加，补丁可以作用在替换后的文件上。
+- **MBIN replacement conflict:** multiple mods replace the same `MBIN` path; only the last one loaded wins. This is a hard conflict.
+- **EXML same-property conflict:** multiple `EXML` patches change the same property of the same path; the last one loaded wins.
+- **EXML same file, different properties:** path overlap only; the patches may coexist.
+- **EXML patch + MBIN replacement:** allowed; the patch is applied on top of the replacement.
 
-程序会给出：
+Results include:
 
-- 冲突组；
-- 涉及模组；
-- 是否启用；
-- 加载顺序；
-- 预测的“胜出者”。
+- conflict group;
+- involved mods;
+- enabled state;
+- load order;
+- predicted winner.
 
-列表顺序越靠上，优先级越高。
+Higher in the list means higher priority.
 
-#### 加载顺序
+#### Load order
 
-《No Man's Sky》的加载顺序保存在：
+The game stores load order in:
 
 ```text
-<游戏目录>\Binaries\SETTINGS\GCMODSETTINGS.MXML
+<Game>\Binaries\SETTINGS\GCMODSETTINGS.MXML
 ```
 
-程序可以：
+The app can:
 
-- 读取现有 `ModPriority`；
-- 把当前列表顺序写入 `ModPriority`；
-- 写入前自动备份为 `GCMODSETTINGS.MXML.bak`；
-- 在文件不存在时提示先进游戏生成一次。
+- read existing `ModPriority` values;
+- write the current list order into `ModPriority`;
+- back up the file as `GCMODSETTINGS.MXML.bak` before writing;
+- report that the file is missing and suggest entering the game once if needed.
 
-### 3.6 日志诊断
+### 3.6 Log Diagnostics
 
-“工具 → 日志诊断”会扫描游戏日志，提取包含以下关键词的行：
+**Tools → Log Diagnostics** scans game logs and extracts lines containing:
 
 ```text
 error / failed / failure / exception / unable to / could not /
 cannot / missing / corrupt / invalid / crash / assert
 ```
 
-然后：
+It then:
 
-- 按日志文件分组；
-- 尝试把报错行归因到模组名；
-- 显示“疑似有问题的模组”；
-- 列出命中的日志原文。
+- groups results by log file;
+- tries to attribute lines to mod names;
+- shows "suspect mods";
+- displays the matching raw log lines.
 
-为了控制内存占用，只读取日志尾部约 4 MB，每个文件最多约 20,000 行，最多保留 4,000 条错误。
+To limit memory use, it reads about the last 4 MB of each log, at most 20,000 lines per file, and keeps at most 4,000 errors.
 
-### 3.7 AMUMSS 工具链
+### 3.7 AMUMSS Toolchain
 
-AMUMSS 是《No Man's Sky》的模组脚本/编译工具链。本程序不内置 AMUMSS，但会检测并调用用户已有的安装。
+AMUMSS is a *No Man's Sky* mod scripting/compilation toolchain. This app does not bundle it; it detects and invokes an existing installation.
 
-#### 检测
+#### Detection
 
-在设置中指定 AMUMSS 根目录，或让程序自动搜索。有效目录通常包含：
+Specify the AMUMSS root in Settings, or let the app search automatically. A valid directory usually contains:
 
 - `BUILDMOD.bat`
 - `MBINCompiler.exe`
 
-#### 分析/修复
+#### Analyze / repair
 
-“工具 → AMUMSS”可以：
+**Tools → AMUMSS** can:
 
-- 检查当前模组目录结构；
-- 分析需要哪些 lua 脚本；
-- 生成修复/重建计划；
-- 把相关 lua 复制到 AMUMSS 的 `ModScript` 目录。
+- inspect the current mod folder structure;
+- determine which lua scripts are needed;
+- generate a repair/rebuild plan;
+- copy the relevant lua files into AMUMSS's `ModScript` directory.
 
-#### 重建
+#### Rebuild
 
-重建流程：
+The rebuild flow:
 
-1. 调用 `BUILDMOD.bat`（独立控制台，方便回答交互）；
-2. 等待编译完成；
-3. 从 AMUMSS 的 `CreatedMODS` 收集输出；
-4. 把原模组目录移动到 `.bak_yyyyMMdd_HHmmss` 备份；
-5. 用新输出替换原目录；
-6. 失败时尝试恢复原目录。
+1. Run `BUILDMOD.bat` in its own console so interactive prompts can be answered.
+2. Wait for compilation.
+3. Collect output from AMUMSS's `CreatedMODS`.
+4. Move the original mod folder to a `.bak_yyyyMMdd_HHmmss` backup.
+5. Replace the original folder with the new output.
+6. Attempt to restore the original on failure.
 
-#### 打开位置
+#### Open locations
 
-工具页还提供：
+The Tools page also opens:
 
-- 打开 AMUMSS 目录；
-- 打开 `ModScript`；
-- 打开 `CreatedMODS`；
-- 打开日志目录。
+- the AMUMSS root;
+- `ModScript`;
+- `CreatedMODS`;
+- the log directory.
 
-### 3.8 发现模组（Nexus / oogc）
+### 3.8 Discover (Nexus / oogc)
 
 #### Nexus Mods
 
-- 需要个人 Nexus API Key；
-- 支持分类、排序（热门/最新/最近更新等）、关键词搜索；
-- 本地分页（每页固定数量）；
-- 卡片显示封面、标题、分类、版本、作者；
-- 详情页可查看简介和文件列表；
-- 可直接打开网页、复制链接、打开文件下载页；
-- 支持“下载并导入”（取决于接口返回和网络）。
+- Requires a personal Nexus API key.
+- Supports categories, sorting (trending/latest/recently updated, etc.) and keyword search.
+- Local paging (fixed page size).
+- Cards show cover, title, category, version and author.
+- Detail view shows the summary and file list.
+- Can open the web page, copy the link, or open the file download page.
+- Supports "download and import" when the API/network allows it.
 
-没有 API Key 时：
+Without an API key:
 
-- Nexus 列表不可用；
-- 仍提供“在 Nexus 官网浏览全部模组”的浏览器入口；
-- 可以手动下载后拖回本程序导入。
+- the Nexus list is unavailable;
+- the app still offers a browser entry to the Nexus website;
+- mods can be downloaded manually and dragged into the app.
 
 #### oogc.cc
 
-- 不需要 API Key；
-- 支持分类、排序、费用、关键词搜索；
-- 服务器分页；
-- 详情页、下载、打开原页面；
-- 封面异步加载。
+- No API key required.
+- Supports category, sort, cost and keyword search.
+- Server-side paging.
+- Detail view, download and open-original-page.
+- Cover images load asynchronously.
 
-#### 加载体验
+#### Loading experience
 
-- 首次加载显示与真实卡片同尺寸的骨架屏（图片区 + 两行文字）；
-- 数据到达后原位替换，避免页面跳动；
-- 封面在后台加载，不阻塞卡片出现；
-- 超过 25 秒或请求失败时，骨架屏会切换成明确的错误提示和“重试”；
-- 分页支持上一页/下一页。
+- Initial loads show skeleton cards matching the real card size (image area plus two text lines).
+- Real cards replace skeletons in place to avoid layout jumps.
+- Covers load in the background and do not block card rendering.
+- After 25 seconds or on failure, skeletons are replaced by an explicit error and a Retry action.
+- Pagination supports previous/next.
 
-### 3.9 存档读取
+### 3.9 Save Game Reader
 
-“设置 → 存档”可以读取《No Man's Sky》的 `.hg` 存档信息。
+**Settings → Saves** reads *No Man's Sky* `.hg` save metadata.
 
-`.hg` 的结构是若干“16 字节块头 + LZ4 压缩块”：
+An `.hg` file consists of repeated "16-byte block header + LZ4 block" records:
 
 ```text
-magic(0xFEEDA1E5) / 压缩长度 / 解压长度 / 保留
+magic(0xFEEDA1E5) / compressed length / decompressed length / reserved
 ```
 
-程序只解压到能读到头部字段为止，不把几十 MB 的存档全部展开。
+The app decompresses only enough to read the header fields; it does not expand the whole tens-of-MB save.
 
-可显示：
+Displayed fields:
 
-- 存档文件；
-- 存档版本（SaveVersion）；
-- 存档名；
-- 平台；
-- 游戏模式；
-- 游玩时长；
-- 修改时间；
-- 文件大小。
+- save file;
+- save version;
+- save name;
+- platform;
+- game mode;
+- play time;
+- modified time;
+- file size.
 
-还会尝试从 `backup.*.zip` 文件名推断游戏版本（例如 `...560.zip` → 5.60）。
+It also tries to infer the game version from `backup.*.zip` filenames (for example, `...560.zip` → 5.60).
 
-### 3.10 设置
+### 3.10 Settings
 
-设置页包括：
+Settings include:
 
-- 游戏目录：检测/浏览；
-- 游戏版本：手动填写或自动检测；
-- AMUMSS 目录；
-- Nexus API Key；
-- 深色/浅色主题；
-- 是否自动创建 `DISABLEMODS.TXT`；
-- 存档读取；
-- 打开 MODS / 数据目录 / 日志；
-- 以管理员身份重启（仅在该环境确实需要时使用）。
+- game directory (detect/browse);
+- game version (manual or automatic);
+- AMUMSS directory;
+- Nexus API key;
+- dark/light theme;
+- whether to create `DISABLEMODS.TXT` automatically;
+- save metadata reader;
+- open `MODS` / data directory / logs;
+- restart as administrator (only if that environment truly requires it).
 
-API Key 会保存到数据目录的 `settings.json`。如果 API Key 无法保存，优先检查数据目录是否可写，以及 `settings.json` 是否被其他程序占用。
+The API key is saved to `settings.json` in the data directory. If it cannot be saved, check whether the data directory is writable and whether another process is holding `settings.json`.
 
-### 3.11 界面与交互
+### 3.11 UI and Interaction
 
-- 左侧导航：模组库 / 发现模组 / 工具 / 设置；
-- 左下角：启动游戏按钮、游戏状态卡、深色模式开关；
-- 顶部状态栏：MODS 路径、计数、版本；
-- 深色/浅色两套主题；
-- 全局 Toast 提示：带缩放、上浮、外层柔光和阴影；
-- 长操作使用忙碌遮罩；
-- 发现页使用骨架屏；
-- 左上角 64×64 动态 Logo：
-  - 全息行星；
-  - 20 秒一圈的拖尾光点卫星；
-  - 卫星在远侧会从徽章下层经过，近侧重新露出；
-  - 副标题 `A NMS MOD MANAGER`；
-- 快捷键：
-  - `Ctrl+O` 导入
-  - `Ctrl+1` 模组库
-  - `Ctrl+2` 发现
-  - `Ctrl+3` 工具
-  - `Ctrl+4` 设置
-  - `F5` 刷新
-  - `Esc` 退出批量/收起提示
+- Left navigation: Library / Discover / Tools / Settings.
+- Bottom-left: Launch Game button, game status card, dark-mode switch.
+- Top status bar: `MODS` path, counts, version.
+- Dark and light themes.
+- Global toasts with scale/fade, glow and an outer shadow.
+- Busy overlay for long operations.
+- Skeleton loading on Discover.
+- 64×64 animated logo in the top-left:
+  - holographic planet;
+  - a glowing satellite with a trail, orbiting once every 20 seconds;
+  - the satellite passes behind the badge on the far side and reappears on the near side;
+  - subtitle `A NMS MOD MANAGER`.
+- Keyboard shortcuts:
+  - `Ctrl+O` import
+  - `Ctrl+1` Library
+  - `Ctrl+2` Discover
+  - `Ctrl+3` Tools
+  - `Ctrl+4` Settings
+  - `F5` refresh
+  - `Esc` exit batch / dismiss toast
 
 ---
 
-## 4. 数据目录与兼容格式
+## 4. Data Directories and Compatibility
 
-### 4.1 数据目录优先级
+### 4.1 Data directory priority
 
-程序按以下顺序寻找可写的数据目录：
+The app searches for a writable data directory in this order:
 
-1. `--data <目录>` 命令行参数；
-2. `ALLMODSSKY_DATA` 环境变量；
-3. `%APPDATA%\NMSModManager`（旧版兼容目录）；
-4. `%APPDATA%\AllModsSky`；
-5. `%LOCALAPPDATA%\NMSModManager`；
-6. `%LOCALAPPDATA%\AllModsSky`；
-7. `exe 同目录\NMSModManager.data`；
-8. `exe 同目录\data`；
-9. `%TEMP%\AllModsSky`。
+1. `--data <directory>` command-line argument;
+2. `ALLMODSSKY_DATA` environment variable;
+3. `%APPDATA%\NMSModManager` (legacy-compatible directory);
+4. `%APPDATA%\AllModsSky`;
+5. `%LOCALAPPDATA%\NMSModManager`;
+6. `%LOCALAPPDATA%\AllModsSky`;
+7. `exe directory\NMSModManager.data`;
+8. `exe directory\data`;
+9. `%TEMP%\AllModsSky`.
 
-如果旧版目录里已经有 `settings.json` / `library.json`，会优先复用旧目录，避免配置丢失。
+If the legacy directory already contains `settings.json` / `library.json`, it is preferred so existing configuration is not lost.
 
-手动指定：
+Manual override:
 
 ```powershell
 AllModsSky.exe --data "D:\NMSData"
 ```
 
-### 4.2 数据文件
+### 4.2 Data files
 
 ```text
-<数据目录>\
-  settings.json       设置
-  library.json        模组索引
-  app.log             应用日志
-  crash.log           未处理异常日志（如发生）
-  cache\import\       导入临时文件
-  cache\download\     下载缓存
+<DataDir>\
+  settings.json       settings
+  library.json        mod index
+  app.log             application log
+  crash.log           unhandled exception log (if any)
+  cache\import\       temporary import files
+  cache\download\     download cache
 ```
 
 ### 4.3 library.json
 
-新版字段：
+Modern fields:
 
 ```json
 {
   "SchemaVersion": 2,
   "Mods": [
     {
-      "Id": "唯一 id",
-      "Name": "模组名",
-      "Source": "本地导入",
+      "Id": "unique id",
+      "Name": "Mod name",
+      "Source": "Local import",
       "Version": "7.01",
-      "FolderName": "MODS 下的目录名",
+      "FolderName": "folder under MODS",
       "PakFiles": [],
       "Enabled": true,
       "Size": 12345,
@@ -534,16 +537,16 @@ AllModsSky.exe --data "D:\NMSData"
 }
 ```
 
-为了兼容旧版 NMSModManager，同时写出：
+For legacy NMSModManager compatibility, the app also writes:
 
 ```json
 {
-  "LibraryPath": "MODS 下的目录名",
-  "DeployName": "MODS 下的目录名（pak 模组为空）"
+  "LibraryPath": "folder under MODS",
+  "DeployName": "folder under MODS (empty for pak mods)"
 }
 ```
 
-旧版只需要 `LibraryPath` / `DeployName` / `PakFiles` / `Enabled` 等字段即可读取。
+The legacy app only needs `LibraryPath` / `DeployName` / `PakFiles` / `Enabled` and similar fields to read it.
 
 ### 4.4 settings.json
 
@@ -555,121 +558,122 @@ AllModsSky.exe --data "D:\NMSData"
   "NexusApiKey": "",
   "Theme": "Dark",
   "CreateDisableModsFile": true,
-  "LibraryPath": "旧版库路径（兼容字段）",
+  "LibraryPath": "legacy library path (compatibility field)",
   "BackupOnDeploy": true
 }
 ```
 
-`LibraryPath` / `BackupOnDeploy` 是旧版保留字段，新版不依赖它们完成核心功能，但会保留写回，方便旧版继续读取。
+`LibraryPath` and `BackupOnDeploy` are legacy fields retained for old readers. The new app does not depend on them for core functionality, but keeps writing them for compatibility.
 
-### 4.5 旧版兼容细节
+### 4.5 Legacy compatibility details
 
-- 旧版 `library.json` 的 `/Date(1730000000000)/` 会解析为正常时间；
-- 旧版 `LibraryPath` / `DeployName` 会映射为新版的 `FolderName`；
-- 新版写出的 `ImportedAt` 使用 ISO 8601，旧版 `JavaScriptSerializer` 也能反序列化；
-- 旧版独立库目录不再需要：两边实际都以游戏 `GAMEDATA\MODS` 为库；
-- 旧版设置里的 `LibraryPath`、`BackupOnDeploy` 会保留。
+- Legacy `/Date(1730000000000)/` timestamps are parsed into normal times.
+- Legacy `LibraryPath` / `DeployName` map to the new `FolderName`.
+- Modern `ImportedAt` is written as ISO 8601; the legacy `JavaScriptSerializer` can deserialize it too.
+- A separate legacy library directory is no longer required: both apps use the game's `GAMEDATA\MODS` as the real library.
+- Legacy `LibraryPath` and `BackupOnDeploy` settings are preserved.
 
 ---
 
-## 5. 系统要求
+## 5. Requirements
 
-| 项目 | 要求 |
+| Item | Requirement |
 |---|---|
-| 操作系统 | Windows 10 / Windows 11，x64 |
-| 运行时 | .NET 8 Desktop Runtime (x64) |
-| 游戏 | 《No Man's Sky》，有 `GAMEDATA\PCBANKS` 或 `Binaries\NMS.exe` |
-| 可选 | 7-Zip（导入 `.rar` / `.7z` 时需要） |
-| 可选 | AMUMSS（使用 AMUMSS 工具链时需要） |
-| 网络 | 使用 Nexus / oogc 发现页时需要 |
-| 权限 | 普通用户即可；不建议管理员运行 |
+| OS | Windows 10 / Windows 11, x64 |
+| Runtime | .NET 8 Desktop Runtime (x64) |
+| Game | *No Man's Sky* with `GAMEDATA\PCBANKS` or `Binaries\NMS.exe` |
+| Optional | 7-Zip (needed to import `.rar` / `.7z`) |
+| Optional | AMUMSS (needed for the AMUMSS toolchain) |
+| Network | Required for Nexus / oogc discovery |
+| Privileges | Normal user; running as administrator is not recommended |
 
-本程序发布为**框架依赖单文件**：
+The release is **framework-dependent single-file**:
 
-- exe 本体约 1.14 MiB；
-- 运行时来自系统安装的 .NET 8 Desktop Runtime；
-- 因此换电脑时需要确认目标机器已安装该运行时；
-- 框架依赖单文件不支持压缩，WPF 也不适合安全裁剪，所以体积不会回到旧版 .NET Framework 的 600 KB。
+- the exe itself is about 1.14 MiB;
+- the runtime comes from the installed .NET 8 Desktop Runtime;
+- the target machine must have that runtime;
+- framework-dependent single-file bundles cannot use compression, and WPF is not safe to trim, so the size will not return to the old .NET Framework 600 KB build.
 
 ---
 
-## 6. 运行方式
+## 6. Running the App
 
-### 直接运行
+### Normal launch
 
-1. 解压 release 包；
-2. 在资源管理器里双击 `AllModsSky.exe`；
-3. 首次运行设置游戏目录（通常会自动检测 Steam 库）；
-4. 如果 `MODS` 里已有模组，库为空时外部模组面板会自动展开，点“收编”即可接管。
+1. Extract the release package.
+2. Double-click `AllModsSky.exe` in File Explorer.
+3. Set the game directory on first run (Steam libraries are usually detected automatically).
+4. If `MODS` already contains mods, the external mod panel opens automatically when the library is empty; click **Adopt** to take them over.
 
-### 不要用管理员运行
+### Do not run as administrator
 
-程序清单是普通用户权限（asInvoker）。以管理员运行时：
+The application manifest uses normal-user privileges (`asInvoker`). When running elevated:
 
-- 资源管理器向管理员进程拖放会被 Windows UIPI 阻止；
-- 拖入模组会表现为“没反应”；
-- 普通用户权限已经可以写游戏 `MODS` 时，不需要管理员。
+- Windows UIPI blocks drag-and-drop from File Explorer to the elevated process;
+- dragging mods in appears to do nothing;
+- administrator rights are unnecessary when the normal user can already write the game's `MODS`.
 
-如果确实遇到权限问题，优先检查目录 ACL，而不是直接提权。
+If you hit permission issues, check directory ACLs first rather than elevating.
 
-### release 文件
+### Release files
 
 - `release\AllModsSky.exe`
 - `release\AllModsSky-2.0.0-win-x64.zip`
-- `release\README.txt`（快速上手版）
+- `release\README.txt` (quick-start guide)
+- `README.md` (this full guide)
 
 ---
 
-## 7. 构建、测试与发布
+## 7. Build, Test and Publish
 
-### 环境
+### Environment
 
 - .NET SDK 8
 - Windows 10/11
-- PowerShell（Windows PowerShell 5.1 或 PowerShell 7 均可）
+- PowerShell (Windows PowerShell 5.1 or PowerShell 7)
 
-### 构建
+### Build
 
-在项目根目录执行：
+From the project root:
 
 ```powershell
 dotnet build AllModsSky.slnx -c Release
 ```
 
-### 运行
+### Run
 
 ```powershell
 dotnet run --project src\AllModsSky.App\AllModsSky.App.csproj -c Release
 ```
 
-### 自检
+### Self-test
 
-项目自带一个无第三方测试框架的控制台自检程序：
+The repository includes a console self-test program with no third-party test framework:
 
 ```powershell
 $env:ALLMODSSKY_DATA = "$PWD\.tmp\selftest"
 dotnet run --project tests\AllModsSky.SelfTest\AllModsSky.SelfTest.csproj -c Release
 ```
 
-当前自检覆盖：
+Current coverage includes:
 
-- 导入/解压/内容根识别；
-- 启用/停用与文件移动；
-- 外部模组识别/收编；
-- `DISABLEMODS.TXT`；
-- 冲突扫描；
-- 加载顺序读写与备份；
-- AMUMSS 分析/收集；
-- 旧版数据迁移；
-- 其他核心路径。
+- import/extraction/content-root detection;
+- enable/disable and file movement;
+- external mod detection/adoption;
+- `DISABLEMODS.TXT`;
+- conflict scanning;
+- load-order read/write and backup;
+- AMUMSS analysis/collection;
+- legacy data migration;
+- other core paths.
 
-自检结果应为：
+Expected result:
 
 ```text
-结果：通过 111，失败 0
+Result: 111 passed, 0 failed
 ```
 
-### 发布单文件
+### Publish a single file
 
 ```powershell
 dotnet publish src\AllModsSky.App\AllModsSky.App.csproj `
@@ -681,207 +685,212 @@ dotnet publish src\AllModsSky.App\AllModsSky.App.csproj `
   -o release\publish
 ```
 
-然后把 `release\publish\AllModsSky.exe` 复制到 `release\`。
+Then copy `release\publish\AllModsSky.exe` to `release\`.
 
-`EnableCompressionInSingleFile` 必须为 `false`：框架依赖单文件不支持压缩，开启会报 `NETSDK1176`。
+`EnableCompressionInSingleFile` must be `false`: framework-dependent single-file publishing does not support compression and otherwise fails with `NETSDK1176`.
 
 ---
 
-## 8. 项目结构
+## 8. Project Structure
 
 ```text
 NMSModManager\
-├─ AllModsSky.slnx                 解决方案
-├─ README.md                       本文档
+├─ AllModsSky.slnx                 solution
+├─ README.md                       English README (default)
+├─ README.zh-CN.md                 Chinese README
 ├─ src\
-│  ├─ AllModsSky.Core\             UI 无关的核心逻辑
-│  │  ├─ Models.cs                 模组/设置/游戏信息模型
-│  │  ├─ Infrastructure.cs         AppPaths / JsonStore / FileOps / 日志
-│  │  ├─ ModLibrary.cs             library.json 读写与规范化
-│  │  ├─ Importer.cs               zip/rar/7z/pak/文件夹导入
-│  │  ├─ DeploymentService.cs      MODS / MODS_disabled 同步
-│  │  ├─ ConflictAnalyzer.cs       EXML/MBIN 冲突扫描
+│  ├─ AllModsSky.Core\             UI-independent core logic
+│  │  ├─ Models.cs                 mod/settings/game-info models
+│  │  ├─ Infrastructure.cs         AppPaths / JsonStore / FileOps / logging
+│  │  ├─ ModLibrary.cs             library.json load/save/normalize
+│  │  ├─ Importer.cs               zip/rar/7z/pak/folder import
+│  │  ├─ DeploymentService.cs      MODS / MODS_disabled synchronization
+│  │  ├─ ConflictAnalyzer.cs       EXML/MBIN conflict scan
 │  │  ├─ LoadOrderService.cs       GCMODSETTINGS.MXML
-│  │  ├─ LogDiagnostics.cs         游戏日志诊断
-│  │  ├─ AmumssService.cs          AMUMSS 检测/分析/重建/收集
+│  │  ├─ LogDiagnostics.cs         game log diagnostics
+│  │  ├─ AmumssService.cs          AMUMSS detect/analyze/rebuild/collect
 │  │  ├─ NexusClient.cs            Nexus API
 │  │  ├─ OogcClient.cs             oogc.cc
-│  │  ├─ SaveGameReader.cs         .hg 存档读取（LZ4 块）
-│  │  ├─ LegacyDataMigrator.cs     旧版 NMSModManager 数据兼容
-│  │  └─ Resources\mapping.json    内置映射数据
-│  └─ AllModsSky.App\              WPF 界面
-│     ├─ MainWindow.xaml(.cs)      主窗口、侧栏、Toast、动态 Logo
-│     ├─ ViewModels\               页面 ViewModel
+│  │  ├─ SaveGameReader.cs         .hg save reader (LZ4 blocks)
+│  │  ├─ LegacyDataMigrator.cs     legacy NMSModManager compatibility
+│  │  └─ Resources\mapping.json    embedded mapping data
+│  └─ AllModsSky.App\              WPF UI
+│     ├─ MainWindow.xaml(.cs)      shell, sidebar, toast, animated logo
+│     ├─ ViewModels\               page view models
 │     ├─ Views\                    Library / Discover / Tools / Settings
 │     ├─ Themes\                   Dark / Light / Styles
-│     ├─ Services\                 Dialog / Shell UI / 主题等
-│     ├─ Controls\                 控件辅助
+│     ├─ Services\                 dialog / shell UI / theme services
+│     ├─ Controls\                 control helpers
 │     └─ app.ico / app.manifest
 ├─ tests\
-│  └─ AllModsSky.SelfTest\         控制台自检（111 项）
-├─ tools\                          辅助脚本（非程序运行必需）
-├─ release\                        最终发布产物
-├─ dist\                           历史构建/临时发布目录
-└─ .tmp\                           本地临时目录
+│  └─ AllModsSky.SelfTest\         console self-test (111 checks)
+├─ tools\                          helper scripts (not required at runtime)
+├─ release\                        final release artifacts
+├─ dist\                           historical builds/temporary publish output
+└─ .tmp\                           local temporary directory
 ```
 
 ---
 
-## 9. 架构说明
+## 9. Architecture
 
-### 9.1 分层
+### 9.1 Layers
 
 ```text
 WPF Views
-   ↓ 绑定
+   ↓ binding
 ViewModels (App)
-   ↓ 调用
+   ↓ calls
 Workspace / Services (App + Core)
    ↓
 Core: Import / Deployment / Conflict / LoadOrder / AMUMSS / Nexus / Oogc / Saves
    ↓
-File system + Game directories
+File system + game directories
 ```
 
-- **Core** 不引用 WPF，方便自检和复用；
-- **App** 只负责界面、对话框、主题和 MVVM 编排；
-- **SelfTest** 直接调用 Core，覆盖文件操作和解析逻辑。
+- **Core** does not reference WPF, making it reusable and easy to self-test.
+- **App** handles UI, dialogs, themes and MVVM orchestration.
+- **SelfTest** calls Core directly and covers file operations and parsing.
 
-### 9.2 关键服务
+### 9.2 Key services
 
-| 服务 | 职责 |
+| Service | Responsibility |
 |---|---|
-| `AppPaths` | 数据目录解析、路径回退、日志路径 |
-| `JsonStore` | 缩进 JSON、原子写入、`.bak` 备份 |
-| `ModLibrary` | 索引加载/保存/规范化/排序 |
-| `Importer` | 压缩包/文件夹/pak 导入 |
-| `DeploymentService` | 启停文件移动、外部模组、`DISABLEMODS.TXT` |
-| `ConflictAnalyzer` | EXML/MBIN 路径与属性冲突 |
-| `LoadOrderService` | 读取/写入 `GCMODSETTINGS.MXML` |
-| `LogDiagnostics` | 日志错误提取与模组归因 |
-| `AmumssService` | AMUMSS 检测、重建、收录 |
-| `NexusClient` / `OogcClient` | 网络资源列表/详情/下载 |
-| `SaveGameReader` | `.hg` 头部字段读取 |
-| `LegacyDataMigrator` | 旧版数据读取与迁移 |
+| `AppPaths` | Data directory resolution, fallbacks, log paths |
+| `JsonStore` | Indented JSON, atomic writes, `.bak` backup |
+| `ModLibrary` | Index load/save/normalize/reorder |
+| `Importer` | Archive/folder/pak import |
+| `DeploymentService` | Enable/disable moves, external mods, `DISABLEMODS.TXT` |
+| `ConflictAnalyzer` | EXML/MBIN path and property conflicts |
+| `LoadOrderService` | Read/write `GCMODSETTINGS.MXML` |
+| `LogDiagnostics` | Error extraction and mod attribution |
+| `AmumssService` | AMUMSS detection, rebuild, collection |
+| `NexusClient` / `OogcClient` | Network listing/details/downloads |
+| `SaveGameReader` | `.hg` header field extraction |
+| `LegacyDataMigrator` | Legacy data reading/migration |
 
-### 9.3 设计原则
+### 9.3 Design principles
 
-- **单一真实位置**：模组只在游戏 `MODS`/`MODS_disabled`，不复制第二份库；
-- **索引可丢、文件不丢**：`library.json` 丢失时，外部模组面板仍能发现磁盘上的模组；
-- **破坏性操作二次确认**：永久删除、应用顺序等都有确认；
-- **写入前备份**：加载顺序、AMUMSS 原目录等关键写入前备份；
-- **可诊断**：`app.log` / `crash.log` 记录核心操作和异常；
-- **旧数据优先兼容**：能读旧版就复用，不强行要求迁移。
+- **One real location:** mods live only in the game's `MODS`/`MODS_disabled`; no second library copy.
+- **Index can be lost, files cannot:** if `library.json` disappears, the external mod panel still finds files on disk.
+- **Destructive actions need confirmation:** permanent delete and apply-order are confirmed.
+- **Back up before writing:** load order and AMUMSS originals are backed up.
+- **Diagnosable:** `app.log` / `crash.log` record core operations and exceptions.
+- **Legacy data first:** read old data when possible instead of forcing a migration.
 
 ---
 
-## 10. 常见问题
+## 10. FAQ
 
-### 拖入没有反应
+### Dragging files does nothing
 
-- 确认不是以管理员身份运行（UIPI 会阻止从资源管理器拖放到管理员进程）；
-- 确认文件是 zip / rar / 7z / pak / 文件夹；
-- 不要直接在压缩包内双击 exe，先解压；
-- 也可以改用“导入模组 / 添加文件夹”按钮。
+- Make sure the app is not running as administrator (UIPI blocks Explorer-to-elevated drag/drop).
+- Make sure the file is zip / rar / 7z / pak / a folder.
+- Do not double-click the exe inside a zip; extract it first.
+- Alternatively use **Import Mods** / **Add Folder**.
 
-### 库是空的，但游戏里明明有模组
+### The library is empty, but the game already has mods
 
-这是正常的首次/换机状态：索引里没有记录，但磁盘上有文件。库为空时外部模组面板会自动展开，点“收编”即可登记。
+This is expected on first run or after switching machines: the index has no records, but files exist on disk. When the library is empty, the external mod panel opens automatically; click **Adopt**.
 
-### 状态栏显示“MODS 不可写”
+### The status bar says "MODS is not writable"
 
-- 程序会在 `app.log` 记录具体的 `UnauthorizedAccessException` 等异常；
-- 优先从资源管理器正常双击 exe；
-- 检查游戏目录 ACL、杀毒软件/受控文件夹访问；
-- 普通用户权限通常已经足够，不建议直接管理员运行。
+- The exact `UnauthorizedAccessException` or other error is written to `app.log`.
+- Prefer launching the exe normally from File Explorer.
+- Check the game directory ACL, antivirus, or controlled-folder access.
+- Normal user permissions are usually enough; do not immediately elevate.
 
-### 启用/停用后游戏没变化
+### Enabling/disabling does nothing in-game
 
-文件已经移动，但游戏只在启动时扫描 `MODS`。完全退出游戏再启动。
+The files moved, but the game only scans `MODS` at startup. Fully exit and restart the game.
 
-### RAR / 7z 导入失败
+### RAR / 7z import fails
 
-程序不内置 7-Zip。安装 7-Zip，或把压缩包转换为 zip。
+The app does not bundle 7-Zip. Install 7-Zip or convert the archive to zip.
 
-### Nexus 列表为空 / 提示 API Key 无效
+### Nexus list is empty / API key is invalid
 
-- 到 Nexus 账号设置生成个人 API Key；
-- 填在“设置 → Nexus Mods”并保存；
-- 没有 Key 时仍可使用浏览器入口手动下载。
+- Generate a personal API key in the Nexus account settings.
+- Enter it under **Settings → Nexus Mods** and save.
+- Without a key, use the browser entry and download manually.
 
-### AMUMSS 找不到
+### AMUMSS is not detected
 
-设置的 AMUMSS 目录应包含 `BUILDMOD.bat` 或 `MBINCompiler.exe`。程序不附带 AMUMSS。
+Point Settings at the AMUMSS directory containing `BUILDMOD.bat` or `MBINCompiler.exe`. AMUMSS is not bundled.
 
-### 旧版 NMSModManager 的数据还能用吗
+### Can I still use legacy NMSModManager data?
 
-可以。程序优先读取 `%APPDATA%\NMSModManager`，并兼容旧版 `LibraryPath` / `DeployName` / `PakFiles` / `/Date(...)` / `BackupOnDeploy` 等字段。
+Yes. The app prefers `%APPDATA%\NMSModManager` and understands legacy `LibraryPath` / `DeployName` / `PakFiles` / `/Date(...)` / `BackupOnDeploy` fields.
 
-### 为什么是 1.14 MiB，而不是 600 KB
+### Why is it 1.14 MiB instead of 600 KB?
 
-旧版 600 KB 是 .NET Framework 4.8 程序，运行时由 Windows 自带。本版是 .NET 8 WPF，使用框架依赖单文件，运行时来自系统安装的 .NET 8 Desktop Runtime；WPF 不适合裁剪，因此 1 MB 出头是当前代码形态的合理体积。
+The old 600 KB build was a .NET Framework 4.8 app using the runtime included with Windows. This version is .NET 8 WPF, published framework-dependent and single-file; the runtime comes from the installed .NET 8 Desktop Runtime. WPF is not safe to trim, so around 1 MB is the practical floor for this codebase.
 
-### 数据目录能改到其他盘吗
+### Can I move the data directory to another drive?
 
-可以：
+Yes:
 
 ```powershell
 AllModsSky.exe --data "D:\NMSData"
 ```
 
-或设置环境变量 `ALLMODSSKY_DATA`。
+Or set the `ALLMODSSKY_DATA` environment variable.
+
+### Is the UI available in English?
+
+The application UI is currently Chinese. This repository provides English and Chinese documentation; `README.md` is the English default and `README.zh-CN.md` is the Chinese version.
 
 ---
 
-## 11. 已知限制与设计取舍
+## 11. Known Limitations and Trade-offs
 
-1. **需要 .NET 8 Desktop Runtime**  
-   不是自包含发布；换机器要确认运行时存在。
+1. **Requires the .NET 8 Desktop Runtime**  
+   The release is not self-contained; the target machine must have the runtime.
 
-2. **启停后需要重启游戏**  
-   程序只移动文件，游戏不会热重载 `MODS`。
+2. **The game must be restarted after changing mods**  
+   The app only moves files; the game does not hot-reload `MODS`.
 
-3. **RAR/7z 依赖外部 7-Zip**  
-   为了保持零第三方 NuGet 依赖，压缩格式交给本机 7-Zip。
+3. **RAR/7z depends on external 7-Zip**  
+   This keeps the app free of third-party NuGet dependencies.
 
-4. **Nexus 需要 API Key，且受网络/接口限制**  
-   没有 Key 时只能走浏览器手动下载。
+4. **Nexus requires an API key and is limited by the network/API**  
+   Without a key, only browser-based manual download is available.
 
-5. **AMUMSS 不随程序分发**  
-   需要用户自行安装并指定目录。
+5. **AMUMSS is not bundled**  
+   Users must install it and point the app at it.
 
-6. **不做云同步/自动更新**  
-   数据在本机；更新靠替换 release。
+6. **No cloud sync or auto-update**  
+   Data is local; updates are done by replacing the release.
 
-7. **旧版格式兼容是“字段级”兼容**  
-   新版仍以游戏 `MODS` 为唯一真实库；旧版如果配置了独立的旧库目录，新版不会复制出第二份模组。
+7. **Legacy compatibility is field-level**  
+   The new app still uses the game's `MODS` as the only real library. If the legacy app used a separate library root, the new app does not create a second copy.
 
-8. **单文件发布不是自包含**  
-   体积小是以“系统已有 .NET 8”为代价的；如果需要完全离线自包含，体积会显著增加。
+8. **Single-file is not self-contained**  
+   The small size is paid for by requiring the system .NET 8 runtime; a fully offline self-contained build would be much larger.
 
-9. **界面为中文单语言**  
-   当前没有多语言资源切换。
+9. **The UI is Chinese-only**  
+   There is no multi-language UI switch yet; only the README is bilingual.
 
-10. **不主动修改系统设置**  
-    程序只管理游戏模组目录和自己的数据目录；不会改系统终端、开始菜单等设置。
+10. **It does not modify system settings**  
+    The app only manages game mod directories and its own data directory. It does not change the system terminal, Start menu, etc.
 
 ---
 
 ## 12. License
 
-MIT License（以项目声明为准）。
+MIT License (as declared by the project).
 
 ---
 
-## 附：快速上手
+## Appendix: Quick Start
 
 ```text
-1. 安装 .NET 8 Desktop Runtime
-2. 解压 release 包，双击 AllModsSky.exe（不要管理员）
-3. 设置游戏目录（通常自动检测）
-4. 拖入 zip / 文件夹，或点“导入模组”
-5. 用开关启用/停用；需要时点“同步到游戏”
-6. 重启《No Man's Sky》
+1. Install the .NET 8 Desktop Runtime.
+2. Extract the release and double-click AllModsSky.exe (do not run as administrator).
+3. Set the game directory (usually detected automatically).
+4. Drag in a zip/folder or click "Import Mods".
+5. Use the toggles to enable/disable; click "Sync to Game" when needed.
+6. Restart No Man's Sky.
 ```
 
-如果库为空但 `MODS` 里已有内容：打开“外部模组”面板 → 收编 → 用主列表统一管理。
+If the library is empty but `MODS` already has content: open **External Mods** → **Adopt** → manage everything from the main list.
