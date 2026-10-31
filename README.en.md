@@ -1,6 +1,6 @@
 # All Mod's Sky 2.0.0
 
-**English** | [简体中文](README.zh-CN.md)
+**English** | [简体中文](README.md)
 
 > A Windows mod manager for *No Man's Sky*  
 > .NET 8 + WPF · single-file release · Chinese UI · NMSModManager data compatibility
