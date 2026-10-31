@@ -1,6 +1,6 @@
 # All Mod's Sky 2.0.0
 
-[English](README.md) | **简体中文**
+[English](README.en.md) | **简体中文**
 
 > 《No Man's Sky》Windows 模组管理器  
 > .NET 8 + WPF · 单文件发布 · 中文界面 · 兼容旧版 NMSModManager 数据
