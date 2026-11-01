@@ -5,7 +5,8 @@ public enum PageKey
     Library,
     Discover,
     Tools,
-    Settings
+    Settings,
+    About
 }
 
 public enum ConfirmResult

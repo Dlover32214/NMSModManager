@@ -120,18 +120,6 @@
                         </ListBox>
                     </Grid>
 
-                    <Grid Margin="0,8,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <TextBox Style="{StaticResource InputBox}" Tag="在 Nexus 列表里搜索模组名、作者…"
-                                 Text="{Binding NexusQuery, UpdateSourceTrigger=PropertyChanged}"
-                                 KeyDown="NexusSearch_KeyDown" />
-                        <Button Grid.Column="1" Style="{StaticResource PrimaryButton}" Content="搜索"
-                                Command="{Binding SearchCommand}" Margin="8,0,0,0" MinWidth="76" />
-                    </Grid>
-
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                         <Button Style="{StaticResource GhostButton}" Content="随机抽 10 个"
                                 Command="{Binding RandomNexusCommand}"

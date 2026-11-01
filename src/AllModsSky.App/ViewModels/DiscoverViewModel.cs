@@ -38,7 +38,6 @@ public sealed class DiscoverViewModel : ObservableObject, IActivatable
 
     private string _sourceKey = "nexus";
     private string _nexusSort = "trending";
-    private string _nexusQuery = "";
     private string _oogcCategory = "3";
     private string _oogcSort = "latest";
     private string _oogcCost = "all";
@@ -128,12 +127,6 @@ public sealed class DiscoverViewModel : ObservableObject, IActivatable
             Page = 1;
             _ = LoadNexusAsync();
         }
-    }
-
-    public string NexusQuery
-    {
-        get => _nexusQuery;
-        set => SetProperty(ref _nexusQuery, value);
     }
 
     public string OogcCategory
@@ -442,8 +435,7 @@ public sealed class DiscoverViewModel : ObservableObject, IActivatable
             }
 
             var filteredByCategory = SelectedNexusCategory != null && SelectedNexusCategory.Id != "0";
-            var searching = !string.IsNullOrWhiteSpace(NexusQuery);
-            var needAll = filteredByCategory || searching || NexusSort == "all";
+            var needAll = filteredByCategory || NexusSort == "all";
 
             var (mods, error) = needAll
                 ? await _workspace.Nexus.GetAllAsync(key, cancellation)
@@ -461,14 +453,6 @@ public sealed class DiscoverViewModel : ObservableObject, IActivatable
             IEnumerable<NexusModInfo> query = mods;
             if (filteredByCategory)
                 query = query.Where(m => m.CategoryId == SelectedNexusCategory!.Id);
-            if (searching)
-            {
-                var q = NexusQuery.Trim();
-                query = query.Where(m =>
-                    m.Name.Contains(q, StringComparison.OrdinalIgnoreCase) ||
-                    m.Summary.Contains(q, StringComparison.OrdinalIgnoreCase) ||
-                    m.Author.Contains(q, StringComparison.OrdinalIgnoreCase));
-            }
 
             _nexusMods = query.ToList();
 

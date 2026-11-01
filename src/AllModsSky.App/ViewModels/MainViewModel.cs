@@ -30,6 +30,7 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
         Discover = new DiscoverViewModel(_workspace, this);
         Tools = new ToolsViewModel(_workspace, this);
         SettingsPage = new SettingsViewModel(_workspace, this);
+        AboutPage = new AboutViewModel(this);
         _currentPageViewModel = Library;
         _isDark = _workspace.Settings.IsDark;
 
@@ -78,6 +79,7 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
     public DiscoverViewModel Discover { get; }
     public ToolsViewModel Tools { get; }
     public SettingsViewModel SettingsPage { get; }
+    public AboutViewModel AboutPage { get; }
 
     public ICommand NavigateCommand { get; }
     public ICommand ImportCommand { get; }
@@ -94,7 +96,7 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
         private set
         {
             if (!SetProperty(ref _currentPage, value)) return;
-            Raise(nameof(IsLibraryPage), nameof(IsDiscoverPage), nameof(IsToolsPage), nameof(IsSettingsPage));
+            Raise(nameof(IsLibraryPage), nameof(IsDiscoverPage), nameof(IsToolsPage), nameof(IsSettingsPage), nameof(IsAboutPage));
         }
     }
 
@@ -108,6 +110,7 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
     public bool IsDiscoverPage => CurrentPage == PageKey.Discover;
     public bool IsToolsPage => CurrentPage == PageKey.Tools;
     public bool IsSettingsPage => CurrentPage == PageKey.Settings;
+    public bool IsAboutPage => CurrentPage == PageKey.About;
 
     public bool IsDark
     {
@@ -169,7 +172,7 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
     public string GamePath => _workspace.Game.IsValid ? _workspace.Game.GamePath : "未设置游戏目录";
     public string GameVersionLine => _workspace.Game.IsValid ? _workspace.Game.VersionLine : "去「设置」里指定游戏目录";
     public string ModsPath => _workspace.Game.ModsPath;
-    public string AppVersion => "2.0.3";
+    public string AppVersion => "2.0.5";
     public string DataPath => AppPaths.Root;
     public int ModCount => Library.TotalCount;
     public int EnabledCount => Library.EnabledCount;
@@ -233,6 +236,7 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
             PageKey.Discover => Discover,
             PageKey.Tools => Tools,
             PageKey.Settings => SettingsPage,
+            PageKey.About => AboutPage,
             _ => Library
         };
 

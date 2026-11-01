@@ -11,12 +11,6 @@ public partial class DiscoverView : UserControl
         InitializeComponent();
     }
 
-    private void NexusSearch_KeyDown(object sender, KeyEventArgs e)
-    {
-        if (e.Key != Key.Enter) return;
-        if (DataContext is DiscoverViewModel vm) vm.SearchCommand.Execute(null);
-    }
-
     private void OogcSearch_KeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key != Key.Enter) return;
