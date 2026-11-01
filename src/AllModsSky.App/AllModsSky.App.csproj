@@ -11,9 +11,9 @@
     <RootNamespace>AllModsSky.App</RootNamespace>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>2.0.0</Version>
-    <AssemblyVersion>2.0.0.0</AssemblyVersion>
-    <FileVersion>2.0.0.0</FileVersion>
+    <Version>2.0.3</Version>
+    <AssemblyVersion>2.0.3.0</AssemblyVersion>
+    <FileVersion>2.0.3.0</FileVersion>
     <Product>All Mod's Sky</Product>
     <AssemblyTitle>All Mod's Sky</AssemblyTitle>
     <Company>built for personal use</Company>
