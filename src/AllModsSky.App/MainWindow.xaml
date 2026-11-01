@@ -33,6 +33,9 @@
         <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
             <views:SettingsView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:AboutViewModel}">
+            <views:AboutView />
+        </DataTemplate>
     </Window.Resources>
 
     <Grid>
@@ -264,6 +267,15 @@
                             <TextBlock Text="设置" VerticalAlignment="Center" />
                         </StackPanel>
                     </RadioButton>
+
+                    <RadioButton Style="{StaticResource NavItem}" GroupName="nav"
+                                 Command="{Binding NavigateCommand}" CommandParameter="About"
+                                 IsChecked="{Binding CurrentPage, Converter={StaticResource EnumEquals}, ConverterParameter=About, Mode=OneWay}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE946;" Style="{StaticResource Glyph}" Margin="0,0,12,0" />
+                            <TextBlock Text="关于" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </RadioButton>
                 </StackPanel>
 
                 <!-- 启动游戏 + 游戏状态卡 -->
@@ -315,7 +327,7 @@
                 <StackPanel Grid.Row="5" Margin="2,16,2,0">
                     <Border Style="{StaticResource Divider}" Margin="0,0,0,10" />
                     <Grid>
-                        <TextBlock Text="v2.0.0" FontSize="10.5" Foreground="{DynamicResource TextFaint}"
+                        <TextBlock Text="v2.0.5" FontSize="10.5" Foreground="{DynamicResource TextFaint}"
                                    VerticalAlignment="Center" />
                         <Button Content="数据目录" Style="{StaticResource LinkButton}"
                                 HorizontalAlignment="Right" FontSize="10.5"
@@ -349,7 +361,7 @@
                         <TextBlock Text="{Binding StatusRight}" FontSize="11"
                                    Foreground="{DynamicResource TextMuted}" />
                         <Border Width="1" Height="12" Background="{DynamicResource Border}" Margin="14,0" />
-                        <TextBlock Text="v2.0.0" FontSize="11" Foreground="{DynamicResource TextFaint}" />
+                        <TextBlock Text="v2.0.5" FontSize="11" Foreground="{DynamicResource TextFaint}" />
                     </StackPanel>
                 </Grid>
             </Border>

@@ -213,6 +213,10 @@ public partial class MainWindow : Window
                     _viewModel.Navigate(PageKey.Settings);
                     e.Handled = true;
                     return;
+                case Key.D5:
+                    _viewModel.Navigate(PageKey.About);
+                    e.Handled = true;
+                    return;
             }
         }
 
