@@ -1,4 +1,4 @@
-# All Mod's Sky 2.0.0
+# All Mod's Sky 2.0.3
 
 [English](README.en.md) | **简体中文**
 
@@ -24,7 +24,7 @@ All Mod's Sky 是一个面向《No Man's Sky》的本地模组管理器。它不
   - [3.1 模组库](#31-模组库)
   - [3.2 启用、停用与同步](#32-启用停用与同步)
   - [3.3 外部模组与收编](#33-外部模组与收编)
-  - [3.4 批量选择与拖拽排序](#34-批量选择与拖拽排序)
+  - [3.4 批量选取与拖拽排序](#34-批量选取与拖拽排序)
   - [3.5 冲突检测与加载顺序](#35-冲突检测与加载顺序)
   - [3.6 日志诊断](#36-日志诊断)
   - [3.7 AMUMSS 工具链](#37-amumss-工具链)
@@ -63,14 +63,14 @@ All Mod's Sky 是一个面向《No Man's Sky》的本地模组管理器。它不
 
 | 能力 | 说明 |
 |---|---|
-| 模组库 | 导入 zip / rar / 7z / pak / 文件夹，启用/停用、排序、批量操作 |
+| 模组库 | 导入 zip / rar / 7z / tar / gz / bz2 / xz / zst / cab / pak / 文件夹，启用/停用、排序、批量操作 |
 | 外部模组 | 识别不由本程序管理的 `MODS` 内容，可直接启停或“收编” |
 | 部署同步 | 把界面状态同步到游戏目录，自动维护 `DISABLEMODS.TXT` |
 | 冲突检测 | 扫描 `EXML` / `MBIN` 的路径重叠，按加载顺序判断覆盖关系 |
 | 加载顺序 | 读取/写入 `GCMODSETTINGS.MXML` 的 `ModPriority`，自动备份 |
 | 日志诊断 | 从游戏日志里提取报错，并尝试归因到具体模组 |
 | AMUMSS | 检测 AMUMSS、分析修复方案、调用 `BUILDMOD.bat`、收录输出 |
-| 发现 | Nexus（API Key）与 oogc.cc 的浏览、搜索、分页、详情、下载导入 |
+| 发现 | Nexus（API Key）与 oogc.cc 的浏览、搜索、分页、详情、浏览器跳转、随机抽 10 个 |
 | 存档 | 读取 `.hg` 存档的版本、名称、平台、模式、游玩时长 |
 | 兼容 | 读写旧版 `NMSModManager` 的 `settings.json` / `library.json` |
 | 便携 | 默认 AppData，支持 `--data` 指定任意数据目录 |
@@ -149,8 +149,8 @@ All Mod's Sky 是一个面向《No Man's Sky》的本地模组管理器。它不
 支持：
 
 - `.zip`
-- `.rar`（需要本机安装 7-Zip）
-- `.7z`（需要本机安装 7-Zip）
+- `.rar` / `.7z` / `.cab`（使用 7-Zip 或 Bandizip）
+- `.tar` / `.tar.gz` / `.tgz` / `.tar.bz2` / `.tbz2` / `.tar.xz` / `.txz` / `.tar.zst` / `.tzst`（Windows 自带 tar，或 7-Zip / Bandizip）
 - `.pak`
 - 普通模组文件夹
 
@@ -169,7 +169,7 @@ All Mod's Sky 是一个面向《No Man's Sky》的本地模组管理器。它不
 5. 写入 `library.json`，默认启用；
 6. 同步一次游戏状态。
 
-RAR/7z 的提示：程序不内置 7-Zip，找不到 `7z.exe` 时会提示先安装 7-Zip，或把压缩包转成 zip。
+解压提示：程序优先用 Windows 自带 `tar.exe` 处理 tar 系列；`.rar` / `.7z` / `.cab` 会依次尝试 7-Zip、Bandizip（`bz.exe`）和 Windows tar。找不到可用工具时会提示安装 7-Zip 或 Bandizip。
 
 #### 搜索与筛选
 
@@ -185,7 +185,7 @@ RAR/7z 的提示：程序不内置 7-Zip，找不到 `7z.exe` 时会提示先安
 - 启用/停用开关；
 - 打开模组目录；
 - 删除/移除菜单；
-- 拖拽手柄（用于排序）；
+- 整行拖动排序（普通模式）；
 - 状态、大小、版本、格式等信息。
 
 #### 删除的两种语义
@@ -255,16 +255,16 @@ RAR/7z 的提示：程序不内置 7-Zip，找不到 `7z.exe` 时会提示先安
 
 库为空时，程序会自动打开外部模组面板，帮助用户接管已有模组。
 
-### 3.4 批量选择与拖拽排序
+### 3.4 批量选取与拖拽排序
 
-#### 批量选择
+#### 批量选取
 
-工具栏有“批量选择”按钮：
+工具栏“应用顺序”左边有“批量选取”按钮：
 
-- 进入批量模式后，单击整行任意非交互区域即可选中/取消；
-- 不需要按住 `Ctrl`；
+- 只有点击这个按钮才会进入批量选取模式；
+- 非批量模式下单击或拖动模组行都不会进入批量模式，也不会显示批量条；
+- 进入批量后，单击整行任意非交互区域即可选中/取消，不需要 Ctrl；
 - 开关、按钮、滚动条等交互控件不会误触选中；
-- 批量条在 0 个选中时也保持显示；
 - 再点“退出批量”、点“取消选择”或按 `Esc` 退出。
 
 批量条支持：
@@ -276,7 +276,7 @@ RAR/7z 的提示：程序不内置 7-Zip，找不到 `7z.exe` 时会提示先安
 
 #### 拖拽排序
 
-- 抓住行左侧的拖拽手柄/行区域拖动；
+- 普通模式下按住整行任意非按钮区域拖动，即可调整加载顺序；
 - 拖起的行有抬起、阴影效果；
 - 松手后，所有受影响的行会从旧位置平滑滑到新位置，避免瞬间“挤压”；
 - 顺序会写回 `library.json`；
@@ -382,11 +382,12 @@ AMUMSS 是《No Man's Sky》的模组脚本/编译工具链。本程序不内置
 
 - 需要个人 Nexus API Key；
 - 支持分类、排序（热门/最新/最近更新等）、关键词搜索；
+- 分类标签会随窗口宽度自动换行；
 - 本地分页（每页固定数量）；
 - 卡片显示封面、标题、分类、版本、作者；
 - 详情页可查看简介和文件列表；
-- 可直接打开网页、复制链接、打开文件下载页；
-- 支持“下载并导入”（取决于接口返回和网络）。
+- 可跳转浏览器页面、复制链接；本程序不直接下载模组；
+- “随机抽 10 个”会从 Nexus 三种排序合并后的模组池中随机抽 10 个（Nexus 没有官方随机接口）。
 
 没有 API Key 时：
 
@@ -399,7 +400,7 @@ AMUMSS 是《No Man's Sky》的模组脚本/编译工具链。本程序不内置
 - 不需要 API Key；
 - 支持分类、排序、费用、关键词搜索；
 - 服务器分页；
-- 详情页、下载、打开原页面；
+- 详情页、打开原页面；下载请在浏览器完成；
 - 封面异步加载。
 
 #### 加载体验
@@ -581,7 +582,7 @@ AllModsSky.exe --data "D:\NMSData"
 | 操作系统 | Windows 10 / Windows 11，x64 |
 | 运行时 | .NET 8 Desktop Runtime (x64) |
 | 游戏 | 《No Man's Sky》，有 `GAMEDATA\PCBANKS` 或 `Binaries\NMS.exe` |
-| 可选 | 7-Zip（导入 `.rar` / `.7z` 时需要） |
+| 可选 | 7-Zip 或 Bandizip（`.rar` / `.7z` / `.cab`；tar 系列可用 Windows 自带 tar） |
 | 可选 | AMUMSS（使用 AMUMSS 工具链时需要） |
 | 网络 | 使用 Nexus / oogc 发现页时需要 |
 | 权限 | 普通用户即可；不建议管理员运行 |
@@ -617,7 +618,7 @@ AllModsSky.exe --data "D:\NMSData"
 ### release 文件
 
 - `release\AllModsSky.exe`
-- `release\AllModsSky-2.0.0-win-x64.zip`
+- `release\AllModsSky-2.0.3-win-x64.zip`
 - `release\README.txt`（快速上手版）
 
 ---
@@ -694,14 +695,14 @@ dotnet publish src\AllModsSky.App\AllModsSky.App.csproj `
 ```text
 NMSModManager\
 ├─ AllModsSky.slnx                 解决方案
-├─ README.md                       英文默认说明
-├─ README.zh-CN.md                 中文说明
+├─ README.md                       中文说明（默认）
+├─ README.en.md                    English README
 ├─ src\
 │  ├─ AllModsSky.Core\             UI 无关的核心逻辑
 │  │  ├─ Models.cs                 模组/设置/游戏信息模型
 │  │  ├─ Infrastructure.cs         AppPaths / JsonStore / FileOps / 日志
 │  │  ├─ ModLibrary.cs             library.json 读写与规范化
-│  │  ├─ Importer.cs               zip/rar/7z/pak/文件夹导入
+│  │  ├─ Importer.cs               zip/rar/7z/tar/gz/bz2/xz/zst/cab/pak 导入
 │  │  ├─ DeploymentService.cs      MODS / MODS_disabled 同步
 │  │  ├─ ConflictAnalyzer.cs       EXML/MBIN 冲突扫描
 │  │  ├─ LoadOrderService.cs       GCMODSETTINGS.MXML
@@ -763,7 +764,7 @@ File system + Game directories
 | `LoadOrderService` | 读取/写入 `GCMODSETTINGS.MXML` |
 | `LogDiagnostics` | 日志错误提取与模组归因 |
 | `AmumssService` | AMUMSS 检测、重建、收录 |
-| `NexusClient` / `OogcClient` | 网络资源列表/详情/下载 |
+| `NexusClient` / `OogcClient` | 网络资源列表/详情 |
 | `SaveGameReader` | `.hg` 头部字段读取 |
 | `LegacyDataMigrator` | 旧版数据读取与迁移 |
 
@@ -783,7 +784,7 @@ File system + Game directories
 ### 拖入没有反应
 
 - 确认不是以管理员身份运行（UIPI 会阻止从资源管理器拖放到管理员进程）；
-- 确认文件是 zip / rar / 7z / pak / 文件夹；
+- 确认文件是 zip / rar / 7z / tar / gz / bz2 / xz / zst / cab / pak / 文件夹；
 - 不要直接在压缩包内双击 exe，先解压；
 - 也可以改用“导入模组 / 添加文件夹”按钮。
 
@@ -802,9 +803,9 @@ File system + Game directories
 
 文件已经移动，但游戏只在启动时扫描 `MODS`。完全退出游戏再启动。
 
-### RAR / 7z 导入失败
+### RAR / 7z / tar 导入失败
 
-程序不内置 7-Zip。安装 7-Zip，或把压缩包转换为 zip。
+程序不内置压缩库：`.rar` / `.7z` / `.cab` 需要 7-Zip 或 Bandizip（`bz.exe`）；tar 系列优先使用 Windows 自带 `tar.exe`。安装其中一个解压工具，或把压缩包转换为 zip。
 
 ### Nexus 列表为空 / 提示 API Key 无效
 
@@ -844,8 +845,8 @@ AllModsSky.exe --data "D:\NMSData"
 2. **启停后需要重启游戏**  
    程序只移动文件，游戏不会热重载 `MODS`。
 
-3. **RAR/7z 依赖外部 7-Zip**  
-   为了保持零第三方 NuGet 依赖，压缩格式交给本机 7-Zip。
+3. **RAR/7z 依赖外部解压工具**  
+   为了保持零第三方 NuGet 依赖，压缩格式交给本机 7-Zip 或 Bandizip；tar 系列使用 Windows 自带 tar。
 
 4. **Nexus 需要 API Key，且受网络/接口限制**  
    没有 Key 时只能走浏览器手动下载。

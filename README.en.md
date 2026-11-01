@@ -1,6 +1,6 @@
-# All Mod's Sky 2.0.0
+# All Mod's Sky 2.0.3
 
-**English** | [简体中文](README.md)
+[简体中文](README.md) | **English**
 
 > A Windows mod manager for *No Man's Sky*  
 > .NET 8 + WPF · single-file release · Chinese UI · NMSModManager data compatibility
@@ -63,14 +63,14 @@ This project brings those workflows into one WPF desktop application.
 
 | Capability | Description |
 |---|---|
-| Mod library | Import zip / rar / 7z / pak / folders; enable, disable, reorder and batch-manage |
+| Mod library | Import zip / rar / 7z / tar / gz / bz2 / xz / zst / cab / pak / folders; enable, disable, reorder and batch-manage |
 | External mods | Detect `MODS` content not owned by the app; enable/disable directly or adopt it |
 | Deployment sync | Reconcile the UI state with the game directory and maintain `DISABLEMODS.TXT` |
 | Conflict detection | Scan `EXML` / `MBIN` path overlaps and predict the winner from load order |
 | Load order | Read/write `GCMODSETTINGS.MXML` `ModPriority` with automatic backup |
 | Log diagnostics | Extract errors from game logs and attribute them to mods where possible |
 | AMUMSS | Detect AMUMSS, analyze repair plans, run `BUILDMOD.bat`, collect output |
-| Discover | Browse/search Nexus (API key) and oogc.cc with paging, details and download import |
+| Discover | Browse/search Nexus (API key) and oogc.cc with paging, details, browser jump and random 10 |
 | Save games | Read `.hg` save version, name, platform, mode and play time |
 | Compatibility | Read/write legacy `NMSModManager` `settings.json` / `library.json` fields |
 | Portability | AppData by default; `--data` can point at any writable directory |
@@ -150,8 +150,8 @@ The library is the main page.
 Supported formats:
 
 - `.zip`
-- `.rar` (requires a local 7-Zip installation)
-- `.7z` (requires a local 7-Zip installation)
+- `.rar` / `.7z` / `.cab` (7-Zip or Bandizip)
+- `.tar` / `.tar.gz` / `.tgz` / `.tar.bz2` / `.tbz2` / `.tar.xz` / `.txz` / `.tar.zst` / `.tzst` (Windows tar, 7-Zip or Bandizip)
 - `.pak`
 - normal mod folders
 
@@ -170,7 +170,7 @@ The import flow:
 5. Write `library.json`; the mod is enabled by default.
 6. Run a sync once.
 
-RAR/7z note: the app does not bundle 7-Zip. If `7z.exe` cannot be found, convert the archive to zip or install 7-Zip.
+Extraction note: Windows `tar.exe` is preferred for tar-family archives; `.rar` / `.7z` / `.cab` try 7-Zip, Bandizip (`bz.exe`) and Windows tar in that order. If no tool is available, install 7-Zip or Bandizip.
 
 #### Search and filters
 
@@ -186,7 +186,7 @@ Each mod row provides:
 - enable/disable toggle;
 - open the mod folder;
 - remove/delete menu;
-- drag grip for reordering;
+- whole-row drag reordering in normal mode;
 - status, size, version and format information.
 
 #### Two meanings of "delete"
@@ -277,7 +277,7 @@ Batch actions:
 
 #### Drag reordering
 
-- Drag a row by its grip/row area.
+- In normal mode, press and drag any non-button part of a row to reorder it.
 - The dragged row lifts and gets a shadow.
 - After dropping, all affected rows animate smoothly from their old positions to their new positions instead of snapping.
 - The order is written back to `library.json`.
@@ -383,11 +383,12 @@ The Tools page also opens:
 
 - Requires a personal Nexus API key.
 - Supports categories, sorting (trending/latest/recently updated, etc.) and keyword search.
+- Category chips wrap automatically with the window width.
 - Local paging (fixed page size).
 - Cards show cover, title, category, version and author.
 - Detail view shows the summary and file list.
-- Can open the web page, copy the link, or open the file download page.
-- Supports "download and import" when the API/network allows it.
+- Can open the web page and copy the link; the app does not download mods directly.
+- **Random 10** picks 10 mods from a local pool merged from three Nexus sorts (Nexus has no official random endpoint).
 
 Without an API key:
 
@@ -400,7 +401,7 @@ Without an API key:
 - No API key required.
 - Supports category, sort, cost and keyword search.
 - Server-side paging.
-- Detail view, download and open-original-page.
+- Detail view and open-original-page; download in the browser.
 - Cover images load asynchronously.
 
 #### Loading experience
@@ -582,7 +583,7 @@ The legacy app only needs `LibraryPath` / `DeployName` / `PakFiles` / `Enabled` 
 | OS | Windows 10 / Windows 11, x64 |
 | Runtime | .NET 8 Desktop Runtime (x64) |
 | Game | *No Man's Sky* with `GAMEDATA\PCBANKS` or `Binaries\NMS.exe` |
-| Optional | 7-Zip (needed to import `.rar` / `.7z`) |
+| Optional | 7-Zip or Bandizip (`.rar` / `.7z` / `.cab`; tar-family archives can use Windows tar) |
 | Optional | AMUMSS (needed for the AMUMSS toolchain) |
 | Network | Required for Nexus / oogc discovery |
 | Privileges | Normal user; running as administrator is not recommended |
@@ -618,9 +619,9 @@ If you hit permission issues, check directory ACLs first rather than elevating.
 ### Release files
 
 - `release\AllModsSky.exe`
-- `release\AllModsSky-2.0.0-win-x64.zip`
+- `release\AllModsSky-2.0.3-win-x64.zip`
 - `release\README.txt` (quick-start guide)
-- `README.md` (this full guide)
+- `README.en.md` (this full guide)
 
 ---
 
@@ -696,14 +697,14 @@ Then copy `release\publish\AllModsSky.exe` to `release\`.
 ```text
 NMSModManager\
 ├─ AllModsSky.slnx                 solution
-├─ README.md                       English README (default)
-├─ README.zh-CN.md                 Chinese README
+├─ README.md                       Chinese README (default)
+├─ README.en.md                    English README
 ├─ src\
 │  ├─ AllModsSky.Core\             UI-independent core logic
 │  │  ├─ Models.cs                 mod/settings/game-info models
 │  │  ├─ Infrastructure.cs         AppPaths / JsonStore / FileOps / logging
 │  │  ├─ ModLibrary.cs             library.json load/save/normalize
-│  │  ├─ Importer.cs               zip/rar/7z/pak/folder import
+│  │  ├─ Importer.cs               zip/rar/7z/tar/gz/bz2/xz/zst/cab/pak import
 │  │  ├─ DeploymentService.cs      MODS / MODS_disabled synchronization
 │  │  ├─ ConflictAnalyzer.cs       EXML/MBIN conflict scan
 │  │  ├─ LoadOrderService.cs       GCMODSETTINGS.MXML
@@ -765,7 +766,7 @@ File system + game directories
 | `LoadOrderService` | Read/write `GCMODSETTINGS.MXML` |
 | `LogDiagnostics` | Error extraction and mod attribution |
 | `AmumssService` | AMUMSS detection, rebuild, collection |
-| `NexusClient` / `OogcClient` | Network listing/details/downloads |
+| `NexusClient` / `OogcClient` | Network listing/details |
 | `SaveGameReader` | `.hg` header field extraction |
 | `LegacyDataMigrator` | Legacy data reading/migration |
 
@@ -785,7 +786,7 @@ File system + game directories
 ### Dragging files does nothing
 
 - Make sure the app is not running as administrator (UIPI blocks Explorer-to-elevated drag/drop).
-- Make sure the file is zip / rar / 7z / pak / a folder.
+- Make sure the file is zip / rar / 7z / tar / gz / bz2 / xz / zst / cab / pak / a folder.
 - Do not double-click the exe inside a zip; extract it first.
 - Alternatively use **Import Mods** / **Add Folder**.
 
@@ -804,9 +805,9 @@ This is expected on first run or after switching machines: the index has no reco
 
 The files moved, but the game only scans `MODS` at startup. Fully exit and restart the game.
 
-### RAR / 7z import fails
+### RAR / 7z / tar import fails
 
-The app does not bundle 7-Zip. Install 7-Zip or convert the archive to zip.
+The app does not bundle compression libraries: `.rar` / `.7z` / `.cab` need 7-Zip or Bandizip (`bz.exe`); tar-family archives use Windows `tar.exe` first. Install one of those tools or convert the archive to zip.
 
 ### Nexus list is empty / API key is invalid
 
@@ -838,7 +839,7 @@ Or set the `ALLMODSSKY_DATA` environment variable.
 
 ### Is the UI available in English?
 
-The application UI is currently Chinese. This repository provides English and Chinese documentation; `README.md` is the English default and `README.zh-CN.md` is the Chinese version.
+The application UI is currently Chinese. This repository provides English and Chinese documentation; `README.md` is the Chinese default and `README.en.md` is the English version.
 
 ---
 
@@ -850,8 +851,8 @@ The application UI is currently Chinese. This repository provides English and Ch
 2. **The game must be restarted after changing mods**  
    The app only moves files; the game does not hot-reload `MODS`.
 
-3. **RAR/7z depends on external 7-Zip**  
-   This keeps the app free of third-party NuGet dependencies.
+3. **RAR/7z depends on external extractors**  
+   To keep the app free of third-party NuGet dependencies, `.rar`/`.7z`/`.cab` are delegated to 7-Zip or Bandizip; tar-family archives use Windows tar.
 
 4. **Nexus requires an API key and is limited by the network/API**  
    Without a key, only browser-based manual download is available.
