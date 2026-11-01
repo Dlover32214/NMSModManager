@@ -1,4 +1,4 @@
-# All Mod's Sky 2.0.3
+# All Mod's Sky 2.0.5
 
 [简体中文](README.md) | **English**
 
@@ -32,6 +32,7 @@ Enabling a mod means keeping its folder or `.pak` file in `MODS`; disabling mean
   - [3.9 Save Game Reader](#39-save-game-reader)
   - [3.10 Settings](#310-settings)
   - [3.11 UI and Interaction](#311-ui-and-interaction)
+  - [3.12 About and Updates](#312-about-and-updates)
 - [4. Data Directories and Compatibility](#4-data-directories-and-compatibility)
 - [5. Requirements](#5-requirements)
 - [6. Running the App](#6-running-the-app)
@@ -70,7 +71,8 @@ This project brings those workflows into one WPF desktop application.
 | Load order | Read/write `GCMODSETTINGS.MXML` `ModPriority` with automatic backup |
 | Log diagnostics | Extract errors from game logs and attribute them to mods where possible |
 | AMUMSS | Detect AMUMSS, analyze repair plans, run `BUILDMOD.bat`, collect output |
-| Discover | Browse/search Nexus (API key) and oogc.cc with paging, details, browser jump and random 10 |
+| Discover | Browse Nexus (API key) and oogc.cc with paging, details, browser jump and random 10 (Nexus has no keyword search) |
+| About | Project/release links, program/data directories, automatic latest GitHub Release check; downloads, replaces the exe and restarts |
 | Save games | Read `.hg` save version, name, platform, mode and play time |
 | Compatibility | Read/write legacy `NMSModManager` `settings.json` / `library.json` fields |
 | Portability | AppData by default; `--data` can point at any writable directory |
@@ -382,7 +384,7 @@ The Tools page also opens:
 #### Nexus Mods
 
 - Requires a personal Nexus API key.
-- Supports categories, sorting (trending/latest/recently updated, etc.) and keyword search.
+- Supports categories and sorting (trending/latest/recently updated, etc.).
 - Category chips wrap automatically with the window width.
 - Local paging (fixed page size).
 - Cards show cover, title, category, version and author.
@@ -455,7 +457,7 @@ The API key is saved to `settings.json` in the data directory. If it cannot be s
 
 ### 3.11 UI and Interaction
 
-- Left navigation: Library / Discover / Tools / Settings.
+- Left navigation: Library / Discover / Tools / Settings / About.
 - Bottom-left: Launch Game button, game status card, dark-mode switch.
 - Top status bar: `MODS` path, counts, version.
 - Dark and light themes.
@@ -473,8 +475,29 @@ The API key is saved to `settings.json` in the data directory. If it cannot be s
   - `Ctrl+2` Discover
   - `Ctrl+3` Tools
   - `Ctrl+4` Settings
+  - `Ctrl+5` About
   - `F5` refresh
   - `Esc` exit batch / dismiss toast
+
+### 3.12 About and Updates
+
+A new **About** page appears below Settings in the left navigation:
+
+- shows the current version and links to the project/release pages;
+- shows the program directory (exe location) and data directory (settings/library), with open buttons;
+- automatically checks the latest GitHub Release when the page opens;
+- shows latest version, publication time and release notes;
+- if a new version exists, prompts the user to click **Download update**;
+- after download, verifies SHA256 when the release provides a digest, replaces the current exe and restarts;
+- asks for confirmation before installing; a background PowerShell helper waits for the app to exit and performs the replacement;
+- if the release has no exe/zip asset, directs the user to the release page;
+- on check failure, shows the error and keeps the project/release links available.
+
+The check uses the public GitHub API for:
+
+```text
+https://github.com/Dlover32214/NMSModManager
+```
 
 ---
 
@@ -619,7 +642,7 @@ If you hit permission issues, check directory ACLs first rather than elevating.
 ### Release files
 
 - `release\AllModsSky.exe`
-- `release\AllModsSky-2.0.3-win-x64.zip`
+- `release\AllModsSky-2.0.5-win-x64.zip`
 - `release\README.txt` (quick-start guide)
 - `README.en.md` (this full guide)
 
@@ -713,12 +736,13 @@ NMSModManager\
 │  │  ├─ NexusClient.cs            Nexus API
 │  │  ├─ OogcClient.cs             oogc.cc
 │  │  ├─ SaveGameReader.cs         .hg save reader (LZ4 blocks)
+│  │  ├─ UpdateService.cs          GitHub Release check/download/self-update
 │  │  ├─ LegacyDataMigrator.cs     legacy NMSModManager compatibility
 │  │  └─ Resources\mapping.json    embedded mapping data
 │  └─ AllModsSky.App\              WPF UI
 │     ├─ MainWindow.xaml(.cs)      shell, sidebar, toast, animated logo
 │     ├─ ViewModels\               page view models
-│     ├─ Views\                    Library / Discover / Tools / Settings
+│     ├─ Views\                    Library / Discover / Tools / Settings / About
 │     ├─ Themes\                   Dark / Light / Styles
 │     ├─ Services\                 dialog / shell UI / theme services
 │     ├─ Controls\                 control helpers

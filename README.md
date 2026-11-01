@@ -1,4 +1,4 @@
-# All Mod's Sky 2.0.3
+# All Mod's Sky 2.0.5
 
 [English](README.en.md) | **简体中文**
 
@@ -32,6 +32,7 @@ All Mod's Sky 是一个面向《No Man's Sky》的本地模组管理器。它不
   - [3.9 存档读取](#39-存档读取)
   - [3.10 设置](#310-设置)
   - [3.11 界面与交互](#311-界面与交互)
+  - [3.12 关于与更新](#312-关于与更新)
 - [4. 数据目录与兼容格式](#4-数据目录与兼容格式)
 - [5. 系统要求](#5-系统要求)
 - [6. 运行方式](#6-运行方式)
@@ -70,7 +71,8 @@ All Mod's Sky 是一个面向《No Man's Sky》的本地模组管理器。它不
 | 加载顺序 | 读取/写入 `GCMODSETTINGS.MXML` 的 `ModPriority`，自动备份 |
 | 日志诊断 | 从游戏日志里提取报错，并尝试归因到具体模组 |
 | AMUMSS | 检测 AMUMSS、分析修复方案、调用 `BUILDMOD.bat`、收录输出 |
-| 发现 | Nexus（API Key）与 oogc.cc 的浏览、搜索、分页、详情、浏览器跳转、随机抽 10 个 |
+| 发现 | Nexus（API Key）与 oogc.cc 的浏览、分页、详情、浏览器跳转、随机抽 10 个（Nexus 不再提供关键词搜索） |
+| 关于 | 项目主页、发布页、程序/数据目录、自动检查最新 GitHub Release；下载更新后替换 exe 并重启 |
 | 存档 | 读取 `.hg` 存档的版本、名称、平台、模式、游玩时长 |
 | 兼容 | 读写旧版 `NMSModManager` 的 `settings.json` / `library.json` |
 | 便携 | 默认 AppData，支持 `--data` 指定任意数据目录 |
@@ -381,7 +383,7 @@ AMUMSS 是《No Man's Sky》的模组脚本/编译工具链。本程序不内置
 #### Nexus Mods
 
 - 需要个人 Nexus API Key；
-- 支持分类、排序（热门/最新/最近更新等）、关键词搜索；
+- 支持分类、排序（热门/最新/最近更新等）；
 - 分类标签会随窗口宽度自动换行；
 - 本地分页（每页固定数量）；
 - 卡片显示封面、标题、分类、版本、作者；
@@ -454,7 +456,7 @@ API Key 会保存到数据目录的 `settings.json`。如果 API Key 无法保�
 
 ### 3.11 界面与交互
 
-- 左侧导航：模组库 / 发现模组 / 工具 / 设置；
+- 左侧导航：模组库 / 发现模组 / 工具 / 设置 / 关于；
 - 左下角：启动游戏按钮、游戏状态卡、深色模式开关；
 - 顶部状态栏：MODS 路径、计数、版本；
 - 深色/浅色两套主题；
@@ -472,8 +474,29 @@ API Key 会保存到数据目录的 `settings.json`。如果 API Key 无法保�
   - `Ctrl+2` 发现
   - `Ctrl+3` 工具
   - `Ctrl+4` 设置
+  - `Ctrl+5` 关于
   - `F5` 刷新
   - `Esc` 退出批量/收起提示
+
+### 3.12 关于与更新
+
+左侧“设置”下方新增“关于”页面：
+
+- 显示当前版本、项目主页和发布页链接；
+- 显示程序目录（exe 所在位置）和数据目录（settings/library 所在位置），可直接打开；
+- 打开页面时自动联网检查 GitHub 的最新 Release；
+- 显示最新版本、发布时间和 Release 说明；
+- 如果发现新版本，提示用户点击“下载更新版本”；
+- 下载后校验 SHA256（如果 Release 提供摘要），替换当前 exe 并自动重启；
+- 安装前会再次弹窗确认；替换由后台 PowerShell 等待当前进程退出后完成；
+- 如果 Release 没有 exe/zip 资产，则引导用户打开发布页手动处理；
+- 检查失败时显示错误，并保留手动打开项目主页/发布页的入口。
+
+更新检查使用公开 GitHub API，仓库地址为：
+
+```text
+https://github.com/Dlover32214/NMSModManager
+```
 
 ---
 
@@ -618,7 +641,7 @@ AllModsSky.exe --data "D:\NMSData"
 ### release 文件
 
 - `release\AllModsSky.exe`
-- `release\AllModsSky-2.0.3-win-x64.zip`
+- `release\AllModsSky-2.0.5-win-x64.zip`
 - `release\README.txt`（快速上手版）
 
 ---
@@ -711,12 +734,13 @@ NMSModManager\
 │  │  ├─ NexusClient.cs            Nexus API
 │  │  ├─ OogcClient.cs             oogc.cc
 │  │  ├─ SaveGameReader.cs         .hg 存档读取（LZ4 块）
+│  │  ├─ UpdateService.cs          GitHub Release 检查、下载与自替换更新
 │  │  ├─ LegacyDataMigrator.cs     旧版 NMSModManager 数据兼容
 │  │  └─ Resources\mapping.json    内置映射数据
 │  └─ AllModsSky.App\              WPF 界面
 │     ├─ MainWindow.xaml(.cs)      主窗口、侧栏、Toast、动态 Logo
 │     ├─ ViewModels\               页面 ViewModel
-│     ├─ Views\                    Library / Discover / Tools / Settings
+│     ├─ Views\                    Library / Discover / Tools / Settings / About
 │     ├─ Themes\                   Dark / Light / Styles
 │     ├─ Services\                 Dialog / Shell UI / 主题等
 │     ├─ Controls\                 控件辅助
