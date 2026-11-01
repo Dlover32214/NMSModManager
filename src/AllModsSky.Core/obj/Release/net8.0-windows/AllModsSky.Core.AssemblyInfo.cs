@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AllModsSky.Core")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1b2af85b11771e74563f34adccfd9e754ce6275d")]
 [assembly: System.Reflection.AssemblyProductAttribute("AllModsSky.Core")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AllModsSky.Core")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

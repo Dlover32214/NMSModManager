@@ -1,13 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "6pJg0keiRpc=",
+  "dgSpecHash": "E7NSHaq4O/Y=",
   "success": true,
   "projectFilePath": "E:\\NMS tool\\NMSModManager\\src\\AllModsSky.Core\\AllModsSky.Core.csproj",
   "expectedPackageFiles": [
-    "C:\\Users\\Dlover_\\.nuget\\packages\\microsoft.net.illink.tasks\\8.0.25\\microsoft.net.illink.tasks.8.0.25.nupkg.sha512",
-    "C:\\Users\\Dlover_\\.nuget\\packages\\microsoft.netcore.app.runtime.win-x64\\8.0.25\\microsoft.netcore.app.runtime.win-x64.8.0.25.nupkg.sha512",
-    "C:\\Users\\Dlover_\\.nuget\\packages\\microsoft.windowsdesktop.app.runtime.win-x64\\8.0.25\\microsoft.windowsdesktop.app.runtime.win-x64.8.0.25.nupkg.sha512",
-    "C:\\Users\\Dlover_\\.nuget\\packages\\microsoft.aspnetcore.app.runtime.win-x64\\8.0.25\\microsoft.aspnetcore.app.runtime.win-x64.8.0.25.nupkg.sha512"
+    "C:\\Users\\Dlover_\\.nuget\\packages\\microsoft.net.illink.tasks\\8.0.16\\microsoft.net.illink.tasks.8.0.16.nupkg.sha512"
   ],
   "logs": []
 }

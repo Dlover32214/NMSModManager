@@ -27,7 +27,12 @@ public sealed class ImportOptions
 /// <summary>把压缩包 / 文件夹 / 单个 .pak 收进模组库（库 = GAMEDATA\MODS）。</summary>
 public static class Importer
 {
-    private static readonly string[] ArchiveExtensions = { ".zip", ".rar", ".7z" };
+    private static readonly string[] ArchiveExtensions =
+    {
+        ".zip", ".rar", ".7z", ".cab",
+        ".tar", ".gz", ".tgz", ".bz2", ".tbz2",
+        ".xz", ".txz", ".zst", ".tzst"
+    };
     private static readonly string[] JunkNames = { "__MACOSX", ".git", ".svn", ".DS_Store", "Thumbs.db", "desktop.ini" };
 
     public static bool IsSupported(string path) =>
@@ -78,7 +83,7 @@ public static class Importer
         if (!Directory.Exists(path))
         {
             var ext = Path.GetExtension(path).ToLowerInvariant();
-            if (ext is not (".zip" or ".rar" or ".7z" or ".pak"))
+            if (!IsArchive(path) && !IsPak(path))
                 return ImportOutcome.Fail(source, Path.GetFileName(path), "不支持的格式：" + ext);
         }
 
@@ -108,16 +113,26 @@ public static class Importer
             else if (Path.GetExtension(path).Equals(".zip", StringComparison.OrdinalIgnoreCase))
             {
                 options.Progress?.Report("正在解压 " + Path.GetFileName(path));
-                ZipFile.ExtractToDirectory(path, staging, true);
+                try
+                {
+                    ZipFile.ExtractToDirectory(path, staging, true);
+                }
+                catch
+                {
+                    // 某些 zip 使用内置 ZipArchive 不支持的压缩方法；交给外部工具再试一次。
+                    CleanDirectory(staging);
+                    ExtractArchive(path, staging);
+                }
+
                 contentRoot = FindContentRoot(staging);
-                rawName = Path.GetFileNameWithoutExtension(path);
+                rawName = ArchiveDisplayName(path);
             }
             else
             {
                 options.Progress?.Report("正在解压 " + Path.GetFileName(path));
-                ExtractWith7Zip(path, staging);
+                ExtractArchive(path, staging);
                 contentRoot = FindContentRoot(staging);
-                rawName = Path.GetFileNameWithoutExtension(path);
+                rawName = ArchiveDisplayName(path);
             }
 
             options.Cancellation.ThrowIfCancellationRequested();
@@ -270,34 +285,188 @@ public static class Importer
         }
     }
 
-    private static void ExtractWith7Zip(string archive, string destination)
+    private static void ExtractArchive(string archive, string destination)
     {
+        var ext = Path.GetExtension(archive).ToLowerInvariant();
+        var errors = new List<string>();
         var sevenZip = Find7Zip();
-        if (sevenZip == null)
-            throw new InvalidOperationException("RAR/7z 需要本机安装 7-Zip。请把压缩包转成 zip，或安装 7-Zip 后重试。");
+        var bandizip = FindBandizip();
+        var tar = FindWindowsTool("tar.exe");
+        var expand = FindWindowsTool("expand.exe");
 
+        if (IsTarFamily(ext) && tar != null)
+        {
+            if (TryExtract("Windows tar", tar,
+                    new[] { new[] { "-xf", archive, "-C", destination } }, destination, errors))
+                return;
+        }
+
+        if (ext == ".cab" && expand != null)
+        {
+            if (TryExtract("Windows expand", expand,
+                    new[] { new[] { "-F:*", archive, destination } }, destination, errors))
+                return;
+        }
+
+        if (bandizip != null)
+        {
+            // Bandizip: bz x [switches] <archive> [path_to_extract]
+            var forms = new[]
+            {
+                new[] { "x", "-y", "-o:" + destination, archive },
+                new[] { "x", archive, "-o:" + destination, "-y" },
+                new[] { "x", "-y", "-o" + destination, archive }
+            };
+
+            if (TryExtract("Bandizip", bandizip, forms, destination, errors))
+                return;
+        }
+
+        if (sevenZip != null)
+        {
+            if (TryExtract("7-Zip", sevenZip,
+                    new[] { new[] { "x", archive, "-o" + destination, "-y" } }, destination, errors))
+                return;
+        }
+
+        // Windows tar 也能处理一部分 zip/rar；作为最后兜底。
+        if (tar != null && !IsTarFamily(ext))
+        {
+            if (TryExtract("Windows tar", tar,
+                    new[] { new[] { "-xf", archive, "-C", destination } }, destination, errors))
+                return;
+        }
+
+        CleanDirectory(destination);
+
+        var detail = errors.Count == 0
+            ? "未找到可用的解压工具"
+            : string.Join("；", errors.TakeLast(3));
+
+        if (ext is ".rar" or ".7z" or ".cab")
+            throw new InvalidOperationException(
+                $"无法解压 {ext}：{detail}。请安装 7-Zip 或 Bandizip（bz.exe）后重试。");
+
+        throw new InvalidOperationException(
+            $"无法解压 {ext}：{detail}。请安装 7-Zip 或 Bandizip，或使用 Windows 自带 tar 支持的格式。");
+    }
+
+    private static bool TryExtract(
+        string label,
+        string executable,
+        IReadOnlyList<string[]> argumentSets,
+        string destination,
+        List<string> errors)
+    {
+        foreach (var arguments in argumentSets)
+        {
+            CleanDirectory(destination);
+            try
+            {
+                var (code, detail) = RunExtractor(executable, arguments);
+                if (code == 0 && HasEntries(destination))
+                    return true;
+
+                errors.Add($"{label} 退出码 {code}：{Trim(detail, 160)}");
+            }
+            catch (Exception ex)
+            {
+                errors.Add($"{label} 启动失败：{ex.Message}");
+            }
+        }
+
+        return false;
+    }
+
+    private static (int Code, string Detail) RunExtractor(string executable, IReadOnlyList<string> arguments)
+    {
         var psi = new ProcessStartInfo
         {
-            FileName = sevenZip,
-            Arguments = $"x \"{archive}\" -o\"{destination}\" -y",
+            FileName = executable,
             CreateNoWindow = true,
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true
         };
 
-        using var process = Process.Start(psi) ?? throw new InvalidOperationException("无法启动 7-Zip");
-        process.StandardOutput.ReadToEnd();
-        process.StandardError.ReadToEnd();
+        foreach (var argument in arguments)
+            psi.ArgumentList.Add(argument);
+
+        using var process = Process.Start(psi) ??
+                            throw new InvalidOperationException("无法启动解压工具：" + executable);
+
+        var stdout = process.StandardOutput.ReadToEndAsync();
+        var stderr = process.StandardError.ReadToEndAsync();
 
         if (!process.WaitForExit(180_000))
         {
             try { process.Kill(true); } catch { }
-            throw new InvalidOperationException("7-Zip 解压超时");
+            throw new InvalidOperationException("解压超时（180 秒）");
         }
 
-        if (process.ExitCode != 0)
-            throw new InvalidOperationException("7-Zip 解压失败，退出码 " + process.ExitCode);
+        Task.WaitAll(stdout, stderr);
+        return (process.ExitCode, (stdout.Result + " " + stderr.Result).Trim());
+    }
+
+    private static void CleanDirectory(string dir)
+    {
+        try
+        {
+            if (Directory.Exists(dir)) Directory.Delete(dir, true);
+        }
+        catch { }
+
+        Directory.CreateDirectory(dir);
+    }
+
+    private static bool HasEntries(string dir)
+    {
+        try { return Directory.EnumerateFileSystemEntries(dir).Any(); }
+        catch { return false; }
+    }
+
+    private static bool IsTarFamily(string ext) =>
+        ext is ".tar" or ".gz" or ".tgz" or ".bz2" or ".tbz2" or ".xz" or ".txz" or ".zst" or ".tzst";
+
+    private static string Trim(string value, int max) =>
+        string.IsNullOrEmpty(value) || value.Length <= max ? value : value[..max];
+
+    private static string ArchiveDisplayName(string path)
+    {
+        var name = Path.GetFileName(path);
+        var lower = name.ToLowerInvariant();
+
+        foreach (var suffix in new[] { ".tar.gz", ".tar.bz2", ".tar.xz", ".tar.zst", ".tgz", ".tbz2", ".txz", ".tzst" })
+        {
+            if (lower.EndsWith(suffix, StringComparison.Ordinal))
+                return name[..^suffix.Length];
+        }
+
+        return Path.GetFileNameWithoutExtension(name);
+    }
+
+    private static string? FindBandizip()
+    {
+        var candidates = new[]
+        {
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Bandizip", "bz.exe"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Bandizip", "bz.exe"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Bandizip", "bz.exe")
+        };
+
+        foreach (var candidate in candidates)
+            if (File.Exists(candidate)) return candidate;
+
+        return FindOnPath("bz.exe");
+    }
+
+    private static string? FindWindowsTool(string exeName)
+    {
+        var system = Environment.GetFolderPath(Environment.SpecialFolder.System);
+        var path = Path.Combine(system, exeName);
+        if (File.Exists(path)) return path;
+
+        return FindOnPath(exeName);
     }
 
     private static string? Find7Zip()
@@ -311,12 +480,17 @@ public static class Importer
         foreach (var candidate in candidates)
             if (File.Exists(candidate)) return candidate;
 
+        return FindOnPath("7z.exe");
+    }
+
+    private static string? FindOnPath(string exeName)
+    {
         var path = Environment.GetEnvironmentVariable("PATH") ?? "";
         foreach (var dir in path.Split(';', StringSplitOptions.RemoveEmptyEntries))
         {
             try
             {
-                var exe = Path.Combine(dir.Trim().Trim('"'), "7z.exe");
+                var exe = Path.Combine(dir.Trim().Trim('"'), exeName);
                 if (File.Exists(exe)) return exe;
             }
             catch { }
