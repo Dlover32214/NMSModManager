@@ -195,7 +195,7 @@ public sealed class SettingsViewModel : ObservableObject, IActivatable
     }
 
     public string DataPath => AppPaths.Root;
-    public string AppVersion => "2.0.0";
+    public string AppVersion => "2.0.3";
 
     public void LoadFromSettings()
     {

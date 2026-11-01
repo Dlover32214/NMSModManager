@@ -24,7 +24,7 @@ public static class DialogService
         {
             Title = "选择要导入的模组（可多选）",
             Multiselect = true,
-            Filter = "模组压缩包|*.zip;*.rar;*.7z;*.pak|所有文件|*.*"
+            Filter = "模组压缩包|*.zip;*.rar;*.7z;*.tar;*.gz;*.tgz;*.bz2;*.tbz2;*.xz;*.txz;*.zst;*.tzst;*.cab;*.pak|所有文件|*.*"
         };
 
         var owner = Application.Current?.MainWindow;

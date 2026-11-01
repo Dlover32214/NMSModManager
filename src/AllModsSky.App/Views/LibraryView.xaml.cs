@@ -26,14 +26,18 @@ public partial class LibraryView : UserControl
     {
         _dragStart = e.GetPosition(ModList);
         _dragItem = ItemAt(_dragStart);
+    }
 
-        // 批量模式下：单击整行（按钮/开关/滚动条除外）切换选中，不需要 Ctrl。
-        if (ViewModel is { BatchMode: true } && _dragItem != null && !IsInteractiveSource(e.OriginalSource))
-        {
-            _dragItem.IsSelected = !_dragItem.IsSelected;
-            _dragItem = null; // 避免接着触发拖拽排序
-            e.Handled = true;
-        }
+    /// <summary>批量模式下由行本身处理点击，避免 ListBox 的 Extended 选择规则要求 Ctrl。</summary>
+    private void ModRow_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (ViewModel is not { BatchMode: true }) return;
+        if (sender is not ListBoxItem { DataContext: ModItemViewModel item }) return;
+        if (IsInteractiveSource(e.OriginalSource)) return;
+
+        item.IsSelected = !item.IsSelected;
+        _dragItem = null; // 避免接着触发拖拽排序
+        e.Handled = true;
     }
 
     private void ModList_PreviewMouseMove(object sender, MouseEventArgs e)

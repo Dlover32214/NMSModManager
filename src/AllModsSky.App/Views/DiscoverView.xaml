@@ -61,7 +61,7 @@
         <Grid Grid.Row="0" Margin="0,0,0,14">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom">
                 <TextBlock Text="发现" Style="{StaticResource H1}" />
-                <TextBlock Text="浏览社区模组，下载后可直接拖回本窗口导入" Style="{StaticResource MutedText}"
+                <TextBlock Text="浏览社区模组，可跳转浏览器页面查看或手动下载" Style="{StaticResource MutedText}"
                            VerticalAlignment="Bottom" Margin="12,0,0,5" />
             </StackPanel>
         </Grid>
@@ -92,12 +92,19 @@
                                      IsChecked="{Binding NexusSort, Converter={StaticResource StringEquals}, ConverterParameter=updated, Mode=TwoWay}" />
                     </StackPanel>
 
-                    <StackPanel Orientation="Horizontal" Margin="0,9,0,0">
-                        <TextBlock Text="分类" Style="{StaticResource SmallText}" Width="40" VerticalAlignment="Center" />
-                        <ListBox ItemsSource="{Binding NexusCategories}"
+                    <Grid Margin="0,9,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="40" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="分类" Style="{StaticResource SmallText}" VerticalAlignment="Center" />
+                        <ListBox Grid.Column="1" ItemsSource="{Binding NexusCategories}"
                                  SelectedItem="{Binding SelectedNexusCategory}"
                                  Background="Transparent" BorderThickness="0"
+                                 HorizontalAlignment="Stretch"
+                                 HorizontalContentAlignment="Left"
                                  ItemContainerStyle="{StaticResource CategoryChipItem}"
+                                 ScrollViewer.CanContentScroll="False"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                  ScrollViewer.VerticalScrollBarVisibility="Disabled">
                             <ListBox.ItemsPanel>
@@ -111,7 +118,7 @@
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
-                    </StackPanel>
+                    </Grid>
 
                     <Grid Margin="0,8,0,0">
                         <Grid.ColumnDefinitions>
@@ -125,8 +132,13 @@
                                 Command="{Binding SearchCommand}" Margin="8,0,0,0" MinWidth="76" />
                     </Grid>
 
-                    <Button Style="{StaticResource LinkButton}" Content="在 Nexus 官网浏览全部模组 ↗"
-                            Command="{Binding OpenNexusSiteCommand}" HorizontalAlignment="Left" Margin="0,8,0,0" />
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button Style="{StaticResource GhostButton}" Content="随机抽 10 个"
+                                Command="{Binding RandomNexusCommand}"
+                                ToolTip="从 Nexus 当前可获取的模组池中随机抽 10 个（没有官方随机接口）" />
+                        <Button Style="{StaticResource LinkButton}" Content="在 Nexus 官网浏览全部模组 ↗"
+                                Command="{Binding OpenNexusSiteCommand}" Margin="12,0,0,0" />
+                    </StackPanel>
                 </StackPanel>
 
                 <!-- oogc -->
@@ -332,12 +344,6 @@
                             Command="{Binding OpenPageCommand}" />
                     <Button Style="{StaticResource GhostButton}" Content="复制链接" Margin="8,0,0,0"
                             Command="{Binding CopyLinkCommand}" />
-                    <Button Style="{StaticResource PrimaryButton}" Content="下载并导入" Margin="8,0,0,0"
-                            Command="{Binding DownloadImportCommand}"
-                            Visibility="{Binding ShowDownload, Converter={StaticResource BoolToVisibility}}" />
-                    <Button Style="{StaticResource PrimaryButton}" Content="打开文件下载页" Margin="8,0,0,0"
-                            Command="{Binding OpenNexusFilesCommand}"
-                            Visibility="{Binding ShowNexusFiles, Converter={StaticResource BoolToVisibility}}" />
                 </StackPanel>
             </Grid>
         </Grid>

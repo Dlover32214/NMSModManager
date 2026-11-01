@@ -58,9 +58,6 @@ public sealed class DiscoverViewModel : ObservableObject, IActivatable
     private string _detailBody = "";
     private ImageSource? _detailCover;
     private string _selectedUrl = "";
-    private object? _selectedPayload;
-    private bool _showDownload;
-    private bool _showNexusFiles;
 
     private bool _loadedNexus;
     private bool _loadedOogc;
@@ -78,11 +75,10 @@ public sealed class DiscoverViewModel : ObservableObject, IActivatable
 
         SearchCommand = new AsyncRelayCommand(SearchAsync);
         RetryCommand = new AsyncRelayCommand(() => ForceReloadAsync());
+        RandomNexusCommand = new AsyncRelayCommand(RandomNexusAsync);
         BackCommand = new RelayCommand(CloseDetail);
         OpenPageCommand = new RelayCommand(() => Launcher.OpenUrl(SelectedUrl));
         CopyLinkCommand = new RelayCommand(CopyLink);
-        DownloadImportCommand = new AsyncRelayCommand(DownloadAndImportAsync);
-        OpenNexusFilesCommand = new RelayCommand(() => Launcher.OpenUrl(SelectedUrl + "?tab=files"));
         OpenNexusSiteCommand = new RelayCommand(() =>
             Launcher.OpenUrl(NexusClient.SiteBase + "/mods?sort=trending"));
         PrevPageCommand = new RelayCommand(() => _ = GoPageAsync(-1));
@@ -100,11 +96,10 @@ public sealed class DiscoverViewModel : ObservableObject, IActivatable
 
     public ICommand SearchCommand { get; }
     public ICommand RetryCommand { get; }
+    public ICommand RandomNexusCommand { get; }
     public ICommand BackCommand { get; }
     public ICommand OpenPageCommand { get; }
     public ICommand CopyLinkCommand { get; }
-    public ICommand DownloadImportCommand { get; }
-    public ICommand OpenNexusFilesCommand { get; }
     public ICommand OpenNexusSiteCommand { get; }
     public ICommand PrevPageCommand { get; }
     public ICommand NextPageCommand { get; }
@@ -288,18 +283,6 @@ public sealed class DiscoverViewModel : ObservableObject, IActivatable
         private set => SetProperty(ref _selectedUrl, value);
     }
 
-    public bool ShowDownload
-    {
-        get => _showDownload;
-        private set => SetProperty(ref _showDownload, value);
-    }
-
-    public bool ShowNexusFiles
-    {
-        get => _showNexusFiles;
-        private set => SetProperty(ref _showNexusFiles, value);
-    }
-
     public async Task EnsureLoadedAsync()
     {
         if (IsNexus && !_loadedNexus) await LoadNexusAsync();
@@ -312,6 +295,86 @@ public sealed class DiscoverViewModel : ObservableObject, IActivatable
     {
         if (IsNexus) await LoadNexusAsync(force: true);
         else await LoadOogcAsync();
+    }
+
+    /// <summary>从 Nexus 当前可获取的模组池中随机抽 10 个；没有官方随机接口。</summary>
+    private async Task RandomNexusAsync()
+    {
+        if (!IsNexus) return;
+
+        var key = _workspace.Settings.NexusApiKey;
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            _ui.Toast("随机抽签需要先填写 Nexus API Key", false);
+            return;
+        }
+
+        var token = ++_loadToken;
+        IsLoading = true;
+        HasError = false;
+        Error = "";
+        Status = "正在从 Nexus 抽签…";
+
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        try
+        {
+            var (mods, error) = await _workspace.Nexus.GetAllAsync(key, timeout.Token);
+            if (token != _loadToken) return;
+
+            if (mods.Count == 0)
+            {
+                SetError(error ?? "Nexus 没有返回可抽取的模组");
+                return;
+            }
+
+            var pool = mods.ToList();
+            for (var i = pool.Count - 1; i > 0; i--)
+            {
+                var j = Random.Shared.Next(i + 1);
+                (pool[i], pool[j]) = (pool[j], pool[i]);
+            }
+
+            var picked = pool.Take(Math.Min(10, pool.Count)).ToList();
+            var categoryNames = NexusCategories.ToDictionary(
+                c => c.Id, c => c.Name, StringComparer.OrdinalIgnoreCase);
+
+            Cards.Clear();
+            foreach (var mod in picked)
+            {
+                var category = mod.CategoryId != null && categoryNames.TryGetValue(mod.CategoryId, out var name)
+                    ? name
+                    : "";
+
+                Cards.Add(new SourceCardViewModel
+                {
+                    Title = mod.Name,
+                    Subtitle = (string.IsNullOrEmpty(category) ? "" : category + " · ") +
+                               "v" + mod.Version + " · " + mod.Author,
+                    CoverUrl = mod.CoverUrl,
+                    Payload = mod
+                });
+            }
+
+            Page = 1;
+            MaxPage = 1;
+            Status = $"随机抽到 {picked.Count} 个模组（再抽一次可换一批）";
+            HasError = false;
+            _loadedNexus = true;
+            Raise(nameof(ShowEmptyState), nameof(ShowPager), nameof(CanGoPrev), nameof(CanGoNext));
+            _ = LoadCoversAsync(Cards.ToList(), null);
+        }
+        catch (OperationCanceledException)
+        {
+            if (token == _loadToken) SetError("抽签超时（30 秒），请检查网络后重试。");
+        }
+        catch (Exception ex)
+        {
+            if (token == _loadToken) SetError(ex.Message);
+        }
+        finally
+        {
+            if (token == _loadToken) IsLoading = false;
+        }
     }
 
     private async Task SearchAsync()
@@ -558,9 +621,6 @@ public sealed class DiscoverViewModel : ObservableObject, IActivatable
         DetailBody = "正在读取详情…";
         DetailCover = card.Cover;
         SelectedUrl = "";
-        _selectedPayload = card.Payload;
-        ShowDownload = false;
-        ShowNexusFiles = false;
 
         if (card.Payload is OogcResource resource)
         {
@@ -582,8 +642,6 @@ public sealed class DiscoverViewModel : ObservableObject, IActivatable
                     DetailCover = await _workspace.Images.LoadAsync(detail.CoverUrl, 1200, OogcClient.BaseUrl);
             }
 
-            ShowDownload = true;
-            ShowNexusFiles = false;
             return;
         }
 
@@ -591,8 +649,6 @@ public sealed class DiscoverViewModel : ObservableObject, IActivatable
         {
             SelectedUrl = mod.PageUrl;
             DetailMeta = $"Nexus · 作者 {mod.Author} · 版本 {mod.Version}";
-            ShowDownload = false;
-            ShowNexusFiles = true;
 
             var (files, error) = await _workspace.Nexus.GetFilesAsync(
                 mod.ModId, _workspace.Settings.NexusApiKey);
@@ -619,7 +675,7 @@ public sealed class DiscoverViewModel : ObservableObject, IActivatable
         }
 
         lines.Add("");
-        lines.Add("Nexus 不提供第三方直链，点「打开文件下载页」在浏览器里下载，再把文件拖回本窗口即可导入。");
+        lines.Add("Nexus 不提供第三方直链，点「在浏览器中打开」查看页面，登录后手动下载，再把文件拖回本窗口即可导入。");
         return string.Join(Environment.NewLine, lines);
     }
 
@@ -644,7 +700,6 @@ public sealed class DiscoverViewModel : ObservableObject, IActivatable
     private void CloseDetail()
     {
         DetailOpen = false;
-        _selectedPayload = null;
         DetailCover = null;
         SelectedUrl = "";
     }
@@ -665,39 +720,6 @@ public sealed class DiscoverViewModel : ObservableObject, IActivatable
         catch (Exception ex)
         {
             _ui.Toast("复制失败：" + ex.Message, false);
-        }
-    }
-
-    private async Task DownloadAndImportAsync()
-    {
-        if (_selectedPayload is not OogcResource resource)
-        {
-            Launcher.OpenUrl(SelectedUrl);
-            return;
-        }
-
-        _ui.BeginBusy("正在下载资源…");
-        try
-        {
-            var (path, error) = await _workspace.Oogc.DownloadAsync(resource.Fid);
-            if (path == null)
-            {
-                _ui.Alert("需要手动下载",
-                    "无法直接下载：" + (error ?? "未知原因") +
-                    "\n\n资源中心的附件多数要求登录。已经为你打开资源页面，登录后手动下载，再把文件拖回本窗口即可导入。");
-                Launcher.OpenUrl(resource.Url);
-                return;
-            }
-
-            await _ui.ImportAsync(new[] { path });
-        }
-        catch (Exception ex)
-        {
-            _ui.Alert("下载失败", ex.Message);
-        }
-        finally
-        {
-            _ui.EndBusy();
         }
     }
 

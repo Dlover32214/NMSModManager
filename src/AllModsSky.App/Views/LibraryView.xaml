@@ -16,6 +16,7 @@
             <Setter Property="Margin" Value="0,0,0,4" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
+            <EventSetter Event="PreviewMouseLeftButtonDown" Handler="ModRow_PreviewMouseLeftButtonDown" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
@@ -232,21 +233,16 @@
                     <DataTemplate DataType="{x:Type vm:ModItemViewModel}">
                         <Grid Height="64">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="38" />
+                                <ColumnDefinition Width="28" />
                                 <ColumnDefinition Width="48" />
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
-                            <!-- 序号 + 拖拽手柄 -->
-                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center"
-                                        Cursor="SizeNS" ToolTip="拖动调整加载顺序">
-                                <TextBlock Text="⣿" FontSize="11" Foreground="{DynamicResource TextFaint}"
-                                           VerticalAlignment="Center" Margin="0,0,6,0" Opacity="0.7" />
-                                <TextBlock Text="{Binding IndexText}" Style="{StaticResource CaptionText}"
-                                           VerticalAlignment="Center" />
-                            </StackPanel>
+                            <!-- 序号 -->
+                            <TextBlock Grid.Column="0" Text="{Binding IndexText}" Style="{StaticResource CaptionText}"
+                                       VerticalAlignment="Center" />
 
                             <!-- 启停 -->
                             <CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}"

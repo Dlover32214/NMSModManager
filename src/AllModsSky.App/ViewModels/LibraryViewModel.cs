@@ -111,13 +111,13 @@ public sealed class LibraryViewModel : ObservableObject
         set
         {
             if (!SetProperty(ref _batchMode, value)) return;
-            if (!value) ClearSelectionCore();
+            ClearSelectionCore();
             Raise(nameof(ShowBatchBar), nameof(BatchButtonText));
         }
     }
 
-    public bool ShowBatchBar => BatchMode || HasSelection;
-    public string BatchButtonText => BatchMode ? "退出批量" : "批量选择";
+    public bool ShowBatchBar => BatchMode;
+    public string BatchButtonText => BatchMode ? "退出批量" : "批量选取";
 
     public bool HasVisibleMods => !View.IsEmpty;
     public bool IsLibraryEmpty => Items.Count == 0;
@@ -409,19 +409,20 @@ public sealed class LibraryViewModel : ObservableObject
         _ui.Toast($"已删除 {selected.Count} 个模组", true);
     }
 
-    private async Task MoveSelectedAsync(bool toTop)
+    private Task MoveSelectedAsync(bool toTop)
     {
         var selected = SelectedItems;
         if (selected.Count == 0)
         {
             _ui.Toast("先选中模组", false);
-            return;
+            return Task.CompletedTask;
         }
 
         _workspace.Library.MoveMany(selected.Select(i => i.Record).ToList(), toTop);
         _workspace.Library.Save();
         SyncFromLibrary();
         _ui.Toast((toTop ? "已移到顶部：" : "已移到底部：") + selected.Count + " 个模组", true);
+        return Task.CompletedTask;
     }
 
     private void ClearSelectionCore()
