@@ -359,9 +359,12 @@
                             </StackPanel>
 
                             <!-- 适配状态 -->
+                            <!-- 适配状态：最长的文案「模组 1.0 · 游戏 5.60，落后一个大版本」要 ~193px，
+                                 180 会一直切掉尾巴，放宽到 300；再长就悬停看全文 -->
                             <TextBlock Grid.Column="3" Text="{Binding CompatText}" Style="{StaticResource CaptionText}"
-                                       VerticalAlignment="Center" Margin="0,0,14,0" MaxWidth="180"
-                                       TextTrimming="CharacterEllipsis" />
+                                       VerticalAlignment="Center" Margin="0,0,14,0" MaxWidth="300"
+                                       TextTrimming="CharacterEllipsis"
+                                       ToolTip="{Binding CompatText}" />
 
                             <!-- 操作 -->
                             <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">

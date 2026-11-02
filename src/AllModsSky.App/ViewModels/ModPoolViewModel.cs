@@ -156,6 +156,10 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
         set
         {
             if (!SetProperty(ref _onlyUnused, value)) return;
+
+            // 换筛选就退出批量，免得选中的被筛没了还挂着
+            if (BatchMode) ExitBatch();
+
             View.Refresh();
             Raise(nameof(HasVisibleMods), nameof(IsEmpty), nameof(UnusedButtonText),
                 nameof(AllSelected), nameof(SelectAllText), nameof(SelectAllTooltip));

@@ -124,6 +124,11 @@ public sealed class LibraryViewModel : ObservableObject
         set
         {
             if (!SetProperty(ref _filter, value)) return;
+
+            // 换分类就退出批量：不然选中的那批被筛没了，批量条还挂着「已选 N 个」，
+            // 点「停用」会改到看不见的模组。
+            if (BatchMode) ExitBatch();
+
             View.Refresh();
             Raise(nameof(HasVisibleMods), nameof(AllSelected), nameof(SelectAllText),
                 nameof(SelectAllTooltip));

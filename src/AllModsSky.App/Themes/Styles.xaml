@@ -399,7 +399,16 @@
                             BorderThickness="{TemplateBinding BorderThickness}"
                             CornerRadius="8"
                             Padding="{TemplateBinding Padding}">
-                        <ContentPresenter />
+                        <!-- 字符串提示会被 WPF 包成 TextBlock，默认不换行：长文案会直接被切掉。
+                             这里让它折行，宁可高一点也别丢字。 -->
+                        <ContentPresenter>
+                            <ContentPresenter.Resources>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="TextWrapping" Value="Wrap" />
+                                    <Setter Property="MaxWidth" Value="440" />
+                                </Style>
+                            </ContentPresenter.Resources>
+                        </ContentPresenter>
                     </Border>
                 </ControlTemplate>
             </Setter.Value>
