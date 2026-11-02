@@ -329,7 +329,7 @@
                 <StackPanel Grid.Row="5" Margin="2,16,2,0">
                     <Border Style="{StaticResource Divider}" Margin="0,0,0,10" />
                     <Grid>
-                        <TextBlock Text="v2.0.6" FontSize="10.5" Foreground="{DynamicResource TextFaint}"
+                        <TextBlock Text="{Binding AppVersion}" FontSize="10.5" Foreground="{DynamicResource TextFaint}"
                                    VerticalAlignment="Center" />
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                             <Button Content="日志" Style="{StaticResource LinkButton}"
@@ -369,7 +369,7 @@
                         <TextBlock Text="{Binding StatusRight}" FontSize="11"
                                    Foreground="{DynamicResource TextMuted}" />
                         <Border Width="1" Height="12" Background="{DynamicResource Border}" Margin="14,0" />
-                        <TextBlock Text="v2.0.6" FontSize="11" Foreground="{DynamicResource TextFaint}" />
+                        <TextBlock Text="{Binding AppVersion}" FontSize="11" Foreground="{DynamicResource TextFaint}" />
                     </StackPanel>
                 </Grid>
             </Border>

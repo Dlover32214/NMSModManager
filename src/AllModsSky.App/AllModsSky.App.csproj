@@ -10,10 +10,8 @@
     <AssemblyName>AllModsSky</AssemblyName>
     <RootNamespace>AllModsSky.App</RootNamespace>
     <ApplicationIcon>app.ico</ApplicationIcon>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>2.0.6</Version>
-    <AssemblyVersion>2.0.6.0</AssemblyVersion>
-    <FileVersion>2.0.6.0</FileVersion>
+    <_AppManifestPath>$(MSBuildProjectDirectory)\obj\$(Configuration)\$(TargetFramework)\app.manifest</_AppManifestPath>
+    <ApplicationManifest>$(_AppManifestPath)</ApplicationManifest>
     <Product>All Mod's Sky</Product>
     <AssemblyTitle>All Mod's Sky</AssemblyTitle>
     <Company>built for personal use</Company>
@@ -38,5 +36,21 @@
   <ItemGroup>
     <Resource Include="app.ico" />
   </ItemGroup>
+
+  <!--
+    app.manifest 里只放 __APP_VERSION__ 占位符，构建时从 Directory.Build.props
+    的 AppVersion 生成 obj 下的真实清单。这样版本号仍然只有一处。
+  -->
+  <Target Name="GenerateAppManifest" BeforeTargets="PrepareForBuild">
+    <MakeDir Directories="$([System.IO.Path]::GetDirectoryName('$(_AppManifestPath)'))" />
+    <PropertyGroup>
+      <_AppManifestTemplate>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)\app.manifest'))</_AppManifestTemplate>
+      <_AppManifestText>$(_AppManifestTemplate.Replace('__APP_VERSION__', '$(AppVersion)'))</_AppManifestText>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(_AppManifestPath)"
+                      Lines="$(_AppManifestText)"
+                      Overwrite="true"
+                      WriteOnlyWhenDifferent="true" />
+  </Target>
 
 </Project>

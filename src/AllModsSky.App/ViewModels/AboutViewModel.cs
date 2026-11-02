@@ -35,8 +35,8 @@ public sealed class AboutViewModel : ObservableObject, IActivatable
 
     public string AppTitle => "All Mod's Sky";
     public string AppSubtitle => "NMS Mod Manager";
-    public string CurrentVersion { get; } = ReadVersion();
-    public string CurrentVersionText => "v" + CurrentVersion;
+    public string CurrentVersion { get; } = AppInfo.Version;
+    public string CurrentVersionText => AppInfo.DisplayVersion;
     public string ProjectUrl => UpdateService.ProjectUrl;
     public string ReleasesUrl => UpdateService.ReleasesUrl;
     public string InstallPath => AppContext.BaseDirectory.TrimEnd('\\');
@@ -226,11 +226,5 @@ public sealed class AboutViewModel : ObservableObject, IActivatable
         {
             IsDownloading = false;
         }
-    }
-
-    private static string ReadVersion()
-    {
-        var version = typeof(AboutViewModel).Assembly.GetName().Version;
-        return version == null ? "2.0.6" : $"{version.Major}.{version.Minor}.{version.Build}";
     }
 }

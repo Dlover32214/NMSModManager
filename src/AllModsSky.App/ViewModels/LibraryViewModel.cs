@@ -429,14 +429,14 @@ public sealed class LibraryViewModel : ObservableObject
         }
     }
 
-    private async Task PermanentDeleteAsync(ModItemViewModel item)
+    private Task PermanentDeleteAsync(ModItemViewModel item)
     {
         var confirm = _ui.Confirm("永久删除",
             $"「{item.Name}」的磁盘文件会被永久删除，无法通过本程序恢复。\n\n" +
             "会同时删除 MODS 与 MODS_disabled 里的副本。确定继续吗？",
             "永久删除");
 
-        if (confirm != ConfirmResult.Primary) return;
+        if (confirm != ConfirmResult.Primary) return Task.CompletedTask;
 
         try
         {
@@ -450,6 +450,8 @@ public sealed class LibraryViewModel : ObservableObject
         {
             _ui.Toast("删除失败：" + ex.Message, false);
         }
+
+        return Task.CompletedTask;
     }
 
     private async Task SetSelectedEnabledAsync(bool enabled)
@@ -473,13 +475,13 @@ public sealed class LibraryViewModel : ObservableObject
         ExitBatch();
     }
 
-    private async Task BatchDeleteAsync()
+    private Task BatchDeleteAsync()
     {
         var selected = SelectedItems;
         if (selected.Count == 0)
         {
             _ui.Toast("先选中模组", false);
-            return;
+            return Task.CompletedTask;
         }
 
         var total = selected.Sum(i => i.Record.Size);
@@ -491,7 +493,7 @@ public sealed class LibraryViewModel : ObservableObject
             "会同时删除 MODS 与 MODS_disabled 里的目录。",
             "永久删除");
 
-        if (confirm != ConfirmResult.Primary) return;
+        if (confirm != ConfirmResult.Primary) return Task.CompletedTask;
 
         foreach (var item in selected)
         {
@@ -502,6 +504,7 @@ public sealed class LibraryViewModel : ObservableObject
         _workspace.Library.Save();
         _workspace.NotifyLibraryChanged();
         _ui.Toast($"已删除 {selected.Count} 个模组", true);
+        return Task.CompletedTask;
     }
 
     private Task MoveSelectedAsync(bool toTop)

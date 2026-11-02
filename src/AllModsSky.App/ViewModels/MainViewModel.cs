@@ -206,7 +206,7 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
     public string GamePath => _workspace.Game.IsValid ? _workspace.Game.GamePath : "未设置游戏目录";
     public string GameVersionLine => _workspace.Game.IsValid ? _workspace.Game.VersionLine : "去「设置」里指定游戏目录";
     public string ModsPath => _workspace.Game.ModsPath;
-    public string AppVersion => "2.0.6";
+    public string AppVersion => AppInfo.DisplayVersion;
     public string DataPath => AppPaths.Root;
     public int ModCount => Library.TotalCount;
     public int EnabledCount => Library.EnabledCount;
