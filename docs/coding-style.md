@@ -22,7 +22,9 @@
 
 **将来迁 .NET 10**：`TargetFramework` 在两个 csproj 各写一份，迁移时两处一起改。完整清单见 [build-and-release.md](build-and-release.md) 第 10 节。
 
-**没有的东西**：无 `.editorconfig`、无 `Directory.Build.props`、无 `global.json`、无任何分析器或 `TreatWarningsAsErrors`。风格全靠模仿现有代码，编译器的容忍度是默认值。
+**SDK 版本**：根目录 `global.json` 钉 `10.0.403`（`rollForward: latestPatch`），CI 也从这一个文件读，工作流里不重复声明。细节见 [build-and-release.md](build-and-release.md) 第 1 节。
+
+**没有的东西**：无 `.editorconfig`、无 `Directory.Build.props`、无任何分析器或 `TreatWarningsAsErrors`。风格全靠模仿现有代码，编译器的容忍度是默认值。
 
 ---
 

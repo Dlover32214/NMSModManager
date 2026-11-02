@@ -9,19 +9,36 @@
 | 要求 | 说明 |
 |---|---|
 | PowerShell **7**（`pwsh`） | `build.ps1` 首行 `#Requires -Version 7.0` |
-| .NET SDK | TFM 是 `net8.0-windows`；`AllModsSky.slnx` 需要 SDK **9+** 才能读 |
+| .NET SDK | 由根目录 `global.json` 钉在 **10.0.403** |
 | 7-Zip / Bandizip | 可选，只影响 `.rar` / `.7z` / `.cab` 导入 |
 
-**SDK 版本有三处不同口径**，都不是配置错误，但要知道：
+### SDK 版本只写一处
 
-| 位置 | 值 |
-|---|---|
-| 两个 csproj 的 `TargetFramework` | `net8.0-windows` |
-| `build.ps1` 的分支判断 | 主版本 `>= 9` 走 `.slnx`，否则退化为直接编 App 项目 |
-| CI（`.github/workflows/dotnet-desktop-CI.yml`） | `dotnet-version: '10.0.x'` |
-| README 第 7 章 | 写的是 .NET 8 |
+`global.json` 在仓库根目录：
 
-本地当前实测 SDK 是 `10.0.403`，与 CI 一致。
+```json
+{
+  "sdk": {
+    "version": "10.0.403",
+    "rollForward": "latestPatch"
+  }
+}
+```
+
+`latestPatch` 的含义：必须有 `10.0.4xx` 这一档的 SDK，补丁号可以往上走（机器上只有 `10.0.404` 也能用）；但不会悄悄跳到 `10.0.5xx` 或 11.x。要严格钉死单个补丁号就改成 `disable`，代价是机器上没装 `10.0.403` 时 `dotnet` 直接报「找不到 SDK」。
+
+CI 不重复声明版本，`actions/setup-dotnet` 用 `global-json-file: global.json` 从同一个文件读。改版本只改这一处。
+
+**剩下两处「8 还是 10」不是同一个概念**，不必对齐：
+
+| 位置 | 值 | 管的是什么 |
+|---|---|---|
+| 两个 csproj 的 `TargetFramework` | `net8.0-windows` | 产物跑在哪个运行时上 |
+| `build.ps1` 的 `$sdkMajor -ge 9` 分支 | 主版本 ≥ 9 走 `.slnx` | SDK 能不能读 `.slnx` 这种解决方案格式 |
+
+README 里出现的「.NET 8」指运行时（`Desktop Runtime`），指的不是 SDK，不算冲突。
+
+> `global.json` 钉到 10 之后，`build.ps1` 里那个「SDK < 9 就退化为直接编项目」的分支已经走不到了。留着无害，只是死代码。
 
 ---
 
@@ -93,8 +110,8 @@ dotnet publish src/AllModsSky.App/AllModsSky.App.csproj \
 | 并发 | 同分支新提交自动取消上一次运行（`cancel-in-progress`） |
 | 权限 | `contents: read`，只读 |
 | 运行环境 | `windows-latest`，`timeout-minutes: 20` |
-| SDK | `10.0.x` |
-| 步骤 | checkout → setup-dotnet → prepare（`dotnet --info`）→ 缓存 NuGet → `dotnet build` →（仅 push）`dotnet publish` → summarize → upload-artifact |
+| SDK | 从 `global.json` 读，即 `10.0.403` |
+| 步骤 | checkout → setup-dotnet（读 `global.json`）→ prepare（`dotnet --info`）→ 缓存 NuGet → `dotnet build` →（仅 push）`dotnet publish` → summarize → upload-artifact |
 | 产物名 | `AllModsSky-win-x64`，路径 `release/publish/AllModsSky.exe`，保留 14 天 |
 
 ### 缓存
@@ -263,15 +280,17 @@ dotnet run --project .tmp/nsprobe/probe/NsProbe.csproj -c Release
 | 1 | `src/AllModsSky.App/AllModsSky.App.csproj` 的 `TargetFramework` | `net8.0-windows` | `net10.0-windows` |
 | 2 | `src/AllModsSky.Core/AllModsSky.Core.csproj` 的 `TargetFramework` | `net8.0-windows` | `net10.0-windows` |
 | 3 | `build.ps1` 的收尾提示文案 | 「目标机器需要 .NET 8 Desktop Runtime」 | 改成 10 |
-| 4 | `build.ps1` 的 `$sdkMajor -ge 9` 判断 | 为兼容旧 SDK 保留的分支 | 可简化成直接编 `.slnx` |
-| 5 | `README.md` 第 5 章系统要求、第 7 章环境 | 「.NET 8」 | 改成 10 |
-| 6 | `.github/workflows/dotnet-desktop-CI.yml` | `dotnet-version: '10.0.x'` | 不用改，已经是 10 |
+| 4 | `build.ps1` 的 `$sdkMajor -ge 9` 判断 | 为兼容旧 SDK 保留的分支（已被 `global.json` 架空） | 可简化成直接编 `.slnx` |
+| 5 | `README.md` 第 5 章系统要求、第 10/11 章提到运行时的段落 | 「.NET 8 Desktop Runtime」 | 改成 10 |
+| 6 | `global.json` 的 `sdk.version` | `10.0.403` | 不用改，已经是 10 |
+
+CI 工作流和 `global.json` 都不用动——SDK 早就是 10 了，工作流读的就是这个文件。
 
 ### 两个坑
 
 **`TargetFramework` 写了两遍。** 项目没有 `Directory.Build.props`，两个 csproj 各写一份。只改一处会出现 App 编 net10、Core 编 net8 的混合状态——能编过，但运行时会加载错版本的程序集。改的时候两个一起改，改完 `dotnet build` 看两行输出确认。
 
-**CI 的 SDK 版本和目标框架是两件事。** CI 现在用 .NET 10 SDK 编 `net8.0-windows`，这完全可行，不代表已经迁到 net10。判断有没有迁，看 `TargetFramework`，不看 CI 里的 `dotnet-version`。
+**SDK 版本和目标框架是两件事。** 现在用 .NET 10 SDK 编 `net8.0-windows`，这完全可行，不代表已经迁到 net10。判断有没有迁，看 `TargetFramework`，不看 `global.json`——`global.json` 只是钉 SDK，改它不会让产物变成 net10。
 
 ### 不用碰的东西
 

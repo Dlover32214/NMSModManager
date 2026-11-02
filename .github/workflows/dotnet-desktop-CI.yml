@@ -30,10 +30,11 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v7
 
+    # 版本只在 global.json 里写一处，工作流不重复声明。
     - name: Install .NET
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: '10.0.x'
+        global-json-file: global.json
 
     - name: Prepare
       shell: pwsh

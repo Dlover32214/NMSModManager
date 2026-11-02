@@ -687,7 +687,7 @@ AllModsSky.exe --data "D:\NMSData"
 
 ### 环境
 
-- .NET SDK 8（8.0.4xx 即可；装了 .NET 9/10 SDK 也能编，脚本会自动选目标）
+- .NET SDK **10.0.403**——仓库根的 `global.json` 钉住这个版本（`rollForward: latestPatch`，同档补丁号可用）
 - Windows 10/11
 - PowerShell 7（`pwsh`）——只有构建脚本要求；手打 `dotnet` 命令在任意终端都行
 
@@ -745,6 +745,7 @@ dotnet publish src\AllModsSky.App\AllModsSky.App.csproj `
 ```text
 NMSModManager\
 ├─ AllModsSky.slnx                 解决方案
+├─ global.json                     钉住 .NET SDK 版本（10.0.403）
 ├─ build.ps1                       一键构建（PowerShell 7）
 ├─ README.md                       中文说明（默认）
 ├─ README.en.md                    English README

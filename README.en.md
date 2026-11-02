@@ -746,6 +746,7 @@ dotnet publish src\AllModsSky.App\AllModsSky.App.csproj `
 ```text
 NMSModManager\
 ├─ AllModsSky.slnx                 solution
+├─ global.json                     pins the .NET SDK version (10.0.403)
 ├─ build.ps1                       one-command build (PowerShell 7)
 ├─ README.md                       Chinese README (default)
 ├─ README.en.md                    English README

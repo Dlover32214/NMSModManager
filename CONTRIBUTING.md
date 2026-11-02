@@ -35,13 +35,14 @@
 
 ---
 
-## 三条最容易踩的坑
+## 四条最容易踩的坑
 
 | 坑 | 后果 |
 |---|---|
 | 在 `Core/` 里写 `using System.Windows;` 或 `MessageBox` | 分层破掉，Core 就不再与 UI 无关 |
 | 用 `StaticResource` 引用主题刷子 | 切换深浅色主题时该处不变色，因为 `ThemeManager` 是运行时替换整个字典 |
 | 在 `Core/` 的 csproj 里加 `System.*` 的 `<Using>` | 与 `ImplicitUsings` 重复，生成文件里出现重复条目 |
+| 在 CI 工作流里写 `dotnet-version` | 与 `global.json` 形成两个版本源，`setup-dotnet` 会把两边都装一遍，迟早对不上。CI 只写 `global-json-file: global.json` |
 
 ---
 
@@ -51,7 +52,7 @@
 pwsh -File ./build.ps1
 ```
 
-需要 PowerShell 7。产物在 `release/publish/AllModsSky.exe`。
+需要 PowerShell 7，以及 `global.json` 钉住的 .NET SDK **10.0.403**（`rollForward: latestPatch`，同档补丁号可用）。产物在 `release/publish/AllModsSky.exe`。
 
 ---
 
