@@ -14,11 +14,11 @@ public sealed class ModFormatInfo
     public bool HasNothing => Exml == 0 && Mbin == 0 && Pak == 0;
 
     public string Type =>
-        Exml > 0 && Mbin > 0 ? "混合（EXML + MBIN）"
-        : Exml > 0 ? "补丁（EXML）"
-        : Mbin > 0 ? "替换（MBIN）"
-        : Pak > 0 ? "旧式 .pak"
-        : "无有效文件";
+        Exml > 0 && Mbin > 0 ? L.T("混合（EXML + MBIN）")
+        : Exml > 0 ? L.T("补丁（EXML）")
+        : Mbin > 0 ? L.T("替换（MBIN）")
+        : Pak > 0 ? L.T("旧式 .pak")
+        : L.T("无有效文件");
 
     public string Counts
     {
@@ -30,7 +30,7 @@ public sealed class ModFormatInfo
             if (Pak > 0) parts.Add($"pak {Pak}");
             if (Mxml > 0) parts.Add($"MXML {Mxml}");
             if (Lua > 0) parts.Add($"lua {Lua}");
-            return parts.Count == 0 ? $"{Files} 个文件" : string.Join(" · ", parts);
+            return parts.Count == 0 ? L.F("{0} 个文件", Files) : string.Join(" · ", parts);
         }
     }
 }
@@ -95,20 +95,20 @@ public static class ModInspector
         var warnings = new List<string>();
 
         if (info.Pak > 0 && info.Exml == 0 && info.Mbin == 0)
-            warnings.Add("5.50 之后游戏不再读取 .pak，这个模组不会生效");
+            warnings.Add(L.T("5.50 之后游戏不再读取 .pak，这个模组不会生效"));
 
         if (info.HasNothing && info.Mxml == 0 && info.Lua == 0)
-            warnings.Add("没有 EXML/MBIN 文件，游戏不会加载");
+            warnings.Add(L.T("没有 EXML/MBIN 文件，游戏不会加载"));
 
         if (info.Mxml > 0 && info.Exml == 0)
-            warnings.Add("游戏不识别 .MXML，需要转成 .EXML");
+            warnings.Add(L.T("游戏不识别 .MXML，需要转成 .EXML"));
 
         if (info.GlobalsMisplaced)
-            warnings.Add("全局文件的补丁应放进 Globals 子文件夹");
+            warnings.Add(L.T("全局文件的补丁应放进 Globals 子文件夹"));
 
         var folderName = record.EffectiveFolder;
         if (folderName.Length > MaxFolderNameLength)
-            warnings.Add($"文件夹名 {folderName.Length} 字符，超过 122 上限");
+            warnings.Add(L.F("文件夹名 {0} 字符，超过 122 上限", folderName.Length));
 
         var compat = VersionParser.Evaluate(record.Version, gameVersion);
         if (compat.IsWarning) warnings.Add(compat.Text);
@@ -118,8 +118,8 @@ public static class ModInspector
         return new ModHealth
         {
             Summary = summary,
-            Detail = info.Files > 0 ? $"{info.Files} 个文件" : "目录为空或不存在",
-            Warning = string.Join("；", warnings),
+            Detail = info.Files > 0 ? L.F("{0} 个文件", info.Files) : L.T("目录为空或不存在"),
+            Warning = string.Join("; ", warnings),
             CompatState = compat.State,
             CompatText = compat.Text
         };

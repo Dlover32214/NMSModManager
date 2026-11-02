@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
@@ -15,10 +15,12 @@
     <Using Include="AllModsSky.Core.Models" />
     <Using Include="AllModsSky.Core.Infrastructure" />
     <Using Include="AllModsSky.Core.Integrations" />
+    <Using Include="AllModsSky.Core.Localization" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Resources\mapping.json" />
+    <EmbeddedResource Include="Localization\Strings.english.json" />
   </ItemGroup>
 
 </Project>

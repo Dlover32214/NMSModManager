@@ -56,24 +56,24 @@ public static class VersionParser
     public static VersionVerdict Evaluate(string? modVersionText, string? gameVersionText)
     {
         var mod = Parse(modVersionText);
-        if (mod == null) return new VersionVerdict("Unknown", "未标注适用版本");
+        if (mod == null) return new VersionVerdict("Unknown", L.T("未标注适用版本"));
 
         var game = Parse(gameVersionText);
-        if (game == null) return new VersionVerdict("Unknown", $"标注 {mod.Raw} · 游戏版本未知");
+        if (game == null) return new VersionVerdict("Unknown", L.F("标注 {0} · 游戏版本未知", mod.Raw));
 
         if (mod.IsMinimum)
         {
             return mod.Value <= game.Value + 0.005
-                ? new VersionVerdict("Ok", $"要求 {mod.Raw} 及以上")
-                : new VersionVerdict("Warn", $"要求 {mod.Raw}，当前 {game.Raw}");
+                ? new VersionVerdict("Ok", L.F("要求 {0} 及以上", mod.Raw))
+                : new VersionVerdict("Warn", L.F("要求 {0}，当前 {1}", mod.Raw, game.Raw));
         }
 
         var diff = game.Value - mod.Value;
         if (diff >= 1.0)
-            return new VersionVerdict("Warn", $"模组 {mod.Raw} · 游戏 {game.Raw}，落后一个大版本");
+            return new VersionVerdict("Warn", L.F("模组 {0} · 游戏 {1}，落后一个大版本", mod.Raw, game.Raw));
         if (diff >= 0.5)
-            return new VersionVerdict("Warn", $"模组 {mod.Raw} · 游戏 {game.Raw}，可能已过旧");
+            return new VersionVerdict("Warn", L.F("模组 {0} · 游戏 {1}，可能已过旧", mod.Raw, game.Raw));
 
-        return new VersionVerdict("Ok", $"模组 {mod.Raw} · 游戏 {game.Raw}");
+        return new VersionVerdict("Ok", L.F("模组 {0} · 游戏 {1}", mod.Raw, game.Raw));
     }
 }

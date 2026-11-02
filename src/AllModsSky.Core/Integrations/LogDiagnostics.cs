@@ -136,7 +136,7 @@ public static class LogDiagnostics
         }
 
         if (result.LogFiles.Count == 0)
-            result.Note = "没有找到游戏日志。先启动一次游戏，或让崩溃发生一次再诊断。";
+            result.Note = L.T("没有找到游戏日志。先启动一次游戏，或让崩溃发生一次再诊断。");
 
         return result;
     }

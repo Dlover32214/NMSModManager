@@ -41,11 +41,11 @@ public sealed class RepairPlan
     {
         get
         {
-            var kind = Exml > 0 && Mbin > 0 ? "混合" : Exml > 0 ? "EXML 补丁" : Mbin > 0 ? "MBIN 替换" : "空";
+            var kind = Exml > 0 && Mbin > 0 ? L.T("混合") : Exml > 0 ? L.T("EXML 补丁") : Mbin > 0 ? L.T("MBIN 替换") : L.T("空");
             var source = LuaFiles.Count > 0
-                ? $"有 {LuaFiles.Count} 个 lua 源脚本（可重建）"
-                : "没有 lua 源脚本（只能手动重做）";
-            var built = string.IsNullOrEmpty(BuiltWith) ? "构建标记未知" : "构建标记 " + BuiltWith;
+                ? L.F("有 {0} 个 lua 源脚本（可重建）", LuaFiles.Count)
+                : L.T("没有 lua 源脚本（只能手动重做）");
+            var built = string.IsNullOrEmpty(BuiltWith) ? L.T("构建标记未知") : L.T("构建标记") + " " + BuiltWith;
             return $"{kind} · {source} · {built}";
         }
     }

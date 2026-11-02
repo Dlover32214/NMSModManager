@@ -27,9 +27,9 @@ public sealed class ConflictGroup
     public List<string> SharedProperties { get; init; } = new();
 
     public string Kind =>
-        HardMbin ? "MBIN 替换冲突"
-        : SharedProperties.Count > 0 ? "EXML 同属性冲突"
-        : "EXML 同文件（属性不同）";
+        HardMbin ? L.T("MBIN 替换冲突")
+        : SharedProperties.Count > 0 ? L.T("EXML 同属性冲突")
+        : L.T("EXML 同文件（属性不同）");
 
     public ConflictEntry? Winner =>
         Entries.Where(e => e.Enabled).OrderBy(e => e.Order).FirstOrDefault()
@@ -46,10 +46,12 @@ public sealed class ConflictScanResult
     public int ScannedFiles { get; set; }
     public string Summary =>
         Conflicts.Count == 0
-            ? $"扫描 {ScannedMods} 个模组、{ScannedFiles} 个 EXML/MBIN 文件，没有路径重叠"
-            : $"{Conflicts.Count} 处重叠 · MBIN 冲突 {Conflicts.Count(c => c.HardMbin)} · " +
-              $"EXML 同属性 {Conflicts.Count(c => !c.HardMbin && c.SharedProperties.Count > 0)} · " +
-              $"仅同文件 {Conflicts.Count(c => !c.HardMbin && c.SharedProperties.Count == 0)}";
+            ? L.F("扫描 {0} 个模组、{1} 个 EXML/MBIN 文件，没有路径重叠", ScannedMods, ScannedFiles)
+            : L.F("{0} 处重叠 · MBIN 冲突 {1} · EXML 同属性 {2} · 仅同文件 {3}",
+                Conflicts.Count,
+                Conflicts.Count(c => c.HardMbin),
+                Conflicts.Count(c => !c.HardMbin && c.SharedProperties.Count > 0),
+                Conflicts.Count(c => !c.HardMbin && c.SharedProperties.Count == 0));
 }
 
 /// <summary>

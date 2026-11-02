@@ -34,12 +34,12 @@ public sealed class DeployReport
         get
         {
             var parts = new List<string>();
-            if (Added > 0) parts.Add($"启用 {Added}");
-            if (Removed > 0) parts.Add($"停用 {Removed}");
-            if (Unchanged > 0) parts.Add($"未变 {Unchanged}");
-            if (Missing > 0) parts.Add($"缺失 {Missing}");
-            if (Failed > 0) parts.Add($"失败 {Failed}");
-            return parts.Count == 0 ? "没有需要同步的变化" : string.Join(" · ", parts);
+            if (Added > 0) parts.Add(L.F("启用 {0}", Added));
+            if (Removed > 0) parts.Add(L.F("停用 {0}", Removed));
+            if (Unchanged > 0) parts.Add(L.F("未变 {0}", Unchanged));
+            if (Missing > 0) parts.Add(L.F("缺失 {0}", Missing));
+            if (Failed > 0) parts.Add(L.F("失败 {0}", Failed));
+            return parts.Count == 0 ? L.T("没有需要同步的变化") : string.Join(" · ", parts);
         }
     }
 }
@@ -51,9 +51,9 @@ public sealed class ExternalMod
     public bool Enabled { get; init; }
     public bool IsFile { get; init; }
 
-    public string StateText => Enabled ? "启用中" : "已停用";
-    public string ActionText => Enabled ? "停用" : "启用";
-    public string KindText => IsFile ? "pak 文件" : "文件夹";
+    public string StateText => Enabled ? L.T("启用中") : L.T("已停用");
+    public string ActionText => Enabled ? L.T("停用") : L.T("启用");
+    public string KindText => IsFile ? L.T("pak 文件") : L.T("文件夹");
 }
 
 /// <summary>
@@ -69,7 +69,7 @@ public sealed class DeploymentService
         if (string.IsNullOrWhiteSpace(gameDir) || !GameLocator.IsValid(gameDir))
         {
             report.Failed++;
-            report.Message("游戏目录无效，无法同步");
+            report.Message(L.T("游戏目录无效，无法同步"));
             return report;
         }
 
@@ -84,7 +84,7 @@ public sealed class DeploymentService
         catch (Exception ex)
         {
             report.Failed++;
-            report.Message("无法访问 MODS 目录：" + ex.Message);
+            report.Message(L.F("无法访问 MODS 目录：{0}", ex.Message));
             return report;
         }
 
@@ -122,7 +122,7 @@ public sealed class DeploymentService
         if (!PathGuard.IsSafeSegment(key))
         {
             report.Failed++;
-            report.Message($"{record.Name}：目录名非法，已跳过（{PathGuard.Describe(key)}）");
+            report.Message(L.F("{0}：目录名非法，已跳过（{1}）", record.Name, PathGuard.Describe(key)));
             AppLog.Warn($"跳过非法目录名：{PathGuard.Describe(key)}");
             return;
         }
@@ -151,7 +151,7 @@ public sealed class DeploymentService
             }
 
             report.Missing++;
-            report.Message($"{record.Name}：目录不存在（{key}）");
+            report.Message(L.F("{0}：目录不存在（{1}）", record.Name, key));
             return;
         }
 
@@ -186,7 +186,7 @@ public sealed class DeploymentService
         if (!PathGuard.IsSafeSegment(key))
         {
             report.Failed++;
-            report.Message($"{record.Name}：目录名非法，已跳过（{PathGuard.Describe(key)}）");
+            report.Message(L.F("{0}：目录名非法，已跳过（{1}）", record.Name, PathGuard.Describe(key)));
             AppLog.Warn($"跳过非法目录名：{PathGuard.Describe(key)}");
             return;
         }
@@ -235,7 +235,7 @@ public sealed class DeploymentService
                 }
 
                 report.Missing++;
-                report.Message($"{record.Name}：缺少 {fileName}");
+                report.Message(L.F("{0}：缺少 {1}", record.Name, fileName));
                 continue;
             }
 
@@ -249,7 +249,7 @@ public sealed class DeploymentService
             if (source == null)
             {
                 report.Missing++;
-                report.Message($"{record.Name}：缺少 {fileName}");
+                report.Message(L.F("{0}：缺少 {1}", record.Name, fileName));
                 continue;
             }
 
@@ -431,7 +431,7 @@ public sealed class DeploymentService
                          ?? PathGuard.FindExisting(parkedDir, external.Name, wantFile: true);
 
         if (!Directory.Exists(livePath) && !Directory.Exists(parkedPath) && !File.Exists(livePath) && !File.Exists(parkedPath))
-            throw new InvalidOperationException("找不到要收编的模组");
+            throw new InvalidOperationException(L.T("找不到要收编的模组"));
 
         var enabled = Directory.Exists(livePath) || File.Exists(livePath);
         var display = Importer.CleanName(Path.GetFileNameWithoutExtension(external.Name));
@@ -469,14 +469,14 @@ public sealed class DeploymentService
         {
             Id = Guid.NewGuid().ToString("N"),
             Name = display,
-            Source = "外部模组",
+            Source = L.T("外部模组"),
             Version = parsed?.Raw ?? "",
             FolderName = folderName,
             PakFiles = pakFiles,
             Enabled = enabled,
             Size = size,
             ImportedAt = DateTimeOffset.Now,
-            Note = "从 MODS 收编"
+            Note = L.T("从 MODS 收编")
         };
     }
 

@@ -11,7 +11,7 @@ public sealed class ModLibrary
     private readonly List<ModProfile> _profiles = new();
 
     /// <summary>内置「无模组」：空配置，永远在菜单最上面，不可改名/删除，也不写进 library.json。</summary>
-    private readonly ModProfile _none = new() { Id = ModProfile.NoneId, Name = "无模组" };
+    private readonly ModProfile _none = new() { Id = ModProfile.NoneId, Name = L.T("无模组") };
 
     private string _activeId = ModProfile.NoneId;
 
@@ -95,7 +95,7 @@ public sealed class ModLibrary
         var seeded = false;
         if (_profiles.Count == 0 && _mods.Any(m => m.Enabled))
         {
-            var profile = new ModProfile { Name = "默认" };
+            var profile = new ModProfile { Name = L.T("默认") };
             foreach (var record in _mods)
                 profile.Entries.Add(new ConfigEntry { ModId = record.Id, Enabled = record.Enabled });
             _profiles.Add(profile);
@@ -120,7 +120,7 @@ public sealed class ModLibrary
 
         if (migrated || seeded || normalized > 0 || changed > 0) Save();
 
-        if (state == null) LoadMessage ??= "这是第一次运行，模组库为空";
+        if (state == null) LoadMessage ??= L.T("这是第一次运行，模组库为空");
     }
 
     /// <summary>把旧版的 EnabledIds 迁进 Entries，并丢掉指向已不存在模组的条目。</summary>
@@ -550,7 +550,7 @@ public sealed class ModLibrary
     {
         for (var n = _profiles.Count + 1; ; n++)
         {
-            var name = "配置 " + n;
+            var name = L.F("配置 {0}", n);
             if (!ProfileNameExists(name)) return name;
         }
     }

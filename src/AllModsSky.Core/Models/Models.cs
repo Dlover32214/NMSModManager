@@ -102,6 +102,10 @@ public sealed class AppSettings
     public string AmumssPath { get; set; } = "";
     public string NexusApiKey { get; set; } = "";
     public string Theme { get; set; } = "Dark";
+
+    /// <summary>界面语言：system / zh-CN / en-US。修改后下次启动生效。</summary>
+    public string Language { get; set; } = "system";
+
     public bool CreateDisableModsFile { get; set; } = true;
 
     /// <summary>旧版字段：独立库根目录。新版模组就在 MODS 里，保留仅为格式兼容。</summary>
@@ -120,6 +124,7 @@ public sealed class AppSettings
         AmumssPath = AmumssPath,
         NexusApiKey = NexusApiKey,
         Theme = Theme,
+        Language = Language,
         CreateDisableModsFile = CreateDisableModsFile,
         LibraryPath = LibraryPath,
         BackupOnDeploy = BackupOnDeploy
@@ -177,10 +182,10 @@ public sealed class ModProfile
     /// <summary>菜单里一行显示的信息。</summary>
     [JsonIgnore]
     public string SummaryText => BuiltIn
-        ? "全部停用 · 直接启动原版"
+        ? L.T("全部停用 · 直接启动原版")
         : Entries.Count == 0
-            ? "没有模组启用"
-            : $"{EnabledCount} / {Entries.Count} 个启用 · {UpdatedText}";
+            ? L.T("没有模组启用")
+            : L.F("{0} / {1} 个启用 · {2}", EnabledCount, Entries.Count, UpdatedText);
 }
 
 /// <summary>library.json 的根对象。</summary>
@@ -216,7 +221,7 @@ public sealed class GameInfo
         get
         {
             var parts = new List<string>();
-            parts.Add("版本 " + (string.IsNullOrWhiteSpace(Version) ? "未知" : Version));
+            parts.Add(L.F("版本 {0}", string.IsNullOrWhiteSpace(Version) ? L.T("未知") : Version));
             if (!string.IsNullOrWhiteSpace(BuildId)) parts.Add("build " + BuildId);
             if (!string.IsNullOrWhiteSpace(ExeBuild)) parts.Add("exe " + ExeBuild);
             return string.Join(" · ", parts);
