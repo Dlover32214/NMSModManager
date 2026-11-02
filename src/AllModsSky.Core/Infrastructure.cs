@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO.Compression;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -148,8 +149,14 @@ public static class AppPaths
     public static string CacheDir => Path.Combine(Root, "cache");
     public static string ImportTempDir => Path.Combine(CacheDir, "import");
     public static string DownloadDir => Path.Combine(CacheDir, "download");
-    public static string LogFile => Path.Combine(Root, "app.log");
-    public static string CrashFile => Path.Combine(Root, "crash.log");
+
+    /// <summary>日志目录：现场日志 + 归档包都放这里，不和 library.json 混在根目录。</summary>
+    public static string LogsDir => Path.Combine(Root, "logs");
+
+    /// <summary>当前会话的日志，每次启动重新开一份。</summary>
+    public static string LogFile => Path.Combine(LogsDir, "latest.log");
+
+    public static string CrashFile => Path.Combine(LogsDir, "crash.log");
 
     /// <summary>旧版 All Mod's Sky / NMSModManager 的数据目录，用于一次性迁移。</summary>
     public static string LegacyRoot => _legacyOverride ?? Path.Combine(
@@ -161,6 +168,7 @@ public static class AppPaths
         Directory.CreateDirectory(CacheDir);
         Directory.CreateDirectory(ImportTempDir);
         Directory.CreateDirectory(DownloadDir);
+        Directory.CreateDirectory(LogsDir);
     }
 
     /// <summary>最近一次目录写入探测失败的原因。</summary>
@@ -506,11 +514,20 @@ public static class Humanize
         value.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
 }
 
-/// <summary>轻量文件日志，写失败也绝不影响主流程。</summary>
+/// <summary>
+/// 轻量文件日志，写失败也绝不影响主流程。
+/// 现场日志写 logs/latest.log；每次启动、以及超过 2MB 时把它压成
+/// logs/2026-11-02-143000.log.gz，只留最近 <see cref="KeepArchives"/> 份。
+/// </summary>
 public static class AppLog
 {
     private static readonly object Gate = new();
     private const long MaxBytes = 2 * 1024 * 1024;
+    private const int KeepArchives = 5;
+    private const string ArchiveSuffix = ".log.gz";
+
+    /// <summary>上次尝试归档的时刻。压缩失败时别每写一行都重试一遍。</summary>
+    private static DateTime _lastArchiveAttemptUtc = DateTime.MinValue;
 
     public static void Info(string message) => Write("INFO", message);
     public static void Warn(string message) => Write("WARN", message);
@@ -521,6 +538,46 @@ public static class AppLog
         Write("ERROR", title + " :: " + ex);
     }
 
+    /// <summary>
+    /// 启动时调用：把旧版散在根目录的日志收进 logs/，归档上一次会话，清掉过老的包。
+    /// 任何一步失败都只是少一份历史日志，不影响启动。
+    /// </summary>
+    public static void StartSession()
+    {
+        try
+        {
+            AppPaths.Ensure();
+            lock (Gate)
+            {
+                ImportLegacyFiles();
+                ArchiveCurrent();
+                Prune();
+                File.AppendAllText(AppPaths.LogFile,
+                    $"{Stamp()} [INFO] ===== 会话开始 ====={Environment.NewLine}");
+            }
+        }
+        catch
+        {
+            // 日志目录不可写也不能挡住启动
+        }
+    }
+
+    /// <summary>现有归档包，按时间从新到旧。</summary>
+    public static IReadOnlyList<FileInfo> ListArchives()
+    {
+        try
+        {
+            return new DirectoryInfo(AppPaths.LogsDir)
+                .GetFiles("*" + ArchiveSuffix)
+                .OrderByDescending(f => f.Name, StringComparer.Ordinal)
+                .ToList();
+        }
+        catch
+        {
+            return Array.Empty<FileInfo>();
+        }
+    }
+
     private static void Write(string level, string message)
     {
         try
@@ -529,19 +586,123 @@ public static class AppLog
             lock (Gate)
             {
                 var file = new FileInfo(AppPaths.LogFile);
-                if (file.Exists && file.Length > MaxBytes)
+                if (file.Exists && file.Length > MaxBytes
+                    && DateTime.UtcNow - _lastArchiveAttemptUtc > TimeSpan.FromMinutes(5))
                 {
-                    try { File.Move(AppPaths.LogFile, AppPaths.LogFile + ".1", true); }
-                    catch { }
+                    ArchiveCurrent();
+                    Prune();
                 }
 
                 File.AppendAllText(AppPaths.LogFile,
-                    $"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss.fff} [{level}] {message}{Environment.NewLine}");
+                    $"{Stamp()} [{level}] {message}{Environment.NewLine}");
             }
         }
         catch
         {
             // 日志本身不应抛异常
         }
+    }
+
+    private static string Stamp() =>
+        DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture);
+
+    /// <summary>把当前日志压成包；空文件直接忽略。</summary>
+    private static void ArchiveCurrent()
+    {
+        try
+        {
+            var file = new FileInfo(AppPaths.LogFile);
+            if (!file.Exists || file.Length == 0) return;
+
+            // 只有真的尝试过才计入节流，否则空文件也会把下一次归档推迟 5 分钟
+            _lastArchiveAttemptUtc = DateTime.UtcNow;
+            Compress(AppPaths.LogFile, ArchivePath(file.LastWriteTime));
+        }
+        catch
+        {
+            // 归档失败就继续往原文件里写
+        }
+    }
+
+    /// <summary>
+    /// 旧版把 app.log / app.log.1 / crash.log 直接放在数据根目录。
+    /// 这里一次性收进 logs/：两个日志压成归档包（文件名用它们自己的最后写入时间），
+    /// 崩溃记录并进 logs/crash.log，收完删掉原件。
+    /// </summary>
+    private static void ImportLegacyFiles()
+    {
+        var root = AppPaths.Root;
+        var legacyCurrent = Path.Combine(root, "app.log");
+        var legacyPrevious = Path.Combine(root, "app.log.1");
+        var legacyCrash = Path.Combine(root, "crash.log");
+
+        foreach (var legacy in new[] { legacyCurrent, legacyPrevious })
+        {
+            if (!File.Exists(legacy)) continue;
+            Compress(legacy, ArchivePath(File.GetLastWriteTime(legacy)));
+        }
+
+        if (File.Exists(legacyCrash))
+        {
+            try
+            {
+                File.AppendAllText(AppPaths.CrashFile, File.ReadAllText(legacyCrash));
+                File.Delete(legacyCrash);
+            }
+            catch
+            {
+                // 收编失败就留在原地，下次启动再试
+            }
+        }
+    }
+
+    /// <summary>归档路径：2026-11-02-143000.log.gz，同一秒重名时加 -2、-3。</summary>
+    private static string ArchivePath(DateTime when)
+    {
+        var stamp = when.ToString("yyyy-MM-dd-HHmmss", CultureInfo.InvariantCulture);
+        var path = Path.Combine(AppPaths.LogsDir, stamp + ArchiveSuffix);
+
+        for (var n = 2; File.Exists(path); n++)
+            path = Path.Combine(AppPaths.LogsDir, $"{stamp}-{n}{ArchiveSuffix}");
+
+        return path;
+    }
+
+    /// <summary>压缩后删掉原文件；压缩失败保留原文件，绝不吞掉日志。</summary>
+    private static bool Compress(string source, string target)
+    {
+        try
+        {
+            using (var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (var output = new FileStream(target, FileMode.Create, FileAccess.Write, FileShare.None))
+            using (var gzip = new GZipStream(output, CompressionLevel.SmallestSize))
+            {
+                input.CopyTo(gzip);
+            }
+
+            File.Delete(source);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            TryDelete(target);
+            // 这里不能走 AppLog.Warn：写日志又可能触发归档，压缩一直失败就会递归
+            System.Diagnostics.Debug.WriteLine($"归档日志失败，保留原文件 {source}：{ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>只留最近 KeepArchives 份。文件名是定宽时间戳，按名字倒序就是按时间倒序。</summary>
+    private static void Prune()
+    {
+        foreach (var stale in ListArchives().Skip(KeepArchives))
+        {
+            try { stale.Delete(); } catch { }
+        }
+    }
+
+    private static void TryDelete(string path)
+    {
+        try { if (File.Exists(path)) File.Delete(path); } catch { }
     }
 }

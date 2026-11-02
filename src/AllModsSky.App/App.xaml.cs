@@ -34,6 +34,9 @@ public partial class App : Application
             return;
         }
 
+        // 日志：现场写 logs/latest.log，每次启动把上一次的压成 logs/yyyy-MM-dd-HHmmss.log.gz，只留最近 5 份
+        AppLog.StartSession();
+
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
         {

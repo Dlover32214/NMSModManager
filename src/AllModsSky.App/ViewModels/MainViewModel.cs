@@ -60,6 +60,7 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
             else ShowToast("还没有设置游戏目录", false);
         });
         OpenDataFolderCommand = new RelayCommand(() => Launcher.OpenFolder(AppPaths.Root));
+        OpenLogFolderCommand = new RelayCommand(() => Launcher.OpenFolder(AppPaths.LogsDir));
         RefreshCommand = new AsyncRelayCommand(() => RefreshAllAsync());
 
         _toastTimer = new DispatcherTimer();
@@ -89,6 +90,7 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
     public ICommand LaunchVanillaCommand { get; }
     public ICommand OpenModsFolderCommand { get; }
     public ICommand OpenDataFolderCommand { get; }
+    public ICommand OpenLogFolderCommand { get; }
     public ICommand RefreshCommand { get; }
 
     public event Action? ToastShown;

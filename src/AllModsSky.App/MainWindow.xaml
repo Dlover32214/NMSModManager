@@ -343,9 +343,15 @@
                     <Grid>
                         <TextBlock Text="v2.0.6" FontSize="10.5" Foreground="{DynamicResource TextFaint}"
                                    VerticalAlignment="Center" />
-                        <Button Content="数据目录" Style="{StaticResource LinkButton}"
-                                HorizontalAlignment="Right" FontSize="10.5"
-                                Command="{Binding OpenDataFolderCommand}" />
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Content="日志" Style="{StaticResource LinkButton}"
+                                    FontSize="10.5" Margin="0,0,12,0"
+                                    ToolTip="latest.log 与历史归档都在这里"
+                                    Command="{Binding OpenLogFolderCommand}" />
+                            <Button Content="数据目录" Style="{StaticResource LinkButton}"
+                                    FontSize="10.5"
+                                    Command="{Binding OpenDataFolderCommand}" />
+                        </StackPanel>
                     </Grid>
                 </StackPanel>
             </Grid>
