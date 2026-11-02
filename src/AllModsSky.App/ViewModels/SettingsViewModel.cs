@@ -260,7 +260,16 @@ public sealed class SettingsViewModel : ObservableObject, IActivatable
     {
         var settings = _workspace.Settings;
         settings.GamePath = GamePath.Trim();
-        settings.GameVersion = GameVersion.Trim();
+
+        // 版本号会拼进 cmd 命令行，这里先归一化，让界面显示的就是实际生效的值。
+        var normalizedVersion = AmumssService.NormalizeGameVersion(GameVersion);
+        if (!string.Equals(normalizedVersion, GameVersion, StringComparison.Ordinal))
+        {
+            GameVersion = normalizedVersion;
+            _ui.Toast("游戏版本号格式不对，已改为 " + normalizedVersion, false);
+        }
+        settings.GameVersion = normalizedVersion;
+
         settings.NexusApiKey = NexusKey.Trim();
         settings.AmumssPath = AmumssPath.Trim();
         settings.CreateDisableModsFile = CreateDisableModsFile;

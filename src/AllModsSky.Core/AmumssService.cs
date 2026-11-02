@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace AllModsSky.Core;
 
@@ -64,6 +65,12 @@ public sealed class CollectResult
 /// </summary>
 public sealed class AmumssService
 {
+    private const string DefaultGameVersion = "5.60";
+
+    /// <summary>只允许 7 / 7.1 / 7.10.3 这类纯数字点分版本。</summary>
+    private static readonly Regex GameVersionPattern =
+        new(@"^\d{1,3}(\.\d{1,3}){0,2}$", RegexOptions.Compiled);
+
     private static readonly string[] Candidates =
     {
         @"D:\AMUMSS",
@@ -311,9 +318,22 @@ public sealed class AmumssService
         return copied;
     }
 
+    /// <summary>
+    /// 版本号会拼进 cmd 命令行，必须白名单化：设置页里手填的 "5.60 &amp; calc" 原本可以直接执行任意命令。
+    /// </summary>
+    public static string NormalizeGameVersion(string? raw)
+    {
+        var text = (raw ?? "").Trim();
+        if (text.Length == 0) return DefaultGameVersion;
+        if (GameVersionPattern.IsMatch(text)) return text;
+
+        AppLog.Warn($"游戏版本号非法，已回退 {DefaultGameVersion}：{text}");
+        return DefaultGameVersion;
+    }
+
     public string BuildArguments(string? gameVersion, bool allowCompilerUpdate)
     {
-        var version = string.IsNullOrWhiteSpace(gameVersion) ? "5.60" : gameVersion.Trim();
+        var version = NormalizeGameVersion(gameVersion);
         var args = new List<string>
         {
             "-GameVersion " + version,
@@ -342,6 +362,9 @@ public sealed class AmumssService
         if (!File.Exists(bat)) throw new FileNotFoundException("找不到 BUILDMOD.bat", bat);
 
         var inner = $"\"{bat}\" {BuildArguments(gameVersion, allowCompilerUpdate)} & pause";
+
+        // 这里刻意保留手工拼引号：cmd.exe 用的是自己的引号规则，不认 CRT 的 \" 转义，
+        // 用 ArgumentList 反而会把复合命令解析坏。注入面已由 BuildArguments 的版本号白名单消除。
         var psi = new ProcessStartInfo("cmd.exe", "/c \"" + inner + "\"")
         {
             WorkingDirectory = amumssPath,
