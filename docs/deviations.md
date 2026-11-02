@@ -54,12 +54,9 @@
 
 ## 5. 版本号
 
-| 现状 | 规范怎么说 | 差在哪 |
-|---|---|---|
-| 版本号在 6 个文件、9 行里维护 | — | `AllModsSky.App.csproj:14-16`、`MainWindow.xaml:332,372`、`MainViewModel.cs:210`、`SettingsViewModel.cs:198`、`AboutViewModel.cs:235`、`UpdateService.cs:52` |
-| 只有 `AboutViewModel` 读程序集版本 | — | 其余 5 处是字面量，改版本必漏 |
+**已集中到根目录 `Directory.Build.props` 的 `<AppVersion>`。** `AppInfo` 从程序集元数据读取，侧栏、设置页、关于页和更新器都用它；`app.manifest` 由构建目标生成，不再手写版本。原先 6 个文件、9 行的版本字面量已移除。
 
-清单见 [build-and-release.md](build-and-release.md) 第 6 节。
+清单与维护方式见 [build-and-release.md](build-and-release.md) 第 6 节。
 
 ---
 
@@ -67,7 +64,7 @@
 
 | 现状 | 规范怎么说 | 差在哪 |
 |---|---|---|
-| SDK 钉 `10.0.403`，TFM 是 `net8.0-windows` | 版本口径一致 | 用 10 的 SDK 编 8 的目标框架，可行但不是显式选择。将来要迁 net10 时看 [build-and-release.md](build-and-release.md) 第 10 节 |
+| SDK 钉 `10.0.201`，TFM 是 `net8.0-windows` | 版本口径一致 | 用 10 的 SDK 编 8 的目标框架，可行但不是显式选择。将来要迁 net10 时看 [build-and-release.md](build-and-release.md) 第 10 节 |
 | `build.ps1` 输出 `[1/3]` `[2/3]`，收尾段没有 `[3/3]` | 阶段标记完整 | 源码注释里写的是 `# ---- 3. 收尾 ----`，只是没打印标题 |
 | 无测试项目 | — | 验证完全依赖 `.tmp/` 探针 |
 

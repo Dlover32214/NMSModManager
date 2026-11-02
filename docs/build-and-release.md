@@ -9,7 +9,7 @@
 | 要求 | 说明 |
 |---|---|
 | PowerShell **7**（`pwsh`） | `build.ps1` 首行 `#Requires -Version 7.0` |
-| .NET SDK | 由根目录 `global.json` 钉在 **10.0.403** |
+| .NET SDK | 由根目录 `global.json` 钉在 **10.0.201** |
 | 7-Zip / Bandizip | 可选，只影响 `.rar` / `.7z` / `.cab` 导入 |
 
 ### SDK 版本只写一处
@@ -19,13 +19,13 @@
 ```json
 {
   "sdk": {
-    "version": "10.0.403",
-    "rollForward": "latestPatch"
+    "version": "10.0.201",
+    "rollForward": "latestFeature"
   }
 }
 ```
 
-`latestPatch` 的含义：必须有 `10.0.4xx` 这一档的 SDK，补丁号可以往上走（机器上只有 `10.0.404` 也能用）；但不会悄悄跳到 `10.0.5xx` 或 11.x。要严格钉死单个补丁号就改成 `disable`，代价是机器上没装 `10.0.403` 时 `dotnet` 直接报「找不到 SDK」。
+`latestFeature` 的含义：在 `10.0` 这一档里优先使用机器上最新的 feature band（例如机器上只有 `10.0.403` 也能用），但不会悄悄跳到 11.x。要严格钉死单个补丁号就改成 `disable`，代价是机器上没装 `10.0.201` 时 `dotnet` 直接报「找不到 SDK」。
 
 CI 不重复声明版本，`actions/setup-dotnet` 用 `global-json-file: global.json` 从同一个文件读。改版本只改这一处。
 
@@ -61,7 +61,7 @@ pwsh -File ./build.ps1
 |---|---|
 | 环境检查 | `dotnet` 不在 PATH → 中止；`AllModsSky` 进程在跑 → 中止并报 PID（exe 被锁住，清理和覆盖都会失败） |
 | `[1/3] 编译` | `dotnet build AllModsSky.slnx -c Release --nologo -v minimal -tl:off`；SDK 主版本 < 9 时改为直接编 `AllModsSky.App.csproj` |
-| `[2/3] 发布` | 先 `Remove-Item release\publish -Recurse -Force`，再 `dotnet publish -c Release -r win-x64` |
+| `[2/3] 发布` | 先 `Remove-Item release\publish -Recurse -Force`，再 `dotnet publish -c Release -r win-x64`；若编译用的是 .NET 10 且机器装有 8.0.x，脚本会临时切到 8.0.x 发布（SDK 10 单文件发布目前会找 8.0 的 ILLink targets） |
 | 校验 | 发布后 `Test-Path $exe` 失败 → 中止 |
 | `[3/3] 收尾` | 打印耗时、全路径、MB 体积；框架依赖模式追加提示「目标机器需要 .NET 8 Desktop Runtime」 |
 
@@ -98,6 +98,10 @@ dotnet publish src/AllModsSky.App/AllModsSky.App.csproj \
   -o release/publish
 ```
 
+> **单文件发布建议用 .NET 8 SDK。** 当前 .NET 10 SDK 会报
+> `MSB4019`（找不到 `microsoft.net.illink.tasks/8.0.25`）。
+> `build.ps1` 会自动在临时目录切到已安装的 8.0.x；手动发布请在 8.0.x SDK 下执行。
+
 ---
 
 ## 4. CI
@@ -110,8 +114,8 @@ dotnet publish src/AllModsSky.App/AllModsSky.App.csproj \
 | 并发 | 同分支新提交自动取消上一次运行（`cancel-in-progress`） |
 | 权限 | `contents: read`，只读 |
 | 运行环境 | `windows-latest`，`timeout-minutes: 20` |
-| SDK | 从 `global.json` 读，即 `10.0.403` |
-| 步骤 | checkout → setup-dotnet（读 `global.json`）→ prepare（`dotnet --info`）→ 缓存 NuGet → `dotnet build` →（仅 push）`dotnet publish` → summarize → upload-artifact |
+| SDK | 编译从 `global.json` 读 `10.0.201`；另装 `8.0.x` 供单文件发布 |
+| 步骤 | checkout → setup-dotnet（读 `global.json`）→ setup-dotnet 8.0.x → prepare（`dotnet --info`）→ 缓存 NuGet → `dotnet build` →（仅 push）`build.ps1` 发布 → summarize → upload-artifact |
 | 产物名 | `AllModsSky-win-x64`，路径 `release/publish/AllModsSky.exe`，保留 14 天 |
 
 ### 缓存
@@ -164,21 +168,24 @@ CI 只做构建和上传，**不跑测试**——因为仓库里没有测试项�
 
 ## 6. 版本号维护
 
-**当前版本号在 6 个文件、9 行里维护。** 改版本要全部同步，漏一处就会出现界面上显示旧版本的情况。
+**唯一入口：根目录 `Directory.Build.props` 的 `<AppVersion>`。**
 
-| 文件 | 行 | 内容 |
-|---|---|---|
-| `src/AllModsSky.App/AllModsSky.App.csproj` | 14 | `<Version>2.0.6</Version>` |
-| 同上 | 15 | `<AssemblyVersion>2.0.6.0</AssemblyVersion>` |
-| 同上 | 16 | `<FileVersion>2.0.6.0</FileVersion>` |
-| `src/AllModsSky.App/MainWindow.xaml` | 332 | 侧栏底部 `Text="v2.0.6"` |
-| 同上 | 372 | 状态栏 `Text="v2.0.6"` |
-| `src/AllModsSky.App/ViewModels/MainViewModel.cs` | 210 | `public string AppVersion => "2.0.6";` |
-| `src/AllModsSky.App/ViewModels/SettingsViewModel.cs` | 198 | `public string AppVersion => "2.0.6";` |
-| `src/AllModsSky.App/ViewModels/AboutViewModel.cs` | 235 | 反射读版本失败时的兜底串 |
-| `src/AllModsSky.Core/Integrations/UpdateService.cs` | 52 | UserAgent `AllModsSky-Updater/2.0.6` |
+```xml
+<AppVersion>2.0.8</AppVersion>
+```
 
-只有 `AboutViewModel` 会先读程序集版本（`Assembly.GetName().Version`），读不到才用兜底串；其余几处都是字面量。
+改版本只改这一行，然后正常构建。其余位置全部自动派生：
+
+| 位置 | 怎么拿到版本 |
+|---|---|
+| exe / dll 的 `Version` / `AssemblyVersion` / `FileVersion` | `Directory.Build.props` 派生给 MSBuild |
+| 侧栏页脚、状态栏、设置页、关于页 | `AppInfo.DisplayVersion` / `AppInfo.Version` |
+| 更新器 User-Agent | `AppInfo.UserAgent` |
+| `app.manifest` 的 `assemblyIdentity version` | 构建目标 `GenerateAppManifest` 替换 `__APP_VERSION__` |
+
+`app.manifest` 里保留的是 `__APP_VERSION__` 占位符，不要手动改成数字；构建时会在 `obj\<Configuration>\<TargetFramework>\app.manifest` 生成真实清单。
+
+`AppInfo` 从当前程序集元数据读取版本，不保存版本字符串；因此代码里不应再出现 `2.0.8` 这类字面量。
 
 ---
 
@@ -282,7 +289,7 @@ dotnet run --project .tmp/nsprobe/probe/NsProbe.csproj -c Release
 | 3 | `build.ps1` 的收尾提示文案 | 「目标机器需要 .NET 8 Desktop Runtime」 | 改成 10 |
 | 4 | `build.ps1` 的 `$sdkMajor -ge 9` 判断 | 为兼容旧 SDK 保留的分支（已被 `global.json` 架空） | 可简化成直接编 `.slnx` |
 | 5 | `README.md` 第 5 章系统要求、第 10/11 章提到运行时的段落 | 「.NET 8 Desktop Runtime」 | 改成 10 |
-| 6 | `global.json` 的 `sdk.version` | `10.0.403` | 不用改，已经是 10 |
+| 6 | `global.json` 的 `sdk.version` | `10.0.201` | 不用改，已经是 10 |
 
 CI 工作流和 `global.json` 都不用动——SDK 早就是 10 了，工作流读的就是这个文件。
 

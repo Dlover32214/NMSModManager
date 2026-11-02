@@ -22,9 +22,9 @@
 
 **将来迁 .NET 10**：`TargetFramework` 在两个 csproj 各写一份，迁移时两处一起改。完整清单见 [build-and-release.md](build-and-release.md) 第 10 节。
 
-**SDK 版本**：根目录 `global.json` 钉 `10.0.403`（`rollForward: latestPatch`），CI 也从这一个文件读，工作流里不重复声明。细节见 [build-and-release.md](build-and-release.md) 第 1 节。
+**SDK 版本**：根目录 `global.json` 钉 `10.0.201`（`rollForward: latestFeature`），CI 也从这一个文件读，工作流里不重复声明。细节见 [build-and-release.md](build-and-release.md) 第 1 节。
 
-**没有的东西**：无 `.editorconfig`、无 `Directory.Build.props`、无任何分析器或 `TreatWarningsAsErrors`。风格全靠模仿现有代码，编译器的容忍度是默认值。
+**版本号**：根目录 `Directory.Build.props` 的 `<AppVersion>` 是唯一入口；代码通过 `AppInfo` 读程序集元数据，构建目标负责生成 `app.manifest`，不要再写版本字面量。
 
 ---
 
