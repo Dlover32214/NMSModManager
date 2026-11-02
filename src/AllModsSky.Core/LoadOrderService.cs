@@ -1,6 +1,7 @@
 using System.Security;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 
 namespace AllModsSky.Core;
 
@@ -105,6 +106,10 @@ public sealed class LoadOrderService
 
         try
         {
+            // File.ReadAllText 会吞掉 BOM，所以 BOM 必须从原始字节判断，否则"保留 BOM"永远不成立
+            var rawBytes = File.ReadAllBytes(file);
+            var hasBom = rawBytes.Length >= 3
+                         && rawBytes[0] == 0xEF && rawBytes[1] == 0xBB && rawBytes[2] == 0xBF;
             var original = File.ReadAllText(file);
             var priorities = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             for (var i = 0; i < orderedModNames.Count; i++)
@@ -132,7 +137,8 @@ public sealed class LoadOrderService
                     var replaced = PriorityRegex.Replace(body,
                         m => "name=\"ModPriority\" value=\"" + priority.ToString() + "\"", 1);
                     builder.Append(replaced);
-                    result.Updated++;
+                    // 只有真的替换到了 ModPriority 才算更新，避免统计虚高、界面误报"已写入"
+                    if (!string.Equals(replaced, body, StringComparison.Ordinal)) result.Updated++;
                     seen.Add(name);
                 }
                 else
@@ -148,12 +154,22 @@ public sealed class LoadOrderService
             var updatedText = builder.ToString();
             if (result.Updated > 0 && !string.Equals(updatedText, original, StringComparison.Ordinal))
             {
+                // 写回前先确认结果仍是合法 XML：正则改坏时宁可报错，也不要把游戏配置写脏
+                try
+                {
+                    XDocument.Parse(updatedText);
+                }
+                catch (Exception ex)
+                {
+                    result.Error = "生成的 GCMODSETTINGS.MXML 不是合法 XML，已取消写入：" + ex.Message;
+                    return result;
+                }
+
                 result.BackupPath = file + ".bak";
                 try { File.Copy(file, result.BackupPath, true); }
                 catch (Exception ex) { AppLog.Warn("备份 GCMODSETTINGS 失败：" + ex.Message); }
 
-                var hasBom = original.Length > 0 && original[0] == '\uFEFF';
-                File.WriteAllText(file, updatedText, new UTF8Encoding(hasBom));
+                AtomicWrite(file, updatedText, new UTF8Encoding(hasBom));
             }
         }
         catch (Exception ex)
@@ -163,6 +179,30 @@ public sealed class LoadOrderService
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// 同目录临时文件 + File.Replace 原子替换。
+    /// GCMODSETTINGS.MXML 是游戏读取的 mod 清单：裸写时进程被杀/断电会把它截断，
+    /// 所以先写一份完整副本，再一次性换入，失败时保留原文件。
+    /// </summary>
+    private static void AtomicWrite(string path, string text, Encoding encoding)
+    {
+        var directory = Path.GetDirectoryName(path);
+        if (string.IsNullOrEmpty(directory)) directory = ".";
+        var temp = Path.Combine(directory,
+            Path.GetFileName(path) + "." + Guid.NewGuid().ToString("N") + ".tmp");
+        try
+        {
+            File.WriteAllText(temp, text, encoding);
+            if (File.Exists(path)) File.Replace(temp, path, null, true);
+            else File.Move(temp, path);
+        }
+        finally
+        {
+            try { if (File.Exists(temp)) File.Delete(temp); }
+            catch (Exception ex) { AppLog.Warn("清理 GCMODSETTINGS 临时文件失败：" + ex.Message); }
+        }
     }
 
     /// <summary>游戏里的模组名是大写的 XML 转义形式。</summary>
