@@ -247,7 +247,13 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
 
     private async Task AddRecordsAsync(IReadOnlyList<ModRecord> records)
     {
-        var (added, profile, created) = _workspace.Library.AddToActiveProfile(records);
+        if (_workspace.Library.ActiveProfile.BuiltIn)
+        {
+            _ui.Toast("「无模组」是内置配置，不放模组——先新建一套配置再加", false);
+            return;
+        }
+
+        var (added, profile) = _workspace.Library.AddToActiveProfile(records);
         if (added == 0)
         {
             _ui.Toast("这些模组已经在当前配置里了", false);
@@ -259,9 +265,7 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
 
         if (_workspace.Game.IsValid) await _ui.DeployAsync(silent: true);
 
-        _ui.Toast(created
-            ? $"已新建配置「{profile.Name}」，加入 {added} 个模组"
-            : $"已加入 {added} 个模组到「{profile.Name}」", true);
+        _ui.Toast($"已加入 {added} 个模组到「{profile.Name}」", true);
     }
 
     private void Delete(PoolItemViewModel? item)
@@ -370,11 +374,13 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
         {
             var record = _workspace.Deployment.Adopt(_workspace.Game.GamePath, item.Model, _workspace.Library.NameExists);
             _workspace.Library.Add(record);
-            var (added, profile, _) = _workspace.Library.AddToActiveProfile(new[] { record });
+            var (added, profile) = _workspace.Library.AddToActiveProfile(new[] { record });
             _workspace.Library.Save();
             _workspace.NotifyLibraryChanged();
             await RefreshExternalAsync();
-            _ui.Toast(added > 0 ? $"已收编并加入「{profile.Name}」：{record.Name}" : "已收编：" + record.Name, true);
+            _ui.Toast(added > 0
+                ? $"已收编并加入「{profile.Name}」：{record.Name}"
+                : $"已收编到模组库：{record.Name}（当前是「无模组」，新建配置后再加）", true);
         }
         catch (Exception ex)
         {
@@ -423,18 +429,24 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
             }
         }
 
+        var joined = 0;
         if (adopted.Count > 0)
         {
-            _workspace.Library.AddToActiveProfile(adopted);
+            (joined, _) = _workspace.Library.AddToActiveProfile(adopted);
             _workspace.Library.Save();
             _workspace.NotifyLibraryChanged();
         }
 
         await RefreshExternalAsync();
 
+        // 当前是「无模组」时收编的模组只进库、不进配置，得说清楚，否则用户以为加进去了
+        var left = adopted.Count - joined;
+
         if (failed.Count == 0)
         {
-            _ui.Toast($"已收编 {adopted.Count} 个模组", true);
+            _ui.Toast(left > 0
+                ? $"已收编 {adopted.Count} 个模组，{left} 个留在模组库（当前是「无模组」）"
+                : $"已收编 {adopted.Count} 个模组", true);
             return;
         }
 

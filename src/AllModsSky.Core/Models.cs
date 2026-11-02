@@ -147,7 +147,9 @@ public sealed class ModProfile
     [JsonIgnore]
     public string SummaryText => BuiltIn
         ? "全部停用 · 直接启动原版"
-        : $"{EnabledCount} / {Entries.Count} 个启用 · {UpdatedText}";
+        : Entries.Count == 0
+            ? "没有模组启用"
+            : $"{EnabledCount} / {Entries.Count} 个启用 · {UpdatedText}";
 }
 
 /// <summary>library.json 的根对象。</summary>

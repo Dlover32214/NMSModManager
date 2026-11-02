@@ -107,7 +107,7 @@ public sealed class ModLibrary
             _activeId = _profiles.Count > 0 ? _profiles[0].Id : ModProfile.NoneId;
 
         RefreshDeletable();
-        var normalized = Normalize();
+        var normalized = Normalize() + PruneMissingEntries();
 
         // 配置是唯一真相：启动时把启停状态对齐到当前配置，避免「配置里没有、磁盘上却开着」的模组。
         var changed = Project();
@@ -254,6 +254,22 @@ public sealed class ModLibrary
     {
         record.Id = string.IsNullOrWhiteSpace(record.Id) ? Guid.NewGuid().ToString("N") : record.Id;
         _mods.Add(record);
+    }
+
+    /// <summary>
+    /// 摘掉配置里指向已删模组的条目。
+    /// 留着没有意义（解析、部署都跳过它），却会让菜单显示成「1 / 1 个启用」——跟实际列表对不上。
+    /// 返回清理条数。
+    /// </summary>
+    public int PruneMissingEntries()
+    {
+        var known = new HashSet<string>(_mods.Select(m => m.Id), StringComparer.OrdinalIgnoreCase);
+        var removed = 0;
+
+        foreach (var profile in _profiles)
+            removed += profile.Entries.RemoveAll(e => e == null || !known.Contains(e.ModId));
+
+        return removed;
     }
 
     /// <summary>从模组库彻底移除记录，并把它从所有配置里摘掉。</summary>
@@ -405,19 +421,14 @@ public sealed class ModLibrary
                               && string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
-    /// 把模组加进当前配置。当前是内置「无模组」时自动新建一套配置来接（返回的那套就是新配置）。
+    /// 把模组加进当前配置。
+    /// 内置「无模组」不放模组（它的定义就是全停用直接启动原版），此时返回 Added = 0，
+    /// 由调用方提示用户先新建一套配置。
     /// </summary>
-    public (int Added, ModProfile Profile, bool CreatedProfile) AddToActiveProfile(IEnumerable<ModRecord> records)
+    public (int Added, ModProfile Profile) AddToActiveProfile(IEnumerable<ModRecord> records)
     {
-        var created = false;
         var profile = ActiveProfile;
-
-        if (profile.BuiltIn)
-        {
-            profile = CreateProfile(NextProfileName(), copyActive: false);
-            _activeId = profile.Id;
-            created = true;
-        }
+        if (profile.BuiltIn) return (0, profile);
 
         var existing = new HashSet<string>(profile.Entries.Select(e => e.ModId), StringComparer.OrdinalIgnoreCase);
         var added = 0;
@@ -431,7 +442,7 @@ public sealed class ModLibrary
         }
 
         if (added > 0) profile.UpdatedAt = DateTimeOffset.Now;
-        return (added, profile, created);
+        return (added, profile);
     }
 
     /// <summary>同步某几个模组在当前配置里的启停状态（记录与配置条目一起改）。</summary>

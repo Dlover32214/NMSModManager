@@ -412,8 +412,11 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
                 }
             }
 
-            // 新导入的模组直接进当前配置，否则会掉进模组库、部署时被停用
-            if (importedRecords.Count > 0) _workspace.Library.AddToActiveProfile(importedRecords);
+            // 新导入的模组直接进当前配置，否则会掉进模组库、部署时被停用。
+            // 「无模组」不放模组，这时只进库，由提示告诉用户去新建配置。
+            var joined = 0;
+            if (importedRecords.Count > 0)
+                (joined, _) = _workspace.Library.AddToActiveProfile(importedRecords);
 
             if (imported > 0)
             {
@@ -425,9 +428,12 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
                 UpdateStatus();
             }
 
-            ShowToast(imported > 0
-                ? $"已导入 {imported} 个模组，加入配置「{_workspace.Library.ActiveProfile.Name}」"
-                : "没有导入任何模组", imported > 0);
+            ShowToast(imported == 0
+                ? "没有导入任何模组"
+                : joined > 0
+                    ? $"已导入 {imported} 个模组，加入配置「{_workspace.Library.ActiveProfile.Name}」"
+                    : $"已导入 {imported} 个模组到模组库（当前是「无模组」，新建配置后再加）",
+                imported > 0);
 
             if (failures.Count > 0)
                 Alert("部分导入失败", string.Join(Environment.NewLine, failures.Take(8)));

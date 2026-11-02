@@ -153,8 +153,13 @@ public sealed class LibraryViewModel : ObservableObject
 
     public string SelectedText => $"已选 {SelectedCount} 个";
 
-    public string EmptyTitle => "这套配置里还没有模组";
-    public string EmptyHint => "点「添加模组」从模组库里挑，或者直接导入新的。";
+    public string EmptyTitle => _workspace.Library.ActiveProfile.BuiltIn
+        ? "「无模组」不放模组"
+        : "这套配置里还没有模组";
+
+    public string EmptyHint => _workspace.Library.ActiveProfile.BuiltIn
+        ? "这套内置配置就是全部停用、直接启动原版。要玩模组，先新建一套配置。"
+        : "点「添加模组」从模组库里挑，或者直接导入新的。";
 
     public bool GameValid => _workspace.Game.IsValid;
     public string GamePathText => _workspace.Game.IsValid ? _workspace.Game.GamePath : "未设置游戏目录 — 去「设置」里指定";
@@ -286,6 +291,12 @@ public sealed class LibraryViewModel : ObservableObject
     /// <summary>从模组库里挑几个模组加进当前配置。</summary>
     private async Task AddModsAsync()
     {
+        if (_workspace.Library.ActiveProfile.BuiltIn)
+        {
+            _ui.Toast("「无模组」是内置配置，不放模组——先新建一套配置再加", false);
+            return;
+        }
+
         var candidates = _workspace.Library.PoolMods;
         if (candidates.Count == 0)
         {
@@ -297,7 +308,7 @@ public sealed class LibraryViewModel : ObservableObject
         var picked = DialogService.PickMods(candidates, profile.Name);
         if (picked is null || picked.Count == 0) return;
 
-        var (added, target, created) = _workspace.Library.AddToActiveProfile(picked);
+        var (added, target) = _workspace.Library.AddToActiveProfile(picked);
         if (added == 0)
         {
             _ui.Toast("这些模组已经在当前配置里了", false);
@@ -309,10 +320,7 @@ public sealed class LibraryViewModel : ObservableObject
 
         if (_workspace.Game.IsValid) await _ui.DeployAsync(silent: true);
 
-        var text = created
-            ? $"已新建配置「{target.Name}」，加入 {added} 个模组"
-            : $"已加入 {added} 个模组到「{target.Name}」";
-        _ui.Toast(text, true);
+        _ui.Toast($"已加入 {added} 个模组到「{target.Name}」", true);
     }
 
     private void OpenFolder(ModItemViewModel? item)
@@ -535,6 +543,9 @@ public sealed class LibraryViewModel : ObservableObject
 
     private void RefreshProfiles()
     {
+        // 指向已删模组的条目会让菜单显示成「1 / 1 个启用」，跟实际列表对不上，进菜单前先清掉
+        if (_workspace.Library.PruneMissingEntries() > 0) _workspace.Library.Save();
+
         var menu = _workspace.Library.MenuProfiles.ToList();
         if (Profiles.Count == menu.Count && Profiles.Zip(menu).All(p => ReferenceEquals(p.First, p.Second)))
             return;
