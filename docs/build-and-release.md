@@ -29,14 +29,14 @@
 
 CI 不重复声明版本，`actions/setup-dotnet` 用 `global-json-file: global.json` 从同一个文件读。改版本只改这一处。
 
-**剩下两处「8 还是 10」不是同一个概念**，不必对齐：
+**目标框架和 SDK 版本不是同一个概念**：
 
 | 位置 | 值 | 管的是什么 |
 |---|---|---|
-| 两个 csproj 的 `TargetFramework` | `net8.0-windows` | 产物跑在哪个运行时上 |
+| 两个 csproj 的 `TargetFramework` | `net10.0-windows` | 产物跑在哪个运行时上 |
 | `build.ps1` 的 `$sdkMajor -ge 9` 分支 | 主版本 ≥ 9 走 `.slnx` | SDK 能不能读 `.slnx` 这种解决方案格式 |
 
-README 里出现的「.NET 8」指运行时（`Desktop Runtime`），指的不是 SDK，不算冲突。
+README 里出现的「.NET 10」指运行时（`Desktop Runtime`），指的不是 SDK，不算冲突。
 
 > `global.json` 钉到 10 之后，`build.ps1` 里那个「SDK < 9 就退化为直接编项目」的分支已经走不到了。留着无害，只是死代码。
 
@@ -61,9 +61,9 @@ pwsh -File ./build.ps1
 |---|---|
 | 环境检查 | `dotnet` 不在 PATH → 中止；`AllModsSky` 进程在跑 → 中止并报 PID（exe 被锁住，清理和覆盖都会失败） |
 | `[1/3] 编译` | `dotnet build AllModsSky.slnx -c Release --nologo -v minimal -tl:off`；SDK 主版本 < 9 时改为直接编 `AllModsSky.App.csproj` |
-| `[2/3] 发布` | 先 `Remove-Item release\publish -Recurse -Force`，再 `dotnet publish -c Release -r win-x64`；若编译用的是 .NET 10 且机器装有 8.0.x，脚本会临时切到 8.0.x 发布（SDK 10 单文件发布目前会找 8.0 的 ILLink targets） |
+| `[2/3] 发布` | 先 `Remove-Item release\publish -Recurse -Force`，再 `dotnet publish -c Release -r win-x64`；.NET 10 SDK 直接支持 `net10.0-windows` 单文件发布 |
 | 校验 | 发布后 `Test-Path $exe` 失败 → 中止 |
-| `[3/3] 收尾` | 打印耗时、全路径、MB 体积；框架依赖模式追加提示「目标机器需要 .NET 8 Desktop Runtime」 |
+| `[3/3] 收尾` | 打印耗时、全路径、MB 体积；框架依赖模式追加提示「目标机器需要 .NET 10 Desktop Runtime」 |
 
 发布参数固定为：
 
@@ -74,7 +74,7 @@ pwsh -File ./build.ps1
 -p:PublishReadyToRun=false
 ```
 
-框架依赖产物约 **1.25 MB**。
+框架依赖产物约 **1.30 MB**。
 
 > 脚本的输出标记是 `[1/3]` `[2/3]`，但收尾段没有 `[3/3]` 标题（源码注释里写的是 `# ---- 3. 收尾 ----`）。只是标记不齐，不影响构建。
 
@@ -98,9 +98,7 @@ dotnet publish src/AllModsSky.App/AllModsSky.App.csproj \
   -o release/publish
 ```
 
-> **单文件发布建议用 .NET 8 SDK。** 当前 .NET 10 SDK 会报
-> `MSB4019`（找不到 `microsoft.net.illink.tasks/8.0.25`）。
-> `build.ps1` 会自动在临时目录切到已安装的 8.0.x；手动发布请在 8.0.x SDK 下执行。
+> **单文件发布由 .NET 10 SDK 直接完成。** 不再需要安装或切换到 8.0.x SDK；手动发布保持与 CI 相同的命令即可。
 
 ---
 
@@ -114,8 +112,8 @@ dotnet publish src/AllModsSky.App/AllModsSky.App.csproj \
 | 并发 | 同分支新提交自动取消上一次运行（`cancel-in-progress`） |
 | 权限 | `contents: read`，只读 |
 | 运行环境 | `windows-latest`，`timeout-minutes: 20` |
-| SDK | 编译从 `global.json` 读 `10.0.201`；另装 `8.0.x` 供单文件发布 |
-| 步骤 | checkout → setup-dotnet（读 `global.json`）→ setup-dotnet 8.0.x → prepare（`dotnet --info`）→ 缓存 NuGet → `dotnet build` →（仅 push）`build.ps1` 发布 → summarize → upload-artifact |
+| SDK | 从 `global.json` 读 `10.0.201`；单文件发布也由同一个 SDK 完成 |
+| 步骤 | checkout → setup-dotnet（读 `global.json`）→ prepare（`dotnet --info`）→ 缓存 NuGet → `dotnet build` →（仅 push）`build.ps1` 发布 → summarize → upload-artifact |
 | 产物名 | `AllModsSky-win-x64`，路径 `release/publish/AllModsSky.exe`，保留 14 天 |
 
 ### 缓存
@@ -160,8 +158,8 @@ CI 只做构建和上传，**不跑测试**——因为仓库里没有测试项�
 |---|---|
 | 路径 | `release/publish/AllModsSky.exe` |
 | 形态 | 单文件（`PublishSingleFile=true`） |
-| 默认模式 | 框架依赖，目标机器需 .NET 8 Desktop Runtime |
-| 体积 | 约 1.25 MB（`-SelfContained` 时约 150 MB） |
+| 默认模式 | 框架依赖，目标机器需 .NET 10 Desktop Runtime |
+| 体积 | 约 1.30 MB（`-SelfContained` 时约 150 MB） |
 | 是否入库 | 否，`/release` 在 `.gitignore` 里 |
 
 ---
@@ -171,7 +169,7 @@ CI 只做构建和上传，**不跑测试**——因为仓库里没有测试项�
 **唯一入口：根目录 `Directory.Build.props` 的 `<AppVersion>`。**
 
 ```xml
-<AppVersion>2.0.8</AppVersion>
+<AppVersion>2.1.0</AppVersion>
 ```
 
 改版本只改这一行，然后正常构建。其余位置全部自动派生：
@@ -185,7 +183,7 @@ CI 只做构建和上传，**不跑测试**——因为仓库里没有测试项�
 
 `app.manifest` 里保留的是 `__APP_VERSION__` 占位符，不要手动改成数字；构建时会在 `obj\<Configuration>\<TargetFramework>\app.manifest` 生成真实清单。
 
-`AppInfo` 从当前程序集元数据读取版本，不保存版本字符串；因此代码里不应再出现 `2.0.8` 这类字面量。
+`AppInfo` 从当前程序集元数据读取版本，不保存版本字符串；因此代码里不应再出现 `2.1.0` 这类字面量。
 
 ---
 
@@ -199,7 +197,7 @@ CI 只做构建和上传，**不跑测试**——因为仓库里没有测试项�
 .tmp/
 └─ <名字>probe/
    └─ probe/
-      ├─ <名字>Probe.csproj     Exe / net8.0-windows / ProjectReference 指向 Core
+      ├─ <名字>Probe.csproj     Exe / net10.0-windows / ProjectReference 指向 Core
       └─ Program.cs
 ```
 
@@ -284,24 +282,24 @@ dotnet run --project .tmp/nsprobe/probe/NsProbe.csproj -c Release
 
 | # | 位置 | 现在 | 迁移后 |
 |---|---|---|---|
-| 1 | `src/AllModsSky.App/AllModsSky.App.csproj` 的 `TargetFramework` | `net8.0-windows` | `net10.0-windows` |
-| 2 | `src/AllModsSky.Core/AllModsSky.Core.csproj` 的 `TargetFramework` | `net8.0-windows` | `net10.0-windows` |
-| 3 | `build.ps1` 的收尾提示文案 | 「目标机器需要 .NET 8 Desktop Runtime」 | 改成 10 |
+| 1 | `src/AllModsSky.App/AllModsSky.App.csproj` 的 `TargetFramework` | `net10.0-windows` | `net10.0-windows` |
+| 2 | `src/AllModsSky.Core/AllModsSky.Core.csproj` 的 `TargetFramework` | `net10.0-windows` | `net10.0-windows` |
+| 3 | `build.ps1` 的收尾提示文案 | 「目标机器需要 .NET 10 Desktop Runtime」 | 改成 10 |
 | 4 | `build.ps1` 的 `$sdkMajor -ge 9` 判断 | 为兼容旧 SDK 保留的分支（已被 `global.json` 架空） | 可简化成直接编 `.slnx` |
-| 5 | `README.md` 第 5 章系统要求、第 10/11 章提到运行时的段落 | 「.NET 8 Desktop Runtime」 | 改成 10 |
+| 5 | `README.md` 第 5 章系统要求、第 10/11 章提到运行时的段落 | 「.NET 10 Desktop Runtime」 | 改成 10 |
 | 6 | `global.json` 的 `sdk.version` | `10.0.201` | 不用改，已经是 10 |
 
 CI 工作流和 `global.json` 都不用动——SDK 早就是 10 了，工作流读的就是这个文件。
 
 ### 两个坑
 
-**`TargetFramework` 写了两遍。** 项目没有 `Directory.Build.props`，两个 csproj 各写一份。只改一处会出现 App 编 net10、Core 编 net8 的混合状态——能编过，但运行时会加载错版本的程序集。改的时候两个一起改，改完 `dotnet build` 看两行输出确认。
+**`TargetFramework` 写了两遍。** `Directory.Build.props` 只集中版本号，没有集中 TFM，两个 csproj 各写一份。只改一处会出现 App 编 net10、Core 编 net8 的混合状态——能编过，但运行时会加载错版本的程序集。改的时候两个一起改，改完 `dotnet build` 看两行输出确认。
 
-**SDK 版本和目标框架是两件事。** 现在用 .NET 10 SDK 编 `net8.0-windows`，这完全可行，不代表已经迁到 net10。判断有没有迁，看 `TargetFramework`，不看 `global.json`——`global.json` 只是钉 SDK，改它不会让产物变成 net10。
+**SDK 版本和目标框架是两件事。** 现在用 .NET 10 SDK 编 `net10.0-windows`，两者已经对齐；判断有没有迁，仍看 `TargetFramework`，不看 `global.json`——`global.json` 只是钉 SDK。
 
 ### 不用碰的东西
 
-版本号那 6 个文件 9 行、两个 csproj 的 `<Using>` 注入清单、目录结构、`.tmp` 探针约定——都与 TFM 无关，迁移时一行都不用改。
+版本号已经集中到根目录 `Directory.Build.props`，迁移到 `net10.0-windows` 不需要再改版本文件；两个 csproj 的 `<Using>` 注入清单、目录结构、`.tmp` 探针约定都与 TFM 无关。
 
 ### 迁移后的验证
 

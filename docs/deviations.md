@@ -34,11 +34,11 @@
 | 现状 | 规范怎么说 | 差在哪 |
 |---|---|---|
 | 无 `.editorconfig` | 风格靠机器强制 | 缩进、using 排序、花括号全靠模仿 |
-| 无 `Directory.Build.props` | 公共属性集中声明 | `Nullable` / `LangVersion` / `Deterministic` 在两个 csproj 各写一遍 |
+| `Directory.Build.props` 只集中版本号 | 公共属性集中声明 | `TargetFramework` / `Nullable` / `LangVersion` / `Deterministic` 仍在两个 csproj 各写一遍 |
 | 无 `.gitattributes` | 行尾策略声明 | 靠 `core.autocrlf=true` 维持，源码实际是 CRLF 无 BOM |
 | 未开 `TreatWarningsAsErrors` | 警告即错误 | 目前是 0 警告，但没有机制防止退化 |
 | `Core/AllModsSky.Core.csproj` 的 `GenerateDocumentationFile=false` | 写了 `<see cref>` 就该校验 | 源码有 552 行 `///`，但不产出 XML，IDE 里也不提示摘要缺失。**注意打开它也只能补出 CS1591（缺注释）**——摘要写错、写重复，编译器都不会有诊断（实测） |
-| `Core` 的 TFM 是 `net8.0-windows` | Core 不依赖 UI | 不依赖 WPF 属实，但依赖 `Microsoft.Win32` 注册表，所以降不到 `net8.0` |
+| `Core` 的 TFM 是 `net10.0-windows` | Core 不依赖 UI | 不依赖 WPF 属实，但依赖 `Microsoft.Win32` 注册表，所以用不了跨平台的 `net10.0` |
 
 ---
 
@@ -64,7 +64,7 @@
 
 | 现状 | 规范怎么说 | 差在哪 |
 |---|---|---|
-| SDK 钉 `10.0.201`，TFM 是 `net8.0-windows` | 版本口径一致 | 用 10 的 SDK 编 8 的目标框架，可行但不是显式选择。将来要迁 net10 时看 [build-and-release.md](build-and-release.md) 第 10 节 |
+| SDK 钉 `10.0.201`，TFM 是 `net10.0-windows` | 版本口径一致 | 已迁到 .NET 10；构建说明见 [build-and-release.md](build-and-release.md) |
 | `build.ps1` 输出 `[1/3]` `[2/3]`，收尾段没有 `[3/3]` | 阶段标记完整 | 源码注释里写的是 `# ---- 3. 收尾 ----`，只是没打印标题 |
 | 无测试项目 | — | 验证完全依赖 `.tmp/` 探针 |
 

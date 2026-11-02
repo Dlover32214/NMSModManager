@@ -14,7 +14,7 @@ AllModsSky.App (WPF)  ──引用──▶  AllModsSky.Core (无 UI)
 |---|---|
 | App → Core 单向引用 | `AllModsSky.App.csproj` 的 `ProjectReference` 指向 Core，Core 不引用 App |
 | Core 不含 WPF 类型 | 全库搜索 `System.Windows` / `PresentationCore` / `Dispatcher` **零命中** |
-| Core 仍是 `net8.0-windows` | 因为 `GameLocator` 读注册表（`Microsoft.Win32`），不是因为 UI |
+| Core 仍是 `net10.0-windows` | 因为 `GameLocator` 读注册表（`Microsoft.Win32`），不是因为 UI |
 
 **注意措辞**：Core 是「不依赖 UI」，不是「跨平台」。它有 Windows 平台依赖。
 

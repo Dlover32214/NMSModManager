@@ -10,7 +10,7 @@
 
 | 配置 | `AllModsSky.App` | `AllModsSky.Core` |
 |---|---|---|
-| `TargetFramework` | `net8.0-windows` | `net8.0-windows` |
+| `TargetFramework` | `net10.0-windows` | `net10.0-windows` |
 | `ImplicitUsings` | `enable` | `enable` |
 | `Nullable` | `enable` | `enable` |
 | `LangVersion` | `latest` | `latest` |
@@ -18,9 +18,9 @@
 | `UseWPF` | `true` | — |
 | `GenerateDocumentationFile` | 默认（不生成） | `false` |
 
-**为什么 Core 也是 `-windows`**：Core 不含任何 WPF 类型，但 `GameLocator` 要读注册表（`Microsoft.Win32`），所以不能降到 `net8.0`。
+**为什么 Core 也是 `-windows`**：Core 不含任何 WPF 类型，但 `GameLocator` 要读注册表（`Microsoft.Win32`），所以不能用跨平台的 `net10.0`。
 
-**将来迁 .NET 10**：`TargetFramework` 在两个 csproj 各写一份，迁移时两处一起改。完整清单见 [build-and-release.md](build-and-release.md) 第 10 节。
+**目标框架**：两个项目都已迁到 `net10.0-windows`；`TargetFramework` 仍在两个 csproj 各写一份，升级时两处一起改。
 
 **SDK 版本**：根目录 `global.json` 钉 `10.0.201`（`rollForward: latestFeature`），CI 也从这一个文件读，工作流里不重复声明。细节见 [build-and-release.md](build-and-release.md) 第 1 节。
 
