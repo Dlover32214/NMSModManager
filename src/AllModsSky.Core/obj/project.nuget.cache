@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "/FtQuUO1mgE=",
+  "success": true,
+  "projectFilePath": "E:\\NMS tool\\NMSModManager\\src\\AllModsSky.Core\\AllModsSky.Core.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Dlover_\\.nuget\\packages\\microsoft.net.illink.tasks\\8.0.16\\microsoft.net.illink.tasks.8.0.16.nupkg.sha512"
+  ],
+  "logs": []
+}

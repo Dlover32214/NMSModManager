@@ -49,7 +49,7 @@ public static class UpdateService
     private static HttpClient CreateHttp()
     {
         var client = new HttpClient { Timeout = TimeSpan.FromSeconds(25) };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("AllModsSky-Updater/2.0.6");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(AppInfo.UserAgent);
         client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
         return client;
     }
