@@ -21,7 +21,7 @@ All Mod's Sky 是一个面向《No Man's Sky》的本地模组管理器。它不
 - [1. 项目概览](#1-项目概览)
 - [2. 核心概念](#2-核心概念)
 - [3. 功能详解](#3-功能详解)
-  - [3.1 模组库](#31-模组库)
+  - [3.1 模组、配置与模组库](#31-模组配置与模组库)
   - [3.2 启用、停用与同步](#32-启用停用与同步)
   - [3.3 外部模组与收编](#33-外部模组与收编)
   - [3.4 批量选取与拖拽排序](#34-批量选取与拖拽排序)
@@ -64,10 +64,12 @@ All Mod's Sky 是一个面向《No Man's Sky》的本地模组管理器。它不
 
 | 能力 | 说明 |
 |---|---|
-| 模组库 | 导入 zip / rar / 7z / tar / gz / bz2 / xz / zst / cab / pak / 文件夹，启用/停用、排序、批量操作 |
+| 模组 | 当前配置里的模组：启用/停用、拖拽排序（带预览）、批量操作、应用加载顺序 |
+| 配置 | 多套模组清单，一键切换；内置「无模组」用来启动原版 |
+| 模组库 | 全局池子：导入 zip / rar / 7z / tar / gz / bz2 / xz / zst / cab / pak / 文件夹，往配置里加、从库里删 |
 | 外部模组 | 识别不由本程序管理的 `MODS` 内容，可直接启停或“收编” |
 | 部署同步 | 把界面状态同步到游戏目录，自动维护 `DISABLEMODS.TXT` |
-| 启动模式 | 启动原版（停用全部模组）或启动 Mod 版（恢复上次启用状态）；两者先同步再启动 |
+| 启动 | 只有一个「启动游戏」：先同步，再由当前配置决定带不带模组（切到「无模组」就是原版） |
 | 冲突检测 | 扫描 `EXML` / `MBIN` 的路径重叠，按加载顺序判断覆盖关系 |
 | 加载顺序 | 读取/写入 `GCMODSETTINGS.MXML` 的 `ModPriority`，自动备份 |
 | 日志诊断 | 从游戏日志里提取报错，并尝试归因到具体模组 |
@@ -143,9 +145,27 @@ All Mod's Sky 是一个面向《No Man's Sky》的本地模组管理器。它不
 
 ## 3. 功能详解
 
-### 3.1 模组库
+### 3.1 模组、配置与模组库
 
-模组库是程序的主页面。
+程序把手头的模组和当前要用的模组分开：
+
+- **模组**页：只显示当前配置里的模组，列表顺序就是加载顺序；
+- **模组库**页：整个池子，导入、收编外部模组、从库里删，都在这一页；
+- **配置**：一套配置 = 一份模组清单 + 每个模组的启停状态。切换配置时，列表和磁盘上的启停一起变。
+
+#### 配置
+
+- 内置一套「无模组」：永远排在菜单最上面，不可改名、不可删除，切过去就是全部停用，直接点「启动游戏」即原版；
+- 其余配置可以新建（把当前这套整份复制过来）、重命名、删除；
+- 库里只剩一套配置时不能删——总得留个地方放模组；
+- 删除配置只删清单，模组和文件都不动，它们会回到模组库；
+- 当前用的是哪套配置记在 `library.json` 的 `ActiveProfileId` 里，下次启动还是它。
+
+#### 添加模组
+
+模组页工具栏的「＋ 添加模组」会列出模组库里还没进这套配置的模组，勾选后一次加进去（加在列表最下面，之后还能拖）。
+
+行尾的「移出配置」只是把它从这套配置里拿掉，文件不动，之后还能加回来。
 
 #### 导入
 
@@ -186,16 +206,17 @@ All Mod's Sky 是一个面向《No Man's Sky》的本地模组管理器。它不
 每个模组行提供：
 
 - 启用/停用开关；
+- 移出配置（回模组库）；
 - 打开模组目录；
 - 删除/移除菜单；
-- 整行拖动排序（普通模式）；
+- 整行拖动排序：按住不动会先浮起来，拖动时跟着光标走一张半透明预览，并有一条插入位置提示线；
 - 状态、大小、版本、格式等信息。
 
 #### 删除的两种语义
 
 点删除时程序会区分：
 
-- **移出列表**：先把模组停用（文件进入 `MODS_disabled`），再从索引中移除，文件仍保留；
+- **移出模组库**：先从配置里摘掉并停用（文件进入 `MODS_disabled`），再从索引里移除，文件仍保留；
 - **永久删除…**：二次确认后，删除 `MODS` 与 `MODS_disabled` 中对应的目录/文件，无法通过程序恢复。
 
 批量删除同样是永久删除，会明确显示模组数量和总大小。
@@ -466,8 +487,8 @@ API Key 会保存到数据目录的 `settings.json`。如果 API Key 无法保�
 
 ### 3.11 界面与交互
 
-- 左侧导航：模组库 / 发现模组 / 工具 / 设置 / 关于；
-- 左下角：启动 Mod 版 / 启动原版按钮、当前模式提示、游戏状态卡、深色模式开关；
+- 左侧导航：模组 / 模组库 / 发现模组 / 工具 / 设置 / 关于；
+- 左下角：「启动游戏」按钮、游戏状态卡、深色模式开关；
 - 顶部状态栏：MODS 路径、计数、版本；
 - 深色/浅色两套主题；
 - 全局 Toast 提示：带缩放、上浮、外层柔光和阴影；
@@ -480,11 +501,12 @@ API Key 会保存到数据目录的 `settings.json`。如果 API Key 无法保�
   - 副标题 `A NMS MOD MANAGER`；
 - 快捷键：
   - `Ctrl+O` 导入
-  - `Ctrl+1` 模组库
-  - `Ctrl+2` 发现
-  - `Ctrl+3` 工具
-  - `Ctrl+4` 设置
-  - `Ctrl+5` 关于
+  - `Ctrl+1` 模组
+  - `Ctrl+2` 模组库
+  - `Ctrl+3` 发现
+  - `Ctrl+4` 工具
+  - `Ctrl+5` 设置
+  - `Ctrl+6` 关于
   - `F5` 刷新
   - `Esc` 退出批量/收起提示
 
@@ -650,7 +672,12 @@ AllModsSky.exe --data "D:\NMSData"
 
 ### release 文件
 
-- `release\AllModsSky.exe`
+构建脚本产出：
+
+- `release\publish\AllModsSky.exe` —— 单文件，双击即运行
+
+对外发版时再补两样（不参与构建）：
+
 - `release\AllModsSky-2.0.6-win-x64.zip`
 - `release\README.txt`（快速上手版）
 
@@ -660,13 +687,26 @@ AllModsSky.exe --data "D:\NMSData"
 
 ### 环境
 
-- .NET SDK 8
+- .NET SDK **10.0.403**——仓库根的 `global.json` 钉住这个版本（`rollForward: latestPatch`，同档补丁号可用）
 - Windows 10/11
-- PowerShell（Windows PowerShell 5.1 或 PowerShell 7 均可）
+- PowerShell 7（`pwsh`）——只有构建脚本要求；手打 `dotnet` 命令在任意终端都行
 
-### 构建
+### 一键构建（推荐）
 
 在项目根目录执行：
+
+```powershell
+pwsh -File .\build.ps1                  # 框架依赖单文件，约 1.2 MB
+pwsh -File .\build.ps1 -SelfContained   # 连 .NET 运行时一起打包，约 140 MB
+```
+
+脚本依次做三件事：编译 → 清空并发布到 `release\publish` → 打印产物路径与体积。
+
+- `.slnx` 需要 .NET 9+ SDK，脚本按 `dotnet --version` 的主版本号判断，低于 9 就直接编 `AllModsSky.App.csproj`，不用手动改
+- 构建前会拦两件事：`dotnet` 不在 PATH、`AllModsSky.exe` 正在运行（exe 被锁住，清理和覆盖都会失败）
+- 默认结束前停一下等回车，方便直接看结果；给终端/CI 用加 `-NoPause`
+
+### 手动编译
 
 ```powershell
 dotnet build AllModsSky.slnx -c Release
@@ -680,32 +720,11 @@ dotnet run --project src\AllModsSky.App\AllModsSky.App.csproj -c Release
 
 ### 自检
 
-项目自带一个无第三方测试框架的控制台自检程序：
+自检程序暂未随仓库发布，构建与运行不依赖它。
 
-```powershell
-$env:ALLMODSSKY_DATA = "$PWD\.tmp\selftest"
-dotnet run --project tests\AllModsSky.SelfTest\AllModsSky.SelfTest.csproj -c Release
-```
+### 手动发布单文件
 
-当前自检覆盖：
-
-- 导入/解压/内容根识别；
-- 启用/停用与文件移动；
-- 外部模组识别/收编；
-- `DISABLEMODS.TXT`；
-- 冲突扫描；
-- 加载顺序读写与备份；
-- AMUMSS 分析/收集；
-- 旧版数据迁移；
-- 其他核心路径。
-
-自检结果应为：
-
-```text
-结果：通过 111，失败 0
-```
-
-### 发布单文件
+`build.ps1` 做的就是下面这条命令，不想用脚本时可以直接抄：
 
 ```powershell
 dotnet publish src\AllModsSky.App\AllModsSky.App.csproj `
@@ -717,8 +736,6 @@ dotnet publish src\AllModsSky.App\AllModsSky.App.csproj `
   -o release\publish
 ```
 
-然后把 `release\publish\AllModsSky.exe` 复制到 `release\`。
-
 `EnableCompressionInSingleFile` 必须为 `false`：框架依赖单文件不支持压缩，开启会报 `NETSDK1176`。
 
 ---
@@ -728,40 +745,48 @@ dotnet publish src\AllModsSky.App\AllModsSky.App.csproj `
 ```text
 NMSModManager\
 ├─ AllModsSky.slnx                 解决方案
+├─ global.json                     钉住 .NET SDK 版本（10.0.403）
+├─ build.ps1                       一键构建（PowerShell 7）
 ├─ README.md                       中文说明（默认）
 ├─ README.en.md                    English README
+├─ CONTRIBUTING.md                 开发规范索引
+├─ docs\                           项目规范（编码风格 / 架构 / 构建 / 提交 / 安全 / 现状偏差）
 ├─ src\
 │  ├─ AllModsSky.Core\             UI 无关的核心逻辑
-│  │  ├─ Models.cs                 模组/设置/游戏信息模型
-│  │  ├─ Infrastructure.cs         AppPaths / JsonStore / FileOps / 日志
-│  │  ├─ ModLibrary.cs             library.json 读写与规范化
-│  │  ├─ Importer.cs               zip/rar/7z/tar/gz/bz2/xz/zst/cab/pak 导入
-│  │  ├─ DeploymentService.cs      MODS / MODS_disabled 同步
-│  │  ├─ VanillaLaunchStore.cs     原版启动状态保存/恢复
-│  │  ├─ ConflictAnalyzer.cs       EXML/MBIN 冲突扫描
-│  │  ├─ LoadOrderService.cs       GCMODSETTINGS.MXML
-│  │  ├─ LogDiagnostics.cs         游戏日志诊断
-│  │  ├─ AmumssService.cs          AMUMSS 检测/分析/重建/收集
-│  │  ├─ NexusClient.cs            Nexus API
-│  │  ├─ OogcClient.cs             oogc.cc
-│  │  ├─ SaveGameReader.cs         .hg 存档读取（LZ4 块）
-│  │  ├─ UpdateService.cs          GitHub Release 检查、下载与自替换更新
-│  │  ├─ LegacyDataMigrator.cs     旧版 NMSModManager 数据兼容
+│  │  ├─ Models\                   领域模型
+│  │  │  └─ Models.cs              模组/配置/设置/游戏信息模型
+│  │  ├─ Infrastructure\           与业务无关的底座
+│  │  │  ├─ Infrastructure.cs      AppPaths / JsonStore / FileOps / 日志
+│  │  │  ├─ PathGuard.cs           按磁盘枚举定位条目（不拼路径）
+│  │  │  ├─ TextLimit.cs           按「字」截断文本
+│  │  │  ├─ VersionParser.cs       游戏版本号解析
+│  │  │  └─ LegacyDataMigrator.cs  旧版 NMSModManager 数据兼容
+│  │  ├─ Integrations\             与外部世界打交道
+│  │  │  ├─ GameLocator.cs         游戏安装目录探测（含 SettingsStore）
+│  │  │  ├─ SaveGameReader.cs      .hg 存档读取（LZ4 块）
+│  │  │  ├─ LogDiagnostics.cs      游戏日志诊断
+│  │  │  ├─ NexusClient.cs         Nexus API
+│  │  │  ├─ OogcClient.cs          oogc.cc
+│  │  │  └─ UpdateService.cs       GitHub Release 检查、下载与自替换更新
+│  │  ├─ Services\                 自己的业务动作
+│  │  │  ├─ ModLibrary.cs          library.json 读写、配置与规范化
+│  │  │  ├─ ModInspector.cs        模组目录识别（pak / 散装 / 版本）
+│  │  │  ├─ Importer.cs            zip/rar/7z/tar/gz/bz2/xz/zst/cab/pak 导入
+│  │  │  ├─ DeploymentService.cs   MODS / MODS_disabled 同步
+│  │  │  ├─ ConflictAnalyzer.cs    EXML/MBIN 冲突扫描
+│  │  │  ├─ LoadOrderService.cs    GCMODSETTINGS.MXML
+│  │  │  └─ AmumssService.cs       AMUMSS 检测/分析/重建/收集
 │  │  └─ Resources\mapping.json    内置映射数据
 │  └─ AllModsSky.App\              WPF 界面
 │     ├─ MainWindow.xaml(.cs)      主窗口、侧栏、Toast、动态 Logo
-│     ├─ ViewModels\               页面 ViewModel
-│     ├─ Views\                    Library / Discover / Tools / Settings / About
+│     ├─ ViewModels\               页面 ViewModel（含 ModPool）
+│     ├─ Views\                    Library / ModPool / Discover / Tools / Settings / About
 │     ├─ Themes\                   Dark / Light / Styles
 │     ├─ Services\                 Dialog / Shell UI / 主题等
 │     ├─ Controls\                 控件辅助
 │     └─ app.ico / app.manifest
-├─ tests\
-│  └─ AllModsSky.SelfTest\         控制台自检（111 项）
-├─ tools\                          辅助脚本（非程序运行必需）
-├─ release\                        最终发布产物
-├─ dist\                           历史构建/临时发布目录
-└─ .tmp\                           本地临时目录
+├─ release\                        最终发布产物（publish\ 为单文件 exe）
+└─ .tmp\                           本地临时目录（不入库）
 ```
 
 ---
@@ -784,7 +809,7 @@ File system + Game directories
 
 - **Core** 不引用 WPF，方便自检和复用；
 - **App** 只负责界面、对话框、主题和 MVVM 编排；
-- **SelfTest** 直接调用 Core，覆盖文件操作和解析逻辑。
+- **SelfTest**（不随仓库发布）直接调用 Core，覆盖文件操作和解析逻辑。
 
 ### 9.2 关键服务
 

@@ -12,6 +12,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Using Include="AllModsSky.Core.Models" />
+    <Using Include="AllModsSky.Core.Infrastructure" />
+    <Using Include="AllModsSky.Core.Integrations" />
+  </ItemGroup>
+
+  <ItemGroup>
     <EmbeddedResource Include="Resources\mapping.json" />
   </ItemGroup>
 

@@ -1,5 +1,4 @@
 using System.Windows;
-using AllModsSky.Core;
 using Microsoft.Win32;
 
 namespace AllModsSky.App.Services;
@@ -39,6 +38,25 @@ public static class DialogService
         dialog.Configure(title, message, primary, danger, alertOnly: false);
         dialog.ShowDialog();
         return dialog.Result;
+    }
+
+    /// <summary>带输入框的确认框，返回去空白后的文本；取消返回 null。</summary>
+    public static string? Prompt(string title, string message, string initial = "")
+    {
+        var dialog = new DialogWindow();
+        AttachOwner(dialog);
+        dialog.Configure(title, message, "确定", null, alertOnly: false, input: initial);
+
+        var ok = dialog.ShowDialog();
+        return ok == true ? dialog.InputText.Trim() : null;
+    }
+
+    /// <summary>从模组库里挑模组加进配置；取消返回 null。</summary>
+    public static IReadOnlyList<ModRecord>? PickMods(IEnumerable<ModRecord> candidates, string profileName)
+    {
+        var dialog = new ModPickerWindow(candidates, profileName);
+        AttachOwner(dialog);
+        return dialog.ShowDialog() == true ? dialog.Selected : null;
     }
 
     public static void Alert(string title, string message)

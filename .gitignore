@@ -1,6 +1,16 @@
+# AI
+/.workbuddy-ai
+
+# 工具相关
 /.tmp
 /dist
 /finacheck
-/release
 /tests
 /tools
+
+# 构建产物
+/release
+/src/AllModsSky.Core/bin
+/src/AllModsSky.App/obj
+/src/AllModsSky.Core/obj
+/src/AllModsSky.App/bin

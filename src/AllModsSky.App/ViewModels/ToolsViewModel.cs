@@ -2,7 +2,6 @@ using System.Collections.ObjectModel;
 using System.Windows.Input;
 using AllModsSky.App.Mvvm;
 using AllModsSky.App.Services;
-using AllModsSky.Core;
 
 namespace AllModsSky.App.ViewModels;
 
@@ -258,7 +257,7 @@ public sealed class ToolsViewModel : ObservableObject, IActivatable
 
         try
         {
-            var targets = _workspace.Library.Mods
+            var targets = _workspace.Library.ActiveMods
                 .Select((record, index) => new ConflictTarget
                 {
                     Name = record.Name,
@@ -404,7 +403,7 @@ public sealed class ToolsViewModel : ObservableObject, IActivatable
             "写入");
         if (confirm != ConfirmResult.Primary) return;
 
-        var names = _workspace.Library.Mods
+        var names = _workspace.Library.ActiveMods
             .Select(m => LoadOrderService.ToXmlName(m.EffectiveFolder))
             .ToList();
 

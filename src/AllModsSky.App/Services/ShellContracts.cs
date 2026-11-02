@@ -3,6 +3,7 @@ namespace AllModsSky.App.Services;
 public enum PageKey
 {
     Library,
+    Pool,
     Discover,
     Tools,
     Settings,
@@ -42,7 +43,7 @@ public interface IShellUi
 
     void Navigate(PageKey page);
 
-    Task<Core.DeployReport?> DeployAsync(bool silent = false);
+    Task<DeployReport?> DeployAsync(bool silent = false);
 
     Task ImportAsync(IReadOnlyList<string> paths);
 

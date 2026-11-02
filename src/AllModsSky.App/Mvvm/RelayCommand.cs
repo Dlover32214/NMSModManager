@@ -1,5 +1,4 @@
 using System.Windows.Input;
-using AllModsSky.Core;
 
 namespace AllModsSky.App.Mvvm;
 

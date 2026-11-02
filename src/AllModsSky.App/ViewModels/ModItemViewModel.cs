@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using AllModsSky.Core;
 using AllModsSky.App.Mvvm;
 
 namespace AllModsSky.App.ViewModels;

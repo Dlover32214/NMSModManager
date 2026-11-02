@@ -23,6 +23,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Using Include="System.IO" />
+    <Using Include="System.Net.Http" />
+    <Using Include="AllModsSky.Core.Models" />
+    <Using Include="AllModsSky.Core.Infrastructure" />
+    <Using Include="AllModsSky.Core.Services" />
+    <Using Include="AllModsSky.Core.Integrations" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\AllModsSky.Core\AllModsSky.Core.csproj" />
   </ItemGroup>
 
