@@ -714,6 +714,10 @@ Expected result:
 Result: 48 passed, 0 failed
 ```
 
+### CI
+
+The repository ships a GitHub Actions workflow (`.github/workflows/ci.yml`): every push to `main` and every PR runs `dotnet build AllModsSky.slnx -c Release` on `windows-latest`, then the self-check above; any failure fails the job. It needs no game install and no player data.
+
 ### Publish a single file
 
 ```powershell

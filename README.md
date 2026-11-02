@@ -712,6 +712,10 @@ dotnet run --project verify\AllModsSky.SelfCheck\AllModsSky.SelfCheck.csproj -c 
 结果：通过 48，失败 0
 ```
 
+### CI
+
+仓库带一份 GitHub Actions 工作流（`.github/workflows/ci.yml`）：push 到 `main` 和每个 PR 都会在 `windows-latest` 上执行 `dotnet build AllModsSky.slnx -c Release`，然后运行上面的自检；任一步失败则任务失败。它不需要游戏目录，也不需要玩家数据。
+
 ### 发布单文件
 
 ```powershell
