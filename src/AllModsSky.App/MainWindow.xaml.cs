@@ -15,8 +15,6 @@ namespace AllModsSky.App;
 public partial class MainWindow : Window
 {
     private MainViewModel? _viewModel;
-    private DispatcherTimer? _logoOcclusionTimer;
-    private DateTime _logoStartedUtc;
 
     public MainWindow()
     {
@@ -29,38 +27,10 @@ public partial class MainWindow : Window
 
         DataContextChanged += OnDataContextChanged;
         SourceInitialized += (_, _) => ApplyTitleBarTheme();
-        Loaded += (_, _) => StartLogoOcclusion();
         Closed += (_, _) =>
         {
-            _logoOcclusionTimer?.Stop();
             if (_viewModel != null) _viewModel.PropertyChanged -= ViewModel_PropertyChanged;
         };
-    }
-
-    /// <summary>
-    /// 卫星在远侧（上半圈）时，用与徽章同色的遮罩盖住它；
-    /// 直接用动画的实际角度驱动，避免关键帧和主旋转不同步。
-    /// </summary>
-    private void StartLogoOcclusion()
-    {
-        _logoOcclusionTimer ??= new DispatcherTimer(DispatcherPriority.Render)
-        {
-            Interval = TimeSpan.FromMilliseconds(33)
-        };
-
-        _logoOcclusionTimer.Tick -= LogoOcclusionTick;
-        _logoOcclusionTimer.Tick += LogoOcclusionTick;
-        _logoStartedUtc = DateTime.UtcNow;
-        _logoOcclusionTimer.Start();
-    }
-
-    private void LogoOcclusionTick(object? sender, EventArgs e)
-    {
-        // 主旋转是 20 秒一圈；用启动时刻推算，避免读取动画属性时拿到基础值。
-        var elapsed = (DateTime.UtcNow - _logoStartedUtc).TotalSeconds;
-        var angle = (elapsed / 20.0 * 360.0) % 360.0;
-        var farSide = angle <= 90 || angle >= 270;
-        BackCover.Opacity = farSide ? 1 : 0;
     }
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
