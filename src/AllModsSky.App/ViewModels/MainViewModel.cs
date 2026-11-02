@@ -23,6 +23,7 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
     private string _statusLeft = "";
     private string _statusRight = "";
     private bool _initialized;
+    private bool _launching;
 
     public MainViewModel()
     {
@@ -51,7 +52,8 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
             if (paths is { Count: > 0 }) _ = ImportAsync(paths);
         });
 
-        LaunchGameCommand = new RelayCommand(LaunchGame);
+        LaunchModdedCommand = new AsyncRelayCommand(LaunchModdedAsync);
+        LaunchVanillaCommand = new AsyncRelayCommand(LaunchVanillaAsync);
         OpenModsFolderCommand = new RelayCommand(() =>
         {
             if (_workspace.Game.IsValid) Launcher.OpenFolder(_workspace.ModsDir);
@@ -83,7 +85,8 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
 
     public ICommand NavigateCommand { get; }
     public ICommand ImportCommand { get; }
-    public ICommand LaunchGameCommand { get; }
+    public ICommand LaunchModdedCommand { get; }
+    public ICommand LaunchVanillaCommand { get; }
     public ICommand OpenModsFolderCommand { get; }
     public ICommand OpenDataFolderCommand { get; }
     public ICommand RefreshCommand { get; }
@@ -172,10 +175,14 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
     public string GamePath => _workspace.Game.IsValid ? _workspace.Game.GamePath : "未设置游戏目录";
     public string GameVersionLine => _workspace.Game.IsValid ? _workspace.Game.VersionLine : "去「设置」里指定游戏目录";
     public string ModsPath => _workspace.Game.ModsPath;
-    public string AppVersion => "2.0.5";
+    public string AppVersion => "2.0.6";
     public string DataPath => AppPaths.Root;
     public int ModCount => Library.TotalCount;
     public int EnabledCount => Library.EnabledCount;
+    public bool HasVanillaBackup => VanillaLaunchStore.HasBackup;
+    public string LaunchModeText => HasVanillaBackup
+        ? "当前：原版模式（模组已停用）"
+        : "当前：Mod 模式";
 
     public async Task InitializeAsync()
     {
@@ -440,17 +447,183 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
         }
     }
 
-    private void LaunchGame()
+    private async Task LaunchModdedAsync()
     {
-        if (!_workspace.Game.IsValid)
+        if (_launching || !EnsureGame()) return;
+
+        _launching = true;
+        try
         {
-            ShowToast("先设置游戏目录", false);
-            Navigate(PageKey.Settings);
-            return;
+            var backup = VanillaLaunchStore.Load();
+            if (backup == null && VanillaLaunchStore.HasBackup)
+            {
+                // 状态文件损坏时不要让界面永远停在“原版模式”。
+                VanillaLaunchStore.Clear();
+                RaiseLaunchMode();
+            }
+
+            if (backup != null)
+            {
+                var enabledIds = new HashSet<string>(backup.EnabledIds, StringComparer.OrdinalIgnoreCase);
+                foreach (var mod in _workspace.Library.Mods)
+                    mod.Enabled = enabledIds.Contains(mod.Id);
+
+                PersistEnabledState();
+            }
+
+            if (!await PrepareLaunchAsync()) return;
+
+            var anyEnabled = _workspace.Library.Mods.Any(m => m.Enabled) || AnyExternalEnabled();
+            ApplyLaunchDisableFlag(anyEnabled);
+
+            if (backup != null)
+            {
+                VanillaLaunchStore.Clear();
+                RaiseLaunchMode();
+            }
+
+            ShowToast(backup != null ? "已恢复 Mod 状态，正在启动…" : "正在启动 Mod 版…", true);
+            Launcher.LaunchGame(_workspace.Game);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error(ex, "启动 Mod 版");
+            ShowToast("启动失败：" + ex.Message, false);
+        }
+        finally
+        {
+            _launching = false;
+        }
+    }
+
+    private async Task LaunchVanillaAsync()
+    {
+        if (_launching || !EnsureGame()) return;
+
+        _launching = true;
+        try
+        {
+            var before = _workspace.Library.Mods
+                .ToDictionary(m => m.Id, m => m.Enabled, StringComparer.OrdinalIgnoreCase);
+            var enabledIds = before
+                .Where(pair => pair.Value)
+                .Select(pair => pair.Key)
+                .ToList();
+            var hadBackup = VanillaLaunchStore.HasBackup;
+
+            if (!hadBackup && !VanillaLaunchStore.Save(enabledIds))
+            {
+                ShowToast("无法保存原版启动状态，未启动", false);
+                return;
+            }
+
+            foreach (var mod in _workspace.Library.Mods)
+                mod.Enabled = false;
+
+            PersistEnabledState();
+
+            if (!await PrepareLaunchAsync())
+            {
+                RestoreEnabledStates(before);
+                await DeployAsync(silent: true);
+
+                if (!hadBackup)
+                {
+                    VanillaLaunchStore.Clear();
+                    RaiseLaunchMode();
+                }
+
+                return;
+            }
+
+            EnsureVanillaDisableFlag();
+            if (!hadBackup)
+                RaiseLaunchMode();
+
+            var message = enabledIds.Count > 0
+                ? $"已停用 {enabledIds.Count} 个模组，正在启动原版…"
+                : "正在启动原版…";
+            ShowToast(message, true);
+            Launcher.LaunchGame(_workspace.Game);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error(ex, "启动原版");
+            ShowToast("启动失败：" + ex.Message, false);
+        }
+        finally
+        {
+            _launching = false;
+        }
+    }
+
+    private bool EnsureGame()
+    {
+        if (_workspace.Game.IsValid) return true;
+
+        ShowToast("先设置游戏目录", false);
+        Navigate(PageKey.Settings);
+        return false;
+    }
+
+    private async Task<bool> PrepareLaunchAsync()
+    {
+        var report = await DeployAsync(silent: true);
+        if (report == null)
+        {
+            ShowToast("同步失败，未启动游戏", false);
+            return false;
         }
 
-        Launcher.LaunchGame(_workspace.Game);
-        ShowToast("正在启动无人深空…", true);
+        if (report.Failed > 0)
+        {
+            ShowToast($"同步有 {report.Failed} 项失败，未启动游戏", false);
+            return false;
+        }
+
+        return true;
+    }
+
+    private void EnsureVanillaDisableFlag() => ApplyLaunchDisableFlag(anyEnabled: false);
+
+    private void ApplyLaunchDisableFlag(bool anyEnabled)
+    {
+        if (!_workspace.Game.IsValid) return;
+
+        DeploymentService.ApplyDisableModsFlag(_workspace.Game.GamePath, true, anyEnabled);
+        _workspace.RefreshGame();
+    }
+
+    private bool AnyExternalEnabled()
+    {
+        if (!_workspace.Game.IsValid) return false;
+
+        var external = _workspace.Deployment.ListExternal(
+            _workspace.Game.GamePath, _workspace.Library.Mods);
+        return external.Any(e => e.Enabled);
+    }
+
+    private void PersistEnabledState()
+    {
+        _workspace.Library.Save();
+        Library.SyncFromLibrary();
+        _workspace.NotifyLibraryChanged();
+    }
+
+    private void RestoreEnabledStates(IReadOnlyDictionary<string, bool> states)
+    {
+        foreach (var mod in _workspace.Library.Mods)
+        {
+            if (states.TryGetValue(mod.Id, out var enabled))
+                mod.Enabled = enabled;
+        }
+
+        PersistEnabledState();
+    }
+
+    private void RaiseLaunchMode()
+    {
+        Raise(nameof(HasVanillaBackup), nameof(LaunchModeText));
     }
 
     private void OnLibraryChanged()

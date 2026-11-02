@@ -280,15 +280,40 @@
 
                 <!-- 启动游戏 + 游戏状态卡 -->
                 <StackPanel Grid.Row="3">
-                    <Button Style="{StaticResource PrimaryButton}"
-                            Command="{Binding LaunchGameCommand}"
-                            HorizontalAlignment="Stretch" Padding="12,9" Margin="0,0,0,10"
-                            ToolTip="通过 Steam 启动无人深空；未检测到 Steam 时直接运行 NMS.exe">
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                            <TextBlock Text="▶" FontSize="11" Margin="0,0,8,0" VerticalAlignment="Center" />
-                            <TextBlock Text="启动游戏" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <Button Grid.Column="0" Style="{StaticResource PrimaryButton}"
+                                Command="{Binding LaunchModdedCommand}"
+                                AutomationProperties.Name="启动 Mod 版"
+                                HorizontalAlignment="Stretch" Padding="7,9" Margin="0,0,3,0"
+                                ToolTip="恢复上次 Mod 启用状态（如有），同步后启动带模组的游戏">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <TextBlock Text="▶" FontSize="10" Margin="0,0,5,0" VerticalAlignment="Center" />
+                                <TextBlock Text="启动 Mod 版" FontSize="12.5" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+
+                        <Button Grid.Column="1" Style="{StaticResource SecondaryButton}"
+                                Command="{Binding LaunchVanillaCommand}"
+                                AutomationProperties.Name="启动原版"
+                                HorizontalAlignment="Stretch" Padding="7,9" Margin="3,0,0,0"
+                                ToolTip="停用所有已管理模组并部署，然后启动无 Mod 的原版游戏；下次点「启动 Mod 版」恢复">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <TextBlock Text="○" FontSize="10" Margin="0,0,5,0" VerticalAlignment="Center" />
+                                <TextBlock Text="启动原版" FontSize="12.5" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+
+                    <TextBlock Text="{Binding LaunchModeText}" FontSize="10.5"
+                               AutomationProperties.Name="{Binding LaunchModeText}"
+                               Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center"
+                               Margin="0,0,0,8" TextTrimming="CharacterEllipsis"
+                               ToolTip="启动原版会停用模组；启动 Mod 版会恢复上次状态" />
 
                     <Button Style="{StaticResource ButtonBase}"
                             Padding="0" Background="Transparent" BorderThickness="0"
@@ -327,7 +352,7 @@
                 <StackPanel Grid.Row="5" Margin="2,16,2,0">
                     <Border Style="{StaticResource Divider}" Margin="0,0,0,10" />
                     <Grid>
-                        <TextBlock Text="v2.0.5" FontSize="10.5" Foreground="{DynamicResource TextFaint}"
+                        <TextBlock Text="v2.0.6" FontSize="10.5" Foreground="{DynamicResource TextFaint}"
                                    VerticalAlignment="Center" />
                         <Button Content="数据目录" Style="{StaticResource LinkButton}"
                                 HorizontalAlignment="Right" FontSize="10.5"
@@ -361,7 +386,7 @@
                         <TextBlock Text="{Binding StatusRight}" FontSize="11"
                                    Foreground="{DynamicResource TextMuted}" />
                         <Border Width="1" Height="12" Background="{DynamicResource Border}" Margin="14,0" />
-                        <TextBlock Text="v2.0.5" FontSize="11" Foreground="{DynamicResource TextFaint}" />
+                        <TextBlock Text="v2.0.6" FontSize="11" Foreground="{DynamicResource TextFaint}" />
                     </StackPanel>
                 </Grid>
             </Border>

@@ -232,6 +232,6 @@ public sealed class AboutViewModel : ObservableObject, IActivatable
     private static string ReadVersion()
     {
         var version = typeof(AboutViewModel).Assembly.GetName().Version;
-        return version == null ? "2.0.5" : $"{version.Major}.{version.Minor}.{version.Build}";
+        return version == null ? "2.0.6" : $"{version.Major}.{version.Minor}.{version.Build}";
     }
 }
