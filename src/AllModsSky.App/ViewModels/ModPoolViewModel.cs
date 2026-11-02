@@ -34,8 +34,8 @@ public sealed class PoolItemViewModel : ObservableObject
     public bool HasLink => !string.IsNullOrWhiteSpace(Record.Url);
 
     public string LinkTooltip => HasLink
-        ? "打开模组页面：" + Record.Url + "\n点右侧铅笔可以改"
-        : "给这个模组加一个页面链接";
+        ? L.F("打开模组页面：{0}\n点右侧铅笔可以改", Record.Url)
+        : L.T("给这个模组加一个页面链接");
 
     /// <summary>链接改过之后刷新按钮的提示文字。</summary>
     public void RefreshLink() => Raise(nameof(HasLink), nameof(LinkTooltip));
@@ -60,8 +60,8 @@ public sealed class PoolItemViewModel : ObservableObject
         }
     }
 
-    public string StateText => _inProfile ? $"已在「{_profileName}」" : "未加入";
-    public string AddText => _inProfile ? "已加入" : "加入配置";
+    public string StateText => _inProfile ? L.F("已在「{0}」", _profileName) : L.T("未加入");
+    public string AddText => _inProfile ? L.T("已加入") : L.T("加入配置");
 }
 
 /// <summary>
@@ -171,18 +171,18 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
         private set => SetProperty(ref _showExternal, value);
     }
 
-    public string UnusedButtonText => _onlyUnused ? "只看没加入 ✓" : "只看没加入";
+    public string UnusedButtonText => _onlyUnused ? L.T("只看没加入 ✓") : L.T("只看没加入");
 
     public int TotalCount => Items.Count;
     public int UsedCount => Items.Count(i => i.InProfile);
     public int UnusedCount => Items.Count(i => !i.InProfile);
 
     public string CountText =>
-        $"共 {TotalCount} 个 · 当前配置「{_workspace.Library.ActiveProfile.Name}」用了 {UsedCount} 个";
+        L.F("共 {0} 个 · 当前配置「{1}」用了 {2} 个", TotalCount, _workspace.Library.ActiveProfile.Name, UsedCount);
 
     public bool IsEmpty => Items.Count == 0;
     public bool HasVisibleMods => !View.IsEmpty;
-    public string ExternalButtonText => $"外部模组 ({External.Count})";
+    public string ExternalButtonText => L.F("外部模组 ({0})", External.Count);
 
     // ---- 批量选取 ----
 
@@ -199,22 +199,22 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
     }
 
     public bool ShowBatchBar => _batchMode;
-    public string BatchButtonText => _batchMode ? "退出批量" : "批量选取";
+    public string BatchButtonText => _batchMode ? L.T("退出批量") : L.T("批量选取");
 
     public int SelectedCount => Items.Count(i => i.IsSelected);
     public bool HasSelection => SelectedCount > 0;
-    public string SelectedText => $"已选 {SelectedCount} 个";
+    public string SelectedText => L.F("已选 {0} 个", SelectedCount);
 
     /// <summary>当前筛选结果是不是已经全选中了（空列表不算）。</summary>
     public bool AllSelected =>
         !View.IsEmpty && View.OfType<PoolItemViewModel>().All(i => i.IsSelected);
 
     /// <summary>全选按钮点完就变成「取消全选」。</summary>
-    public string SelectAllText => AllSelected ? "取消全选" : "全选";
+    public string SelectAllText => AllSelected ? L.T("取消全选") : L.T("全选");
 
     public string SelectAllTooltip => AllSelected
-        ? "取消当前搜索/筛选结果里的全部选中"
-        : "选中当前搜索/筛选结果里的全部模组";
+        ? L.T("取消当前搜索/筛选结果里的全部选中")
+        : L.T("选中当前搜索/筛选结果里的全部模组");
 
     /// <summary>行点击之后由视图调用，避免每行都挂一个 PropertyChanged。</summary>
     public void NotifySelectionChanged() =>
@@ -366,11 +366,11 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
         }
 
         var names = string.Join("\n", selected.Take(6).Select(i => "  · " + i.Name));
-        if (selected.Count > 6) names += $"\n  … 另有 {selected.Count - 6} 个";
+        if (selected.Count > 6) names += L.F("\n  … 另有 {0} 个", selected.Count - 6);
 
-        var confirm = _ui.Confirm($"把 {selected.Count} 个模组移出模组库",
-            $"文件会被移到 MODS_disabled，随时可以重新收编，不会删除。\n\n{names}",
-            "移出模组库");
+        var confirm = _ui.Confirm(L.F("把 {0} 个模组移出模组库", selected.Count),
+            L.F("文件会被移到 MODS_disabled，随时可以重新收编，不会删除。\n\n{0}", names),
+            L.T("移出模组库"));
 
         if (confirm != ConfirmResult.Primary) return;
 
@@ -392,11 +392,11 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
             await RefreshExternalAsync();
 
             ExitBatch();
-            _ui.Toast($"已移出 {selected.Count} 个模组，文件在 MODS_disabled 里", true);
+            _ui.Toast(L.F("已移出 {0} 个模组，文件在 MODS_disabled 里", selected.Count), true);
         }
         catch (Exception ex)
         {
-            _ui.Toast("移出失败：" + ex.Message, false);
+            _ui.Toast(L.F("移出失败：{0}", ex.Message), false);
         }
     }
 
@@ -417,8 +417,8 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
     {
         if (item == null) return;
 
-        var input = DialogService.Prompt($"模组链接 · {item.Name}",
-            "粘贴这个模组的页面地址（Nexus、oogc、论坛都行），留空表示清除。", item.Record.Url);
+        var input = DialogService.Prompt(L.F("模组链接 · {0}", item.Name),
+            L.T("粘贴这个模组的页面地址（Nexus、oogc、论坛都行），留空表示清除。"), item.Record.Url);
         if (input == null) return;   // 取消
 
         var url = ModRecord.NormalizeUrl(input);
@@ -456,18 +456,18 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
 
         if (_workspace.Game.IsValid) await _ui.DeployAsync(silent: true);
 
-        _ui.Toast($"已加入 {added} 个模组到「{profile.Name}」", true);
+        _ui.Toast(L.F("已加入 {0} 个模组到「{1}」", added, profile.Name), true);
     }
 
     private void Delete(PoolItemViewModel? item)
     {
         if (item == null) return;
 
-        var message = $"把「{item.Name}」从模组库移除？\n\n" +
-                      $"文件（{item.SizeText}）会被移到 MODS_disabled，随时可以重新收编，不会删除。\n" +
-                      "如果确定不再需要，可以点「永久删除…」一并删除磁盘文件。";
+        var message = L.F("把「{0}」从模组库移除？\n\n", item.Name) +
+                      L.F("文件（{0}）会被移到 MODS_disabled，随时可以重新收编，不会删除。\n", item.SizeText) +
+                      L.T("如果确定不再需要，可以点「永久删除…」一并删除磁盘文件。");
 
-        var result = _ui.Confirm("移除模组", message, "移出模组库", "永久删除…");
+        var result = _ui.Confirm(L.T("移除模组"), message, L.T("移出模组库"), L.T("永久删除…"));
         if (result == ConfirmResult.Primary) _ = SoftRemoveAsync(item);
         else if (result == ConfirmResult.Danger) _ = PermanentDeleteAsync(item);
     }
@@ -490,16 +490,16 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
         }
         catch (Exception ex)
         {
-            _ui.Toast("移出失败：" + ex.Message, false);
+            _ui.Toast(L.F("移出失败：{0}", ex.Message), false);
         }
     }
 
     private async Task PermanentDeleteAsync(PoolItemViewModel item)
     {
-        var confirm = _ui.Confirm("永久删除",
-            $"「{item.Name}」的磁盘文件会被永久删除，无法通过本程序恢复。\n\n" +
-            "会同时删除 MODS 与 MODS_disabled 里的副本。确定继续吗？",
-            "永久删除");
+        var confirm = _ui.Confirm(L.T("永久删除"),
+            L.F("「{0}」的磁盘文件会被永久删除，无法通过本程序恢复。\n\n", item.Name) +
+            L.T("会同时删除 MODS 与 MODS_disabled 里的副本。确定继续吗？"),
+            L.T("永久删除"));
 
         if (confirm != ConfirmResult.Primary) return;
 
@@ -510,11 +510,11 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
             _workspace.Library.Save();
             _workspace.NotifyLibraryChanged();
             await RefreshExternalAsync();
-            _ui.Toast("已永久删除：" + item.Name, true);
+            _ui.Toast(L.F("已永久删除：{0}", item.Name), true);
         }
         catch (Exception ex)
         {
-            _ui.Toast("删除失败：" + ex.Message, false);
+            _ui.Toast(L.F("删除失败：{0}", ex.Message), false);
         }
     }
 
@@ -549,11 +549,11 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
             await Task.Run(() => _workspace.Deployment.SetExternal(
                 _workspace.Game.GamePath, item.Model, !item.Model.Enabled));
             await RefreshExternalAsync();
-            _ui.Toast($"{item.Name}：{(item.Model.Enabled ? "已停用" : "已启用")}", true);
+            _ui.Toast(L.F("{0}：{1}", item.Name, L.T(item.Model.Enabled ? "已停用" : "已启用")), true);
         }
         catch (Exception ex)
         {
-            _ui.Toast("操作失败：" + ex.Message, false);
+            _ui.Toast(L.F("操作失败：{0}", ex.Message), false);
         }
     }
 
@@ -570,12 +570,12 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
             _workspace.NotifyLibraryChanged();
             await RefreshExternalAsync();
             _ui.Toast(added > 0
-                ? $"已收编并加入「{profile.Name}」：{record.Name}"
-                : $"已收编到模组库：{record.Name}（当前是「无模组」，新建配置后再加）", true);
+                ? L.F("已收编并加入「{0}」：{1}", profile.Name, record.Name)
+                : L.F("已收编到模组库：{0}（当前是「无模组」，新建配置后再加）", record.Name), true);
         }
         catch (Exception ex)
         {
-            _ui.Toast("收编失败：" + ex.Message, false);
+            _ui.Toast(L.F("收编失败：{0}", ex.Message), false);
         }
     }
 
@@ -595,10 +595,10 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
             return;
         }
 
-        var confirm = _ui.Confirm($"全部收编（{pending.Count} 个）",
-            "把它们都登记进模组库，并加入当前配置，之后就能统一启停。\n\n" +
-            "文件不会被删除；MODS 根目录里散放的 pak 会收进同名文件夹，方便启停。",
-            "全部收编");
+        var confirm = _ui.Confirm(L.F("全部收编（{0} 个）", pending.Count),
+            L.T("把它们都登记进模组库，并加入当前配置，之后就能统一启停。\n\n") +
+            L.T("文件不会被删除；MODS 根目录里散放的 pak 会收进同名文件夹，方便启停。"),
+            L.T("全部收编"));
         if (confirm != ConfirmResult.Primary) return;
 
         var adopted = new List<ModRecord>();
@@ -636,15 +636,15 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
         if (failed.Count == 0)
         {
             _ui.Toast(left > 0
-                ? $"已收编 {adopted.Count} 个模组，{left} 个留在模组库（当前是「无模组」）"
-                : $"已收编 {adopted.Count} 个模组", true);
+                ? L.F("已收编 {0} 个模组，{1} 个留在模组库（当前是「无模组」）", adopted.Count, left)
+                : L.F("已收编 {0} 个模组", adopted.Count), true);
             return;
         }
 
         var sample = string.Join("、", failed.Take(3));
         if (failed.Count > 3) sample += "…";
         _ui.Toast(adopted.Count > 0
-            ? $"已收编 {adopted.Count} 个，{failed.Count} 个失败（{sample}）"
-            : $"收编失败：{sample}", false);
+            ? L.F("已收编 {0} 个，{1} 个失败（{2}）", adopted.Count, failed.Count, sample)
+            : L.F("收编失败：{0}", sample), false);
     }
 }

@@ -147,7 +147,7 @@ public sealed class LibraryViewModel : ObservableObject
     }
 
     public bool ShowBatchBar => BatchMode;
-    public string BatchButtonText => BatchMode ? "退出批量" : "批量选取";
+    public string BatchButtonText => BatchMode ? L.T("退出批量") : L.T("批量选取");
 
     public bool HasVisibleMods => !View.IsEmpty;
     public bool IsLibraryEmpty => Items.Count == 0;
@@ -162,24 +162,24 @@ public sealed class LibraryViewModel : ObservableObject
         !View.IsEmpty && View.OfType<ModItemViewModel>().All(i => i.IsSelected);
 
     /// <summary>全选按钮点完就变成「取消全选」，不用再单独放一个按钮。</summary>
-    public string SelectAllText => AllSelected ? "取消全选" : "全选";
+    public string SelectAllText => AllSelected ? L.T("取消全选") : L.T("全选");
 
     public string SelectAllTooltip => AllSelected
-        ? "取消当前搜索/筛选结果里的全部选中"
-        : "选中当前搜索/筛选结果里的全部模组";
+        ? L.T("取消当前搜索/筛选结果里的全部选中")
+        : L.T("选中当前搜索/筛选结果里的全部模组");
 
     public string CountText =>
-        $"配置「{ActiveProfileName}」· {TotalCount} 个模组 · 已启用 {EnabledCount}";
+        L.F("配置「{0}」· {1} 个模组 · 已启用 {2}", ActiveProfileName, TotalCount, EnabledCount);
 
-    public string SelectedText => $"已选 {SelectedCount} 个";
+    public string SelectedText => L.F("已选 {0} 个", SelectedCount);
 
     public string EmptyTitle => _workspace.Library.ActiveProfile.BuiltIn
-        ? "「无模组」不放模组"
-        : "这套配置里还没有模组";
+        ? L.T("「无模组」不放模组")
+        : L.T("这套配置里还没有模组");
 
     public string EmptyHint => _workspace.Library.ActiveProfile.BuiltIn
-        ? "这套内置配置就是全部停用、直接启动原版。想玩模组，点上面的「配置」换一套。"
-        : "点「添加模组」从模组库里挑，或者直接导入新的。";
+        ? L.T("这套内置配置就是全部停用、直接启动原版。想玩模组，点上面的「配置」换一套。")
+        : L.T("点「添加模组」从模组库里挑，或者直接导入新的。");
 
     /// <summary>
     /// 空状态里的三个按钮。内置「无模组」下它们都没意义（工具栏上本来也有同样的入口），
@@ -188,12 +188,12 @@ public sealed class LibraryViewModel : ObservableObject
     public bool ShowEmptyActions => !_workspace.Library.ActiveProfile.BuiltIn;
 
     public bool GameValid => _workspace.Game.IsValid;
-    public string GamePathText => _workspace.Game.IsValid ? _workspace.Game.GamePath : "未设置游戏目录 — 去「设置」里指定";
+    public string GamePathText => _workspace.Game.IsValid ? _workspace.Game.GamePath : L.T("未设置游戏目录 — 去「设置」里指定");
     public string GameVersionText => _workspace.Game.IsValid ? _workspace.Game.VersionLine : "";
     public string ModsPath => _workspace.Game.ModsPath;
     public bool ModsWritable => _workspace.Game.ModsWritable;
     public string DisableFlagText =>
-        _workspace.Game.IsValid && _workspace.Game.DisableModsFileExists ? "DISABLEMODS.TXT 已存在" : "";
+        _workspace.Game.IsValid && _workspace.Game.DisableModsFileExists ? "DISABLEMODS.TXT " + L.T("已存在") : "";
 
     public List<ModItemViewModel> SelectedItems => Items.Where(i => i.IsSelected).ToList();
 
@@ -352,7 +352,7 @@ public sealed class LibraryViewModel : ObservableObject
 
         if (_workspace.Game.IsValid) await _ui.DeployAsync(silent: true);
 
-        _ui.Toast($"已加入 {added} 个模组到「{target.Name}」", true);
+        _ui.Toast(L.F("已加入 {0} 个模组到「{1}」", added, target.Name), true);
     }
 
     private void OpenFolder(ModItemViewModel? item)
@@ -361,7 +361,7 @@ public sealed class LibraryViewModel : ObservableObject
         var folder = _workspace.FindModFolder(item.Record);
         if (string.IsNullOrEmpty(folder))
         {
-            _ui.Toast(item.Record.IsLegacyPak ? "pak 模组没有独立文件夹" : "找不到模组目录", false);
+            _ui.Toast(item.Record.IsLegacyPak ? L.T("pak 模组没有独立文件夹") : L.T("找不到模组目录"), false);
             return;
         }
         Launcher.OpenFolder(folder);
@@ -378,18 +378,18 @@ public sealed class LibraryViewModel : ObservableObject
 
             if (!_workspace.Game.IsValid)
             {
-                _ui.Toast($"{item.Name}：已{(item.Enabled ? "启用" : "停用")}（未设置游戏目录）", true);
+                _ui.Toast(L.F("{0}：{1}（未设置游戏目录）", item.Name, L.T(item.Enabled ? "已启用" : "已停用")), true);
                 return;
             }
 
             var report = await _ui.DeployAsync(silent: true);
             var ok = report is { Failed: 0 };
-            _ui.Toast($"{item.Name}：{(item.Enabled ? "已启用" : "已停用")}" +
-                      (ok ? "" : "，但同步时出现问题"), ok);
+            _ui.Toast(L.F("{0}：{1}", item.Name, L.T(item.Enabled ? "已启用" : "已停用")) +
+                      (ok ? "" : L.T("，但同步时出现问题")), ok);
         }
         catch (Exception ex)
         {
-            _ui.Toast("保存失败：" + ex.Message, false);
+            _ui.Toast(L.F("保存失败：{0}", ex.Message), false);
         }
     }
 
@@ -397,12 +397,12 @@ public sealed class LibraryViewModel : ObservableObject
     {
         if (item == null) return;
 
-        var message = $"把「{item.Name}」从模组库移除？\n\n" +
-                      $"文件（{item.SizeText}）会被移到 MODS_disabled，随时可以重新收编，不会删除。\n" +
-                      $"只是不想让它出现在这套配置里的话，点行尾的「移出配置」就够了。\n\n" +
-                      "如果确定不再需要，可以点「永久删除…」一并删除磁盘文件。";
+        var message = L.F("把「{0}」从模组库移除？\n\n", item.Name) +
+                      L.F("文件（{0}）会被移到 MODS_disabled，随时可以重新收编，不会删除。\n", item.SizeText) +
+                      L.T("只是不想让它出现在这套配置里的话，点行尾的「移出配置」就够了。\n\n") +
+                      L.T("如果确定不再需要，可以点「永久删除…」一并删除磁盘文件。");
 
-        var result = _ui.Confirm("移除模组", message, "移出模组库", "永久删除…");
+        var result = _ui.Confirm(L.T("移除模组"), message, L.T("移出模组库"), L.T("永久删除…"));
         if (result == ConfirmResult.Primary) _ = SoftRemoveAsync(item);
         else if (result == ConfirmResult.Danger) _ = PermanentDeleteAsync(item);
     }
@@ -421,20 +421,20 @@ public sealed class LibraryViewModel : ObservableObject
             _workspace.Library.Remove(item.Record);
             _workspace.Library.Save();
             _workspace.NotifyLibraryChanged();
-            _ui.Toast("已移出模组库，文件在 MODS_disabled 里", true);
+            _ui.Toast(L.T("已移出模组库，文件在 MODS_disabled 里"), true);
         }
         catch (Exception ex)
         {
-            _ui.Toast("移出失败：" + ex.Message, false);
+            _ui.Toast(L.F("移出失败：{0}", ex.Message), false);
         }
     }
 
     private Task PermanentDeleteAsync(ModItemViewModel item)
     {
-        var confirm = _ui.Confirm("永久删除",
-            $"「{item.Name}」的磁盘文件会被永久删除，无法通过本程序恢复。\n\n" +
-            "会同时删除 MODS 与 MODS_disabled 里的副本。确定继续吗？",
-            "永久删除");
+        var confirm = _ui.Confirm(L.T("永久删除"),
+            L.F("「{0}」的磁盘文件会被永久删除，无法通过本程序恢复。\n\n", item.Name) +
+            L.T("会同时删除 MODS 与 MODS_disabled 里的副本。确定继续吗？"),
+            L.T("永久删除"));
 
         if (confirm != ConfirmResult.Primary) return Task.CompletedTask;
 
@@ -444,11 +444,11 @@ public sealed class LibraryViewModel : ObservableObject
             _workspace.Library.Remove(item.Record);
             _workspace.Library.Save();
             _workspace.NotifyLibraryChanged();
-            _ui.Toast("已永久删除：" + item.Name, true);
+            _ui.Toast(L.F("已永久删除：{0}", item.Name), true);
         }
         catch (Exception ex)
         {
-            _ui.Toast("删除失败：" + ex.Message, false);
+            _ui.Toast(L.F("删除失败：{0}", ex.Message), false);
         }
 
         return Task.CompletedTask;
@@ -471,7 +471,7 @@ public sealed class LibraryViewModel : ObservableObject
 
         if (_workspace.Game.IsValid) await _ui.DeployAsync(silent: true);
 
-        _ui.Toast($"已{(enabled ? "启用" : "停用")} {selected.Count} 个模组", true);
+        _ui.Toast(L.F("已{0} {1} 个模组", L.T(enabled ? "启用" : "停用"), selected.Count), true);
         ExitBatch();
     }
 
@@ -486,12 +486,12 @@ public sealed class LibraryViewModel : ObservableObject
 
         var total = selected.Sum(i => i.Record.Size);
         var names = string.Join("\n", selected.Take(6).Select(i => "  · " + i.Name));
-        if (selected.Count > 6) names += $"\n  … 另有 {selected.Count - 6} 个";
+        if (selected.Count > 6) names += L.F("\n  … 另有 {0} 个", selected.Count - 6);
 
-        var confirm = _ui.Confirm($"永久删除 {selected.Count} 个模组",
-            $"将永久删除约 {Humanize.Size(total)} 的文件，无法恢复。\n\n{names}\n\n" +
-            "会同时删除 MODS 与 MODS_disabled 里的目录。",
-            "永久删除");
+        var confirm = _ui.Confirm(L.F("永久删除 {0} 个模组", selected.Count),
+            L.F("将永久删除约 {0} 的文件，无法恢复。\n\n{1}\n\n", Humanize.Size(total), names) +
+            L.T("会同时删除 MODS 与 MODS_disabled 里的目录。"),
+            L.T("永久删除"));
 
         if (confirm != ConfirmResult.Primary) return Task.CompletedTask;
 
@@ -503,7 +503,7 @@ public sealed class LibraryViewModel : ObservableObject
 
         _workspace.Library.Save();
         _workspace.NotifyLibraryChanged();
-        _ui.Toast($"已删除 {selected.Count} 个模组", true);
+        _ui.Toast(L.F("已删除 {0} 个模组", selected.Count), true);
         return Task.CompletedTask;
     }
 
@@ -521,7 +521,7 @@ public sealed class LibraryViewModel : ObservableObject
 
         _workspace.Library.Save();
         SyncFromLibrary();
-        _ui.Toast((toTop ? "已移到顶部：" : "已移到底部：") + selected.Count + " 个模组", true);
+        _ui.Toast(L.F(toTop ? "已移到顶部：{0} 个模组" : "已移到底部：{0} 个模组", selected.Count), true);
         return Task.CompletedTask;
     }
 
@@ -628,8 +628,8 @@ public sealed class LibraryViewModel : ObservableObject
         // 弹层是独立窗口，会浮在模态对话框上面，所以先收起菜单再问名字
         IsProfileMenuOpen = false;
 
-        var input = DialogService.Prompt("新建配置",
-            $"把当前这套模组（含顺序和启停状态）复制成一套新配置，最多 {ModProfile.MaxNameLength} 个字：",
+        var input = DialogService.Prompt(L.T("新建配置"),
+            L.F("把当前这套模组（含顺序和启停状态）复制成一套新配置，最多 {0} 个字：", ModProfile.MaxNameLength),
             _workspace.Library.NextProfileName());
         if (string.IsNullOrWhiteSpace(input)) return;
 
@@ -648,11 +648,12 @@ public sealed class LibraryViewModel : ObservableObject
         _workspace.Library.Save();
 
         SyncFromLibrary();
-        _ui.Toast($"已新建「{profile.Name}」，复制了 {profile.Entries.Count} 个模组" + TruncatedHint(truncated), true);
+        _ui.Toast(L.F("已新建「{0}」，复制了 {1} 个模组{2}", profile.Name, profile.Entries.Count,
+            TruncatedHint(truncated)), true);
     }
 
     private static string TruncatedHint(bool truncated) =>
-        truncated ? $"（名字超过 {ModProfile.MaxNameLength} 个字，已截断）" : "";
+        truncated ? L.F("（名字超过 {0} 个字，已截断）", ModProfile.MaxNameLength) : "";
 
     private async Task SwitchProfileAsync(ModProfile? profile)
     {
@@ -672,9 +673,9 @@ public sealed class LibraryViewModel : ObservableObject
 
         if (_workspace.Game.IsValid) await _ui.DeployAsync(silent: true);
 
-        var text = $"已切换到「{profile.Name}」";
-        text += changed > 0 ? $"，{changed} 个模组状态改变" : "，状态没有变化";
-        if (missing > 0) text += $"；{missing} 个模组已不在库中";
+        var text = L.F("已切换到「{0}」", profile.Name);
+        text += changed > 0 ? L.F("，{0} 个模组状态改变", changed) : L.T("，状态没有变化");
+        if (missing > 0) text += L.F("；{0} 个模组已不在库中", missing);
 
         _ui.Toast(text, true);
     }
@@ -690,8 +691,8 @@ public sealed class LibraryViewModel : ObservableObject
 
         IsProfileMenuOpen = false;
 
-        var input = DialogService.Prompt($"重命名配置「{profile.Name}」",
-            $"新名字（最多 {ModProfile.MaxNameLength} 个字）：", profile.Name);
+        var input = DialogService.Prompt(L.F("重命名配置「{0}」", profile.Name),
+            L.F("新名字（最多 {0} 个字）：", ModProfile.MaxNameLength), profile.Name);
         if (string.IsNullOrWhiteSpace(input)) return;
 
         var name = TextLimit.Clamp(input, ModProfile.MaxNameLength);
@@ -709,7 +710,7 @@ public sealed class LibraryViewModel : ObservableObject
         _workspace.Library.Save();
         RefreshProfiles();
         Raise(nameof(ActiveProfileName), nameof(CountText));
-        _ui.Toast("已重命名为「" + name + "」" + TruncatedHint(truncated), true);
+        _ui.Toast(L.F("已重命名为「{0}」{1}", name, TruncatedHint(truncated)), true);
     }
 
     private void DeleteProfile(ModProfile? profile)
@@ -729,28 +730,28 @@ public sealed class LibraryViewModel : ObservableObject
 
         IsProfileMenuOpen = false;
 
-        var confirm = _ui.Confirm($"删除配置「{profile.Name}」",
-            "只删除这套配置，模组本身和文件都不动——它们会回到模组库里。", "删除");
+        var confirm = _ui.Confirm(L.F("删除配置「{0}」", profile.Name),
+            L.T("只删除这套配置，模组本身和文件都不动——它们会回到模组库里。"), L.T("删除"));
         if (confirm != ConfirmResult.Primary) return;
 
         _workspace.Library.RemoveProfile(profile);
         _workspace.Library.Save();
         SyncFromLibrary();
-        _ui.Toast($"已删除「{profile.Name}」，当前配置：{ActiveProfileName}", true);
+        _ui.Toast(L.F("已删除「{0}」，当前配置：{1}", profile.Name, ActiveProfileName), true);
     }
 
     private void ApplyOrder()
     {
         if (!_workspace.Game.IsValid)
         {
-            _ui.Alert("应用加载顺序", "还没有设置游戏目录。");
+            _ui.Alert(L.T("应用加载顺序"), L.T("还没有设置游戏目录。"));
             return;
         }
 
-        var confirm = _ui.Confirm("应用加载顺序",
-            "将把当前配置里的模组顺序写入游戏设置 GCMODSETTINGS.MXML 的 ModPriority。\n" +
-            "列表越靠上，优先级越高（冲突时覆盖靠下的模组）。原文件会自动备份为 .bak。\n\n继续吗？",
-            "写入顺序");
+        var confirm = _ui.Confirm(L.T("应用加载顺序"),
+            L.T("将把当前配置里的模组顺序写入游戏设置 GCMODSETTINGS.MXML 的 ModPriority。\n") +
+            L.T("列表越靠上，优先级越高（冲突时覆盖靠下的模组）。原文件会自动备份为 .bak。\n\n继续吗？"),
+            L.T("写入顺序"));
 
         if (confirm != ConfirmResult.Primary) return;
 
@@ -762,13 +763,13 @@ public sealed class LibraryViewModel : ObservableObject
 
         if (!result.Ok)
         {
-            _ui.Alert("应用加载顺序",
-                result.Error ?? "GCMODSETTINGS.MXML 里没有匹配的模组条目。先进一次游戏让它生成。");
+            _ui.Alert(L.T("应用加载顺序"),
+                result.Error ?? L.T("GCMODSETTINGS.MXML 里没有匹配的模组条目。先进一次游戏让它生成。"));
             return;
         }
 
-        var text = $"已写入 {result.Updated} 个模组的 ModPriority";
-        if (result.Missing > 0) text += $"，{result.Missing} 个在 XML 里找不到（可能还没被游戏扫描到）";
+        var text = L.F("已写入 {0} 个模组的 ModPriority", result.Updated);
+        if (result.Missing > 0) text += L.F("，{0} 个在 XML 里找不到（可能还没被游戏扫描到）", result.Missing);
         _ui.Toast(text, true);
     }
 
@@ -787,7 +788,7 @@ public sealed class LibraryViewModel : ObservableObject
 
         if (_workspace.Game.IsValid) await _ui.DeployAsync(silent: true);
 
-        _ui.Toast($"{item.Name}：已移出配置，回到模组库", true);
+        _ui.Toast(L.F("{0}：已移出配置，回到模组库", item.Name), true);
     }
 
     /// <summary>

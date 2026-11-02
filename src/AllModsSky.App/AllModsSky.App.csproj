@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -27,6 +27,7 @@
     <Using Include="AllModsSky.Core.Infrastructure" />
     <Using Include="AllModsSky.Core.Services" />
     <Using Include="AllModsSky.Core.Integrations" />
+    <Using Include="AllModsSky.Core.Localization" />
   </ItemGroup>
 
   <ItemGroup>

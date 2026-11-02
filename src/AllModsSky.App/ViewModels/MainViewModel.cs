@@ -203,8 +203,8 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
     }
 
     public bool HasGame => _workspace.Game.IsValid;
-    public string GamePath => _workspace.Game.IsValid ? _workspace.Game.GamePath : "未设置游戏目录";
-    public string GameVersionLine => _workspace.Game.IsValid ? _workspace.Game.VersionLine : "去「设置」里指定游戏目录";
+    public string GamePath => _workspace.Game.IsValid ? _workspace.Game.GamePath : L.T("未设置游戏目录");
+    public string GameVersionLine => _workspace.Game.IsValid ? _workspace.Game.VersionLine : L.T("去「设置」里指定游戏目录");
     public string ModsPath => _workspace.Game.ModsPath;
     public string AppVersion => AppInfo.DisplayVersion;
     public string DataPath => AppPaths.Root;
@@ -299,7 +299,7 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
 
     private void ShowToast(string message, bool success)
     {
-        ToastMessage = message;
+        ToastMessage = L.T(message);
         IsToastError = !success;
         IsToastVisible = true;
         Raise(nameof(ToastIcon));
@@ -311,18 +311,20 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
     }
 
     public ConfirmResult Confirm(string title, string message, string primary, string? danger = null) =>
-        DialogService.Confirm(title, message, primary, danger);
+        DialogService.Confirm(L.T(title), L.T(message), L.T(primary),
+            danger == null ? null : L.T(danger));
 
-    public void Alert(string title, string message) => DialogService.Alert(title, message);
+    public void Alert(string title, string message) => DialogService.Alert(L.T(title), L.T(message));
 
-    public string? PickFolder(string title, string? initial = null) => DialogService.PickFolder(title, initial);
+    public string? PickFolder(string title, string? initial = null) =>
+        DialogService.PickFolder(L.T(title), initial);
 
     public IReadOnlyList<string>? PickArchives() => DialogService.PickArchives();
 
     public void BeginBusy(string text = "处理中…")
     {
         _busyCount++;
-        BusyText = text;
+        BusyText = L.T(text);
 
         // 已经有一套流程在跑：共用同一个遮罩，不重新计时
         if (_busyCount > 1) return;
@@ -398,7 +400,7 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
             }
             else if (report.Failed > 0)
             {
-                ShowToast($"同步有 {report.Failed} 项失败", false);
+                ShowToast(L.F("同步有 {0} 项失败", report.Failed), false);
             }
 
             return report;
@@ -485,10 +487,10 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
             }
 
             ShowToast(imported == 0
-                ? "没有导入任何模组"
+                ? L.T("没有导入任何模组")
                 : joined > 0
-                    ? $"已导入 {imported} 个模组，加入配置「{_workspace.Library.ActiveProfile.Name}」"
-                    : $"已导入 {imported} 个模组到模组库（当前是「无模组」，新建配置后再加）",
+                    ? L.F("已导入 {0} 个模组，加入配置「{1}」", imported, _workspace.Library.ActiveProfile.Name)
+                    : L.F("已导入 {0} 个模组到模组库（当前是「无模组」，新建配置后再加）", imported),
                 imported > 0);
 
             if (failures.Count > 0)
@@ -543,13 +545,13 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
             var anyEnabled = _workspace.Library.Mods.Any(m => m.Enabled) || AnyExternalEnabled();
             ApplyLaunchDisableFlag(anyEnabled);
 
-            ShowToast(anyEnabled ? "正在启动游戏…" : "全部模组已停用，正在启动原版…", true);
+            ShowToast(anyEnabled ? L.T("正在启动游戏…") : L.T("全部模组已停用，正在启动原版…"), true);
             Launcher.LaunchGame(_workspace.Game);
         }
         catch (Exception ex)
         {
             AppLog.Error(ex, "启动游戏");
-            ShowToast("启动失败：" + ex.Message, false);
+            ShowToast(L.F("启动失败：{0}", ex.Message), false);
         }
         finally
         {
@@ -577,7 +579,7 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
 
         if (report.Failed > 0)
         {
-            ShowToast($"同步有 {report.Failed} 项失败，未启动游戏", false);
+            ShowToast(L.F("同步有 {0} 项失败，未启动游戏", report.Failed), false);
             return false;
         }
 
@@ -625,8 +627,8 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
             ? "MODS  ·  " + _workspace.Game.ModsPath
             : "未设置游戏目录";
 
-        StatusRight = $"{Library.TotalCount} 个模组  ·  已启用 {Library.EnabledCount}" +
-                      (_workspace.Game.IsValid && !_workspace.Game.ModsWritable ? "  ·  MODS 不可写" : "");
+        StatusRight = L.F("{0} 个模组  ·  已启用 {1}", Library.TotalCount, Library.EnabledCount) +
+                      (_workspace.Game.IsValid && !_workspace.Game.ModsWritable ? "  ·  " + L.T("MODS 不可写") : "");
     }
 
     public void Dispose()

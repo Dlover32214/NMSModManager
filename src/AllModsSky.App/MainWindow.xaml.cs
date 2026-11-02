@@ -139,7 +139,7 @@ public partial class MainWindow : Window
 
         if (usable.Length == 0)
         {
-            _viewModel.Toast("拖入 zip / 文件夹 / pak 才能导入", false);
+            _viewModel.Toast(L.T("拖入 zip / 文件夹 / pak 才能导入"), false);
             return;
         }
 

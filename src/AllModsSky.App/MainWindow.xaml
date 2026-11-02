@@ -1,6 +1,7 @@
 <Window x:Class="AllModsSky.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="clr-namespace:AllModsSky.App.Localization"
         xmlns:vm="clr-namespace:AllModsSky.App.ViewModels"
         xmlns:views="clr-namespace:AllModsSky.App.Views"
         Title="All Mod's Sky"
@@ -229,7 +230,7 @@
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource EnumEquals}, ConverterParameter=Library, Mode=OneWay}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE8F1;" Style="{StaticResource Glyph}" Margin="0,0,12,0" />
-                            <TextBlock Text="模组" VerticalAlignment="Center" />
+                            <TextBlock Text="{loc:T 模组}" VerticalAlignment="Center" />
                         </StackPanel>
                     </RadioButton>
 
@@ -238,7 +239,7 @@
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource EnumEquals}, ConverterParameter=Pool, Mode=OneWay}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE8B7;" Style="{StaticResource Glyph}" Margin="0,0,12,0" />
-                            <TextBlock Text="模组库" VerticalAlignment="Center" />
+                            <TextBlock Text="{loc:T 模组库}" VerticalAlignment="Center" />
                         </StackPanel>
                     </RadioButton>
 
@@ -247,7 +248,7 @@
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource EnumEquals}, ConverterParameter=Discover, Mode=OneWay}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE774;" Style="{StaticResource Glyph}" Margin="0,0,12,0" />
-                            <TextBlock Text="发现模组" VerticalAlignment="Center" />
+                            <TextBlock Text="{loc:T 发现模组}" VerticalAlignment="Center" />
                         </StackPanel>
                     </RadioButton>
 
@@ -256,7 +257,7 @@
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource EnumEquals}, ConverterParameter=Tools, Mode=OneWay}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE90F;" Style="{StaticResource Glyph}" Margin="0,0,12,0" />
-                            <TextBlock Text="工具" VerticalAlignment="Center" />
+                            <TextBlock Text="{loc:T 工具}" VerticalAlignment="Center" />
                         </StackPanel>
                     </RadioButton>
 
@@ -265,7 +266,7 @@
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource EnumEquals}, ConverterParameter=Settings, Mode=OneWay}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE713;" Style="{StaticResource Glyph}" Margin="0,0,12,0" />
-                            <TextBlock Text="设置" VerticalAlignment="Center" />
+                            <TextBlock Text="{loc:T 设置}" VerticalAlignment="Center" />
                         </StackPanel>
                     </RadioButton>
 
@@ -274,7 +275,7 @@
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource EnumEquals}, ConverterParameter=About, Mode=OneWay}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE946;" Style="{StaticResource Glyph}" Margin="0,0,12,0" />
-                            <TextBlock Text="关于" VerticalAlignment="Center" />
+                            <TextBlock Text="{loc:T 关于}" VerticalAlignment="Center" />
                         </StackPanel>
                     </RadioButton>
                 </StackPanel>
@@ -283,12 +284,12 @@
                 <StackPanel Grid.Row="3">
                     <Button Style="{StaticResource PrimaryButton}"
                             Command="{Binding LaunchCommand}"
-                            AutomationProperties.Name="启动游戏"
+                            AutomationProperties.Name="{loc:T 启动游戏}"
                             HorizontalAlignment="Stretch" Padding="7,10" Margin="0,0,0,10"
-                            ToolTip="同步当前启停状态后启动游戏；想玩原版就先切到「无模组」配置">
+                            ToolTip="{loc:T 同步当前启停状态后启动游戏；想玩原版就先切到「无模组」配置}">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                             <TextBlock Text="▶" FontSize="10" Margin="0,0,6,0" VerticalAlignment="Center" />
-                            <TextBlock Text="启动游戏" FontSize="12.5" VerticalAlignment="Center" />
+                            <TextBlock Text="{loc:T 启动游戏}" FontSize="12.5" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
 
@@ -296,11 +297,11 @@
                             Padding="0" Background="Transparent" BorderThickness="0"
                             HorizontalContentAlignment="Stretch"
                             Command="{Binding NavigateCommand}" CommandParameter="Settings"
-                            ToolTip="打开设置">
+                            ToolTip="{loc:T 打开设置}">
                         <Border Style="{StaticResource CardSoft}" Padding="12,10" Background="{DynamicResource Surface2}">
                             <StackPanel>
                                 <Grid>
-                                    <TextBlock Text="游戏" FontSize="10.5" Foreground="{DynamicResource TextFaint}" />
+                                    <TextBlock Text="{loc:T 游戏}" FontSize="10.5" Foreground="{DynamicResource TextFaint}" />
                                     <Ellipse Width="7" Height="7" Fill="{DynamicResource Ok}" HorizontalAlignment="Right"
                                              VerticalAlignment="Center" Visibility="{Binding HasGame, Converter={StaticResource BoolToVisibility}}" />
                                     <Ellipse Width="7" Height="7" Fill="{DynamicResource Danger}" HorizontalAlignment="Right"
@@ -319,7 +320,7 @@
 
                 <!-- 主题 -->
                 <Grid Grid.Row="4" Margin="2,12,2,0">
-                    <TextBlock Text="深色模式" FontSize="12" Foreground="{DynamicResource TextMuted}"
+                    <TextBlock Text="{loc:T 深色模式}" FontSize="12" Foreground="{DynamicResource TextMuted}"
                                VerticalAlignment="Center" />
                     <CheckBox Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right"
                               VerticalAlignment="Center" IsChecked="{Binding IsDark, Mode=TwoWay}" />
@@ -332,11 +333,11 @@
                         <TextBlock Text="{Binding AppVersion}" FontSize="10.5" Foreground="{DynamicResource TextFaint}"
                                    VerticalAlignment="Center" />
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                            <Button Content="日志" Style="{StaticResource LinkButton}"
+                            <Button Content="{loc:T 日志}" Style="{StaticResource LinkButton}"
                                     FontSize="10.5" Margin="0,0,12,0"
-                                    ToolTip="latest.log 与历史归档都在这里"
+                                    ToolTip="{loc:T latest.log 与历史归档都在这里}"
                                     Command="{Binding OpenLogFolderCommand}" />
-                            <Button Content="数据目录" Style="{StaticResource LinkButton}"
+                            <Button Content="{loc:T 数据目录}" Style="{StaticResource LinkButton}"
                                     FontSize="10.5"
                                     Command="{Binding OpenDataFolderCommand}" />
                         </StackPanel>

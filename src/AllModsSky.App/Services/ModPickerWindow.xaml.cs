@@ -22,8 +22,8 @@ public partial class ModPickerWindow : Window
                 if (e.PropertyName == nameof(PickerItem.IsSelected)) UpdateCount();
             };
 
-        TitleText.Text = $"添加到「{profileName}」";
-        MessageText.Text = "点选要放进这套配置的模组，可以多选。加入后会出现在列表最下面，可以拖动排序。";
+        TitleText.Text = L.F("添加到「{0}」", profileName);
+        MessageText.Text = L.T("点选要放进这套配置的模组，可以多选。加入后会出现在列表最下面，可以拖动排序。");
         ModList.ItemsSource = _visible;
 
         Filter("");
@@ -51,15 +51,15 @@ public partial class ModPickerWindow : Window
         ListHost.Visibility = empty ? Visibility.Collapsed : Visibility.Visible;
         EmptyText.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
         EmptyText.Text = Candidates.Count == 0
-            ? "模组库里的模组都已经在这套配置里了。"
-            : "没有匹配的模组。";
+            ? L.T("模组库里的模组都已经在这套配置里了。")
+            : L.T("没有匹配的模组。");
         AllButton.IsEnabled = _visible.Count > 0;
     }
 
     private void UpdateCount()
     {
         var count = Candidates.Count(i => i.IsSelected);
-        PrimaryButton.Content = count > 0 ? $"添加 ({count})" : "添加";
+        PrimaryButton.Content = count > 0 ? L.F("添加 ({0})", count) : L.T("添加");
         PrimaryButton.IsEnabled = count > 0;
     }
 

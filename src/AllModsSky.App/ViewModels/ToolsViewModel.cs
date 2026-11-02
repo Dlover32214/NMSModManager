@@ -13,7 +13,7 @@ public sealed class ConflictRowViewModel
     public string Winner { get; init; } = "";
     public string Properties { get; init; } = "";
     public bool HasProperties => !string.IsNullOrEmpty(Properties);
-    public string WinnerText => string.IsNullOrEmpty(Winner) ? "" : "按当前顺序：" + Winner + " 会覆盖其他";
+    public string WinnerText => string.IsNullOrEmpty(Winner) ? "" : L.F("按当前顺序：{0} 会覆盖其他", Winner);
 }
 
 public sealed class LogRowViewModel
@@ -36,7 +36,7 @@ public sealed class LoadOrderRowViewModel
     public int Priority { get; init; }
     public bool Enabled { get; init; }
     public string PriorityText => Priority.ToString("00");
-    public string StateText => Enabled ? "启用" : "停用";
+    public string StateText => Enabled ? L.T("启用") : L.T("停用");
 }
 
 public sealed class ModChoiceViewModel
@@ -44,7 +44,7 @@ public sealed class ModChoiceViewModel
     public string Id { get; init; } = "";
     public string Name { get; init; } = "";
     public ModRecord Record { get; init; } = null!;
-    public string SubText => Record.IsLegacyPak ? "旧式 pak" : Record.SizeText;
+    public string SubText => Record.IsLegacyPak ? L.T("旧式 pak") : Record.SizeText;
 }
 
 public sealed class ToolsViewModel : ObservableObject, IActivatable
@@ -52,10 +52,10 @@ public sealed class ToolsViewModel : ObservableObject, IActivatable
     private readonly Workspace _workspace;
     private readonly IShellUi _ui;
 
-    private string _conflictSummary = "还没有扫描。";
+    private string _conflictSummary = L.T("还没有扫描。");
     private bool _isScanningConflicts;
 
-    private string _diagnosticsSummary = "还没有扫描。";
+    private string _diagnosticsSummary = L.T("还没有扫描。");
     private bool _isScanningLogs;
     private bool _hasLogs = true;
 
@@ -64,7 +64,7 @@ public sealed class ToolsViewModel : ObservableObject, IActivatable
     private bool _isReadingOrder;
 
     private string _amumssPath = "";
-    private string _amumssVersionLine = "未检测到 AMUMSS";
+    private string _amumssVersionLine = L.T("未检测到 AMUMSS");
     private bool _amumssValid;
     private string _planSummary = "";
     private string _rebuildStatus = "";
@@ -253,7 +253,7 @@ public sealed class ToolsViewModel : ObservableObject, IActivatable
 
         IsScanningConflicts = true;
         Conflicts.Clear();
-        ConflictSummary = "正在扫描…";
+        ConflictSummary = L.T("正在扫描…");
 
         try
         {
@@ -270,7 +270,7 @@ public sealed class ToolsViewModel : ObservableObject, IActivatable
 
             if (targets.Count == 0)
             {
-                ConflictSummary = "没有可扫描的模组目录。";
+                ConflictSummary = L.T("没有可扫描的模组目录。");
                 return;
             }
 
@@ -285,21 +285,22 @@ public sealed class ToolsViewModel : ObservableObject, IActivatable
                     Mods = conflict.ModNames,
                     Winner = conflict.WinnerName,
                     Properties = conflict.SharedProperties.Count > 0
-                        ? "共同修改：" + string.Join(", ", conflict.SharedProperties)
+                        ? L.F("共同修改：{0}", string.Join(", ", conflict.SharedProperties))
                         : ""
                 });
             }
 
-            ConflictSummary = result.Summary;
-            if (result.Conflicts.Count > 120) ConflictSummary += $"（只列出前 120 处）";
+            ConflictSummary = L.T(result.Summary);
+            if (result.Conflicts.Count > 120) ConflictSummary += L.T("（只列出前 120 处）");
             Raise(nameof(HasConflicts));
 
-            _ui.Toast(result.Conflicts.Count == 0 ? "没有发现路径重叠" : $"发现 {result.Conflicts.Count} 处重叠",
-                result.Conflicts.Count == 0);
+            _ui.Toast(result.Conflicts.Count == 0
+                ? L.T("没有发现路径重叠")
+                : L.F("发现 {0} 处重叠", result.Conflicts.Count), result.Conflicts.Count == 0);
         }
         catch (Exception ex)
         {
-            ConflictSummary = "扫描失败：" + ex.Message;
+            ConflictSummary = L.F("扫描失败：{0}", ex.Message);
         }
         finally
         {
@@ -314,7 +315,7 @@ public sealed class ToolsViewModel : ObservableObject, IActivatable
         IsScanningLogs = true;
         ErrorRows.Clear();
         Suspects.Clear();
-        DiagnosticsSummary = "正在读取日志…";
+        DiagnosticsSummary = L.T("正在读取日志…");
 
         try
         {
@@ -329,22 +330,25 @@ public sealed class ToolsViewModel : ObservableObject, IActivatable
                 Suspects.Add(new SuspectRowViewModel
                 {
                     Name = pair.Key,
-                    CountText = $"命中 {pair.Value.Count} 次",
+                    CountText = L.F("命中 {0} 次", pair.Value.Count),
                     Preview = string.Join(Environment.NewLine, pair.Value.Take(3).Select(l => "· " + Trim(l.Text, 180)))
                 });
             }
 
             HasLogs = result.LogFiles.Count > 0;
-            DiagnosticsSummary = result.Note
-                ?? $"{result.LogFiles.Count} 个日志 · {result.ScannedLines} 行 · " +
-                   $"{result.Errors.Count} 条报错 · 命中 {result.Suspects.Count} 个模组";
+            DiagnosticsSummary = result.Note != null
+                ? L.T(result.Note)
+                : L.F("{0} 个日志 · {1} 行 · {2} 条报错 · 命中 {3} 个模组",
+                    result.LogFiles.Count, result.ScannedLines, result.Errors.Count, result.Suspects.Count);
 
             Raise(nameof(HasErrors), nameof(HasSuspects));
-            _ui.Toast(result.Suspects.Count == 0 ? "日志里没有模组相关的报错" : $"命中 {result.Suspects.Count} 个模组", true);
+            _ui.Toast(result.Suspects.Count == 0
+                ? L.T("日志里没有模组相关的报错")
+                : L.F("命中 {0} 个模组", result.Suspects.Count), true);
         }
         catch (Exception ex)
         {
-            DiagnosticsSummary = "读取日志失败：" + ex.Message;
+            DiagnosticsSummary = L.F("读取日志失败：{0}", ex.Message);
         }
         finally
         {
@@ -378,8 +382,8 @@ public sealed class ToolsViewModel : ObservableObject, IActivatable
                 }
 
                 LoadOrderSummary = read.Entries.Count == 0
-                    ? "文件存在，但还没有模组条目（进一次游戏让它扫描）。"
-                    : $"{read.Entries.Count} 个条目 · " + read.FilePath;
+                    ? L.T("文件存在，但还没有模组条目（进一次游戏让它扫描）。")
+                    : L.F("{0} 个条目 · {1}", read.Entries.Count, read.FilePath);
             }
             else
             {
@@ -411,12 +415,12 @@ public sealed class ToolsViewModel : ObservableObject, IActivatable
 
         if (!result.Ok)
         {
-            _ui.Alert("写入失败", result.Error ?? "没有匹配的模组条目");
+            _ui.Alert(L.T("写入失败"), result.Error ?? L.T("没有匹配的模组条目"));
             return;
         }
 
-        _ui.Toast($"已写入 {result.Updated} 个模组" +
-                  (result.Missing > 0 ? $"，{result.Missing} 个在 XML 里找不到" : ""), true);
+        _ui.Toast(L.F("已写入 {0} 个模组", result.Updated) +
+                  (result.Missing > 0 ? L.F("，{0} 个在 XML 里找不到", result.Missing) : ""), true);
         await ReadLoadOrderAsync();
     }
 
@@ -446,8 +450,8 @@ public sealed class ToolsViewModel : ObservableObject, IActivatable
         var info = _workspace.Amumss.Inspect(path);
         AmumssValid = info.IsValid;
         AmumssVersionLine = info.IsValid
-            ? (string.IsNullOrEmpty(info.VersionLine) ? "已检测到 AMUMSS（版本未知）" : info.VersionLine)
-            : "未检测到 AMUMSS。把它解压到任意目录，然后点「指定目录…」。";
+            ? (string.IsNullOrEmpty(info.VersionLine) ? L.T("已检测到 AMUMSS（版本未知）") : info.VersionLine)
+            : L.T("未检测到 AMUMSS。把它解压到任意目录，然后点「指定目录…」。");
     }
 
     private void DetectAmumss()
@@ -455,64 +459,64 @@ public sealed class ToolsViewModel : ObservableObject, IActivatable
         var found = _workspace.Amumss.DetectPath(_workspace.Settings.AmumssPath);
         if (string.IsNullOrEmpty(found))
         {
-            _ui.Alert("没找到 AMUMSS",
-                "常见位置（各盘根目录的 AMUMSS）都没有找到。\n请点「指定目录…」选择包含 BUILDMOD.bat 的文件夹。");
+            _ui.Alert(L.T("没找到 AMUMSS"),
+                L.T("常见位置（各盘根目录的 AMUMSS）都没有找到。\n请点「指定目录…」选择包含 BUILDMOD.bat 的文件夹。"));
             return;
         }
 
         _workspace.Settings.AmumssPath = found;
         _workspace.SaveSettings();
         UpdateAmumss();
-        _ui.Toast("已检测到 AMUMSS", true);
+        _ui.Toast(L.T("已检测到 AMUMSS"), true);
     }
 
     private void BrowseAmumss()
     {
-        var folder = _ui.PickFolder("选择 AMUMSS 目录（里面有 BUILDMOD.bat）", AmumssPath);
+        var folder = _ui.PickFolder(L.T("选择 AMUMSS 目录（里面有 BUILDMOD.bat）"), AmumssPath);
         if (string.IsNullOrEmpty(folder)) return;
 
         if (!_workspace.Amumss.IsValid(folder))
         {
-            _ui.Alert("目录不对", "这个目录里没有 BUILDMOD.bat 或 MBINCompiler.exe，不像是 AMUMSS 根目录。");
+            _ui.Alert(L.T("目录不对"), L.T("这个目录里没有 BUILDMOD.bat 或 MBINCompiler.exe，不像是 AMUMSS 根目录。"));
             return;
         }
 
         _workspace.Settings.AmumssPath = folder;
         _workspace.SaveSettings();
         UpdateAmumss();
-        _ui.Toast("已指定 AMUMSS 目录", true);
+        _ui.Toast(L.T("已指定 AMUMSS 目录"), true);
     }
 
     private void AnalyzeSelected()
     {
         if (SelectedMod == null)
         {
-            _ui.Toast("先选择一个模组", false);
+            _ui.Toast(L.T("先选择一个模组"), false);
             return;
         }
 
         if (!_workspace.Game.IsValid)
         {
-            _ui.Alert("需要游戏目录", "先在「设置」里指定游戏目录。");
+            _ui.Alert(L.T("需要游戏目录"), L.T("先在「设置」里指定游戏目录。"));
             return;
         }
 
         var folder = _workspace.FindModFolder(SelectedMod.Record);
         if (string.IsNullOrEmpty(folder))
         {
-            _ui.Alert("找不到模组目录", "这个模组的文件夹既不在 MODS 也不在 MODS_disabled 里。");
+            _ui.Alert(L.T("找不到模组目录"), L.T("这个模组的文件夹既不在 MODS 也不在 MODS_disabled 里。"));
             return;
         }
 
         _plan = _workspace.Amumss.Analyze(folder, SelectedMod.Name, AmumssPath);
-        PlanSummary = _plan.Summary;
+        PlanSummary = L.T(_plan.Summary);
         CanCollect = false;
 
         if (_plan.LuaFiles.Count == 0)
         {
-            _ui.Alert("无法用 AMUMSS 重建",
-                "这个模组里没有 .lua 源脚本，AMUMSS 无法重新生成。\n\n" +
-                "只能去原发布页下载适用于当前版本的新版本，或手工修改 EXML。");
+            _ui.Alert(L.T("无法用 AMUMSS 重建"),
+                L.T("这个模组里没有 .lua 源脚本，AMUMSS 无法重新生成。\n\n") +
+                L.T("只能去原发布页下载适用于当前版本的新版本，或手工修改 EXML。"));
         }
     }
 
@@ -526,39 +530,39 @@ public sealed class ToolsViewModel : ObservableObject, IActivatable
 
         if (!_workspace.Amumss.IsValid(AmumssPath))
         {
-            _ui.Alert("需要 AMUMSS", "先检测或指定 AMUMSS 目录。");
+            _ui.Alert(L.T("需要 AMUMSS"), L.T("先检测或指定 AMUMSS 目录。"));
             return Task.CompletedTask;
         }
 
         if (_plan.LuaFiles.Count == 0)
         {
-            _ui.Alert("没有源脚本", "这个模组没有 lua 源脚本，无法重建。");
+            _ui.Alert(L.T("没有源脚本"), L.T("这个模组没有 lua 源脚本，无法重建。"));
             return Task.CompletedTask;
         }
 
-        var confirm = _ui.Confirm("用 AMUMSS 重建",
-            $"模组：{SelectedMod?.Name}\n{PlanSummary}\n\n" +
-            "步骤：\n1. 把 lua 源脚本复制到 AMUMSS\\ModScript\n" +
-            "2. 打开 BUILDMOD 控制台，等它跑完（可能需要几分钟，AMUMSS 若提问请自行回答）\n" +
-            "3. 回到这里点「收录结果」（原目录会自动备份）\n\n现在开始吗？",
-            "开始构建");
+        var confirm = _ui.Confirm(L.T("用 AMUMSS 重建"),
+            L.F("模组：{0}\n{1}\n\n", SelectedMod?.Name, PlanSummary) +
+            L.T("步骤：\n1. 把 lua 源脚本复制到 AMUMSS\\ModScript\n") +
+            L.T("2. 打开 BUILDMOD 控制台，等它跑完（可能需要几分钟，AMUMSS 若提问请自行回答）\n") +
+            L.T("3. 回到这里点「收录结果」（原目录会自动备份）\n\n现在开始吗？"),
+            L.T("开始构建"));
 
         if (confirm != ConfirmResult.Primary) return Task.CompletedTask;
 
         var copied = _workspace.Amumss.PrepareScripts(AmumssPath, _plan);
         if (copied == 0)
         {
-            _ui.Alert("复制脚本失败", "检查 AMUMSS\\ModScript 是否可写。");
+            _ui.Alert(L.T("复制脚本失败"), L.T("检查 AMUMSS\\ModScript 是否可写。"));
             return Task.CompletedTask;
         }
 
         var hasCompiler = _workspace.Amumss.FindCompiler(AmumssPath) != null;
         if (!hasCompiler)
         {
-            var update = _ui.Confirm("缺少 MBINCompiler",
-                "AMUMSS 里没有找到 MBINCompiler.exe。\n\n" +
-                "这次会让 AMUMSS 自动下载（-AutoUpdateMBinCompiler Y，需要联网）。继续吗？",
-                "继续");
+            var update = _ui.Confirm(L.T("缺少 MBINCompiler"),
+                L.T("AMUMSS 里没有找到 MBINCompiler.exe。\n\n") +
+                L.T("这次会让 AMUMSS 自动下载（-AutoUpdateMBinCompiler Y，需要联网）。继续吗？"),
+                L.T("继续"));
             if (update != ConfirmResult.Primary) return Task.CompletedTask;
         }
 
@@ -566,12 +570,12 @@ public sealed class ToolsViewModel : ObservableObject, IActivatable
         {
             _workspace.Amumss.StartBuild(AmumssPath, _workspace.Settings.GameVersion, !hasCompiler);
             CanCollect = true;
-            RebuildStatus = $"已复制 {copied} 个脚本，AMUMSS 已在新窗口运行。跑完后点「收录结果」。";
-            _ui.Toast("AMUMSS 已启动", true);
+            RebuildStatus = L.F("已复制 {0} 个脚本，AMUMSS 已在新窗口运行。跑完后点「收录结果」。", copied);
+            _ui.Toast(L.T("AMUMSS 已启动"), true);
         }
         catch (Exception ex)
         {
-            _ui.Alert("启动 AMUMSS 失败", ex.Message);
+            _ui.Alert(L.T("启动 AMUMSS 失败"), ex.Message);
         }
 
         return Task.CompletedTask;
@@ -581,14 +585,14 @@ public sealed class ToolsViewModel : ObservableObject, IActivatable
     {
         if (_plan == null)
         {
-            _ui.Alert("还没有构建计划", "先选择模组并点「分析」。");
+            _ui.Alert(L.T("还没有构建计划"), L.T("先选择模组并点「分析」。"));
             return;
         }
 
-        var confirm = _ui.Confirm("收录构建结果",
-            "确认 AMUMSS 已经跑完？\n\n会把 CreatedMODS / CreatedModPAKs 里的输出复制回模组目录，" +
-            "原目录自动备份为 .bak_时间戳。",
-            "收录结果");
+        var confirm = _ui.Confirm(L.T("收录构建结果"),
+            L.T("确认 AMUMSS 已经跑完？\n\n会把 CreatedMODS / CreatedModPAKs 里的输出复制回模组目录，") +
+            L.T("原目录自动备份为 .bak_时间戳。"),
+            L.T("收录结果"));
 
         if (confirm != ConfirmResult.Primary) return;
 
@@ -596,7 +600,7 @@ public sealed class ToolsViewModel : ObservableObject, IActivatable
 
         if (!result.Ok)
         {
-            _ui.Alert("收录失败", result.Error ?? "没有找到匹配的输出");
+            _ui.Alert(L.T("收录失败"), result.Error ?? L.T("没有找到匹配的输出"));
             return;
         }
 
@@ -606,11 +610,11 @@ public sealed class ToolsViewModel : ObservableObject, IActivatable
             _workspace.Library.Save();
         }
 
-        RebuildStatus = $"已收录 {result.Copied} 项输出" +
-                        (string.IsNullOrEmpty(result.BackupPath) ? "" : $"，原目录备份在 {result.BackupPath}");
+        RebuildStatus = L.F("已收录 {0} 项输出", result.Copied) +
+                        (string.IsNullOrEmpty(result.BackupPath) ? "" : L.F("，原目录备份在 {0}", result.BackupPath));
         CanCollect = false;
 
-        _ui.Toast("已收录 AMUMSS 输出", true);
+        _ui.Toast(L.T("已收录 AMUMSS 输出"), true);
         await _ui.RefreshAllAsync();
     }
 }

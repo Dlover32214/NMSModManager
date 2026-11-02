@@ -15,9 +15,10 @@ public sealed class SettingsViewModel : ObservableObject, IActivatable
     private string _nexusKey = "";
     private string _amumssPath = "";
     private bool _createDisableModsFile;
+    private string _language = L.SystemLanguage;
     private bool _isDirty;
     private string _saveState = "";
-    private string _saveInfoText = "还没有读取存档";
+    private string _saveInfoText = L.T("还没有读取存档");
     private string _amumssLine = "";
     private bool _amumssOk;
     private string _gameHint = "";
@@ -45,7 +46,14 @@ public sealed class SettingsViewModel : ObservableObject, IActivatable
         OpenNexusApiCommand = new RelayCommand(() =>
             Launcher.OpenUrl("https://www.nexusmods.com/users/myaccount?tab=api"));
         RestartAdminCommand = new RelayCommand(Launcher.RestartAsAdmin);
-        ClearSaveInfoCommand = new RelayCommand(() => SaveInfoText = "还没有读取存档");
+        ClearSaveInfoCommand = new RelayCommand(() => SaveInfoText = L.T("还没有读取存档"));
+
+        Languages = new[]
+        {
+            new LanguageOption(L.SystemLanguage, L.T("跟随系统")),
+            new LanguageOption(L.ChineseLanguage, "简体中文"),
+            new LanguageOption(L.EnglishLanguage, "English")
+        };
 
         LoadFromSettings();
         _workspace.GameChanged += RefreshDerived;
@@ -63,6 +71,7 @@ public sealed class SettingsViewModel : ObservableObject, IActivatable
     public ICommand OpenNexusApiCommand { get; }
     public ICommand RestartAdminCommand { get; }
     public ICommand ClearSaveInfoCommand { get; }
+    public IReadOnlyList<LanguageOption> Languages { get; }
 
     public string GamePath
     {
@@ -112,6 +121,16 @@ public sealed class SettingsViewModel : ObservableObject, IActivatable
         set
         {
             if (!SetProperty(ref _createDisableModsFile, value)) return;
+            MarkDirty();
+        }
+    }
+
+    public string Language
+    {
+        get => _language;
+        set
+        {
+            if (!SetProperty(ref _language, value)) return;
             MarkDirty();
         }
     }
@@ -173,7 +192,7 @@ public sealed class SettingsViewModel : ObservableObject, IActivatable
         }
     }
 
-    public string ModsStatusText => ModsWritable ? "MODS 可写" : "MODS 不可写";
+    public string ModsStatusText => ModsWritable ? L.T("MODS 可写") : L.T("MODS 不可写");
 
     public string ParkedInfo
     {
@@ -206,6 +225,7 @@ public sealed class SettingsViewModel : ObservableObject, IActivatable
         NexusKey = settings.NexusApiKey;
         AmumssPath = settings.AmumssPath;
         CreateDisableModsFile = settings.CreateDisableModsFile;
+        Language = settings.Language;
 
         _loading = false;
         IsDirty = false;
@@ -223,16 +243,16 @@ public sealed class SettingsViewModel : ObservableObject, IActivatable
     {
         GameValid = GameLocator.IsValid(GamePath);
         GameHint = GameValid
-            ? "目录有效：" + Path.Combine(GamePath, "GAMEDATA")
-            : "不是有效的无人深空目录（应包含 GAMEDATA\\PCBANKS 或 Binaries\\NMS.exe）";
+            ? L.F("目录有效：{0}", Path.Combine(GamePath, "GAMEDATA"))
+            : L.T("不是有效的无人深空目录（应包含 GAMEDATA\\PCBANKS 或 Binaries\\NMS.exe）");
 
         ModsPath = GameValid ? GameLocator.ModsDir(GamePath) : "";
         ParkedPath = GameValid ? GameLocator.ParkedDir(GamePath) : "";
         ParkedCount = Directory.Exists(ParkedPath) ? Directory.GetDirectories(ParkedPath).Length : 0;
         ParkedInfo = GameValid
             ? (ParkedCount > 0
-                ? $"停用区里有 {ParkedCount} 个目录，开关模组时会在这里来回移动。"
-                : "停用区为空。关闭的模组会移动到 GAMEDATA\\MODS_disabled。")
+                ? L.F("停用区里有 {0} 个目录，开关模组时会在这里来回移动。", ParkedCount)
+                : L.T("停用区为空。关闭的模组会移动到 GAMEDATA\\MODS_disabled。"))
             : "";
         ModsWritable = GameValid && AppPaths.CanWrite(ModsPath);
 
@@ -245,19 +265,20 @@ public sealed class SettingsViewModel : ObservableObject, IActivatable
         AmumssOk = info.IsValid;
         AmumssLine = info.IsValid
             ? info.Path + (string.IsNullOrEmpty(info.VersionLine) ? "" : "　·　" + info.VersionLine)
-            : "未检测到（目录里应有 BUILDMOD.bat 或 MBINCompiler.exe）";
+            : L.T("未检测到（目录里应有 BUILDMOD.bat 或 MBINCompiler.exe）");
     }
 
     private void MarkDirty()
     {
         if (_loading) return;
         IsDirty = true;
-        SaveStateText = "有未保存的修改";
+        SaveStateText = L.T("有未保存的修改");
     }
 
     private void Save()
     {
         var settings = _workspace.Settings;
+        var previousLanguage = settings.Language;
         settings.GamePath = GamePath.Trim();
 
         // 版本号会拼进 cmd 命令行，这里先归一化，让界面显示的就是实际生效的值。
@@ -265,24 +286,27 @@ public sealed class SettingsViewModel : ObservableObject, IActivatable
         if (!string.Equals(normalizedVersion, GameVersion, StringComparison.Ordinal))
         {
             GameVersion = normalizedVersion;
-            _ui.Toast("游戏版本号格式不对，已改为 " + normalizedVersion, false);
+            _ui.Toast(L.F("游戏版本号格式不对，已改为 {0}", normalizedVersion), false);
         }
         settings.GameVersion = normalizedVersion;
 
         settings.NexusApiKey = NexusKey.Trim();
         settings.AmumssPath = AmumssPath.Trim();
         settings.CreateDisableModsFile = CreateDisableModsFile;
+        settings.Language = Language;
 
         if (!_workspace.SaveSettings())
         {
-            SaveStateText = "保存失败：" + (SettingsStore.LastSaveError ?? "未知原因");
-            _ui.Toast("设置保存失败", false);
+            SaveStateText = L.F("保存失败：{0}", SettingsStore.LastSaveError ?? L.T("未知原因"));
+            _ui.Toast(L.T("设置保存失败"), false);
             return;
         }
 
         IsDirty = false;
-        SaveStateText = "已保存 " + DateTime.Now.ToString("HH:mm:ss");
-        _ui.Toast("设置已保存", true);
+        SaveStateText = L.F("已保存 {0}", DateTime.Now.ToString("HH:mm:ss"));
+
+        var languageChanged = !string.Equals(previousLanguage, Language, StringComparison.OrdinalIgnoreCase);
+        _ui.Toast(languageChanged ? "语言设置已保存，重启程序后生效" : "设置已保存", true);
         _ = _ui.RefreshAllAsync();
     }
 
@@ -291,8 +315,8 @@ public sealed class SettingsViewModel : ObservableObject, IActivatable
         var found = GameLocator.Detect(GamePath);
         if (string.IsNullOrEmpty(found))
         {
-            _ui.Alert("没有找到游戏",
-                "自动检测失败。请点「浏览」手动选择无人深空安装目录（包含 GAMEDATA 的那一层）。");
+            _ui.Alert(L.T("没有找到游戏"),
+                L.T("自动检测失败。请点「浏览」手动选择无人深空安装目录（包含 GAMEDATA 的那一层）。"));
             return;
         }
 
@@ -303,7 +327,7 @@ public sealed class SettingsViewModel : ObservableObject, IActivatable
 
     private void BrowseGame()
     {
-        var folder = _ui.PickFolder("选择无人深空安装目录（含 GAMEDATA 的那一层）", GamePath);
+        var folder = _ui.PickFolder(L.T("选择无人深空安装目录（含 GAMEDATA 的那一层）"), GamePath);
         if (string.IsNullOrEmpty(folder)) return;
 
         GamePath = folder;
@@ -311,7 +335,7 @@ public sealed class SettingsViewModel : ObservableObject, IActivatable
             GameVersion = GameLocator.DetectGameVersion(folder, "");
 
         if (!GameLocator.IsValid(folder))
-            _ui.Alert("目录可能不对", "这个目录里没有 GAMEDATA\\PCBANKS 或 Binaries\\NMS.exe。\n仍然可以保存，但模组功能可能无法使用。");
+            _ui.Alert(L.T("目录可能不对"), L.T("这个目录里没有 GAMEDATA\\PCBANKS 或 Binaries\\NMS.exe。\n仍然可以保存，但模组功能可能无法使用。"));
 
         Save();
     }
@@ -321,22 +345,22 @@ public sealed class SettingsViewModel : ObservableObject, IActivatable
         var version = GameLocator.DetectGameVersion(GamePath, "");
         if (string.IsNullOrEmpty(version))
         {
-            _ui.Alert("读不到版本", "没能从存档备份推断版本。请在输入框里手动填写，例如 7.10。");
+            _ui.Alert(L.T("读不到版本"), L.T("没能从存档备份推断版本。请在输入框里手动填写，例如 7.10。"));
             return;
         }
 
         GameVersion = version;
-        _ui.Toast("已从存档备份推断版本：" + version, true);
+        _ui.Toast(L.F("已从存档备份推断版本：{0}", version), true);
     }
 
     private void BrowseAmumss()
     {
-        var folder = _ui.PickFolder("选择 AMUMSS 目录（里面有 BUILDMOD.bat）", AmumssPath);
+        var folder = _ui.PickFolder(L.T("选择 AMUMSS 目录（里面有 BUILDMOD.bat）"), AmumssPath);
         if (string.IsNullOrEmpty(folder)) return;
 
         if (!_workspace.Amumss.IsValid(folder))
         {
-            _ui.Alert("目录不对", "这个目录里没有 BUILDMOD.bat 或 MBINCompiler.exe。");
+            _ui.Alert(L.T("目录不对"), L.T("这个目录里没有 BUILDMOD.bat 或 MBINCompiler.exe。"));
             return;
         }
 
@@ -349,26 +373,32 @@ public sealed class SettingsViewModel : ObservableObject, IActivatable
         var saveDir = GameLocator.FindSaveDir();
         if (string.IsNullOrEmpty(saveDir))
         {
-            SaveInfoText = "没找到存档目录（%APPDATA%\\HelloGames\\NMS\\st_*）";
+            SaveInfoText = L.T("没找到存档目录（%APPDATA%\\HelloGames\\NMS\\st_*）");
             return;
         }
 
         var (saves, error) = SaveGameReader.Scan(saveDir);
         if (saves.Count == 0)
         {
-            SaveInfoText = "存档读取失败：" + (error ?? "没有 .hg 文件");
+            SaveInfoText = L.F("存档读取失败：{0}", error ?? L.T("没有 .hg 文件"));
             return;
         }
 
         var newest = saves[0];
-        var version = newest.SaveVersion > 0 ? newest.SaveVersion.ToString() : "未知";
+        var version = newest.SaveVersion > 0 ? newest.SaveVersion.ToString() : L.T("未知");
         var extra = "";
-        if (!string.IsNullOrEmpty(newest.SaveName)) extra += $" · 存档名「{newest.SaveName}」";
-        if (!string.IsNullOrEmpty(newest.PlayText)) extra += " · 游玩 " + newest.PlayText;
+        if (!string.IsNullOrEmpty(newest.SaveName)) extra += L.F(" · 存档名「{0}」", newest.SaveName);
+        if (!string.IsNullOrEmpty(newest.PlayText)) extra += L.F(" · 游玩 {0}", newest.PlayText);
         if (!string.IsNullOrEmpty(newest.Platform)) extra += " · " + newest.Platform;
 
-        SaveInfoText = $"存档 Version {version}{extra} · {saves.Count} 个存档 · " +
-                       $"最近保存 {newest.Modified:MM-dd HH:mm}（{newest.FileName}）";
-        _ui.Toast("已读取存档信息", true);
+        SaveInfoText = L.F("存档 Version {0}{1} · {2} 个存档 · ", version, extra, saves.Count) +
+                       L.F("最近保存 {0}（{1}）", newest.Modified.ToString("MM-dd HH:mm"), newest.FileName);
+        _ui.Toast(L.T("已读取存档信息"), true);
     }
+}
+
+/// <summary>设置页里的语言选项。Code 用于持久化，Name 是当前界面语言下的显示名。</summary>
+public sealed record LanguageOption(string Code, string Name)
+{
+    public override string ToString() => Name;
 }

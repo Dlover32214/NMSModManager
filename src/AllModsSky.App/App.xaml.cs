@@ -27,7 +27,14 @@ public partial class App : Application
             _instanceMutex.Dispose();
             _instanceMutex = null;
 
-            MessageBox.Show("All Mod's Sky 已经在运行了。", "All Mod's Sky",
+            try
+            {
+                AppPaths.Ensure();
+                L.Apply(SettingsStore.Current.Language);
+            }
+            catch { }
+
+            MessageBox.Show(L.T("All Mod's Sky 已经在运行了。"), "All Mod's Sky",
                 MessageBoxButton.OK, MessageBoxImage.Information);
             Shutdown(0);
             return;
@@ -50,6 +57,7 @@ public partial class App : Application
         try
         {
             AppPaths.Ensure();
+            L.Apply(SettingsStore.Current.Language);
             ThemeManager.Apply(SettingsStore.Current.IsDark);
 
             _shell = new MainViewModel();
@@ -62,7 +70,7 @@ public partial class App : Application
         catch (Exception ex)
         {
             WriteCrash(ex, "启动");
-            MessageBox.Show("启动失败：" + ex.Message + "\n\n详细信息：" + AppPaths.CrashFile,
+            MessageBox.Show(L.F("启动失败：{0}\n\n详细信息：{1}", ex.Message, AppPaths.CrashFile),
                 "All Mod's Sky", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
         }
@@ -86,8 +94,8 @@ public partial class App : Application
 
         try
         {
-            MessageBox.Show("程序遇到未处理的错误：\n\n" + e.Exception.Message +
-                            "\n\n详细信息已写入：\n" + AppPaths.CrashFile,
+            MessageBox.Show(L.F("程序遇到未处理的错误：\n\n{0}\n\n详细信息已写入：\n{1}",
+                    e.Exception.Message, AppPaths.CrashFile),
                 "All Mod's Sky", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         catch { }
