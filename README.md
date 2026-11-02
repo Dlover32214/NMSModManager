@@ -672,7 +672,12 @@ AllModsSky.exe --data "D:\NMSData"
 
 ### release 文件
 
-- `release\AllModsSky.exe`
+构建脚本产出：
+
+- `release\publish\AllModsSky.exe` —— 单文件，双击即运行
+
+对外发版时再补两样（不参与构建）：
+
 - `release\AllModsSky-2.0.6-win-x64.zip`
 - `release\README.txt`（快速上手版）
 
@@ -682,13 +687,26 @@ AllModsSky.exe --data "D:\NMSData"
 
 ### 环境
 
-- .NET SDK 8
+- .NET SDK 8（8.0.4xx 即可；装了 .NET 9/10 SDK 也能编，脚本会自动选目标）
 - Windows 10/11
-- PowerShell（Windows PowerShell 5.1 或 PowerShell 7 均可）
+- PowerShell 7（`pwsh`）——只有构建脚本要求；手打 `dotnet` 命令在任意终端都行
 
-### 构建
+### 一键构建（推荐）
 
 在项目根目录执行：
+
+```powershell
+pwsh -File .\build.ps1                  # 框架依赖单文件，约 1.2 MB
+pwsh -File .\build.ps1 -SelfContained   # 连 .NET 运行时一起打包，约 140 MB
+```
+
+脚本依次做三件事：编译 → 清空并发布到 `release\publish` → 打印产物路径与体积。
+
+- `.slnx` 需要 .NET 9+ SDK，脚本按 `dotnet --version` 的主版本号判断，低于 9 就直接编 `AllModsSky.App.csproj`，不用手动改
+- 构建前会拦两件事：`dotnet` 不在 PATH、`AllModsSky.exe` 正在运行（exe 被锁住，清理和覆盖都会失败）
+- 默认结束前停一下等回车，方便直接看结果；给终端/CI 用加 `-NoPause`
+
+### 手动编译
 
 ```powershell
 dotnet build AllModsSky.slnx -c Release
@@ -704,7 +722,9 @@ dotnet run --project src\AllModsSky.App\AllModsSky.App.csproj -c Release
 
 自检程序暂未随仓库发布，构建与运行不依赖它。
 
-### 发布单文件
+### 手动发布单文件
+
+`build.ps1` 做的就是下面这条命令，不想用脚本时可以直接抄：
 
 ```powershell
 dotnet publish src\AllModsSky.App\AllModsSky.App.csproj `
@@ -716,8 +736,6 @@ dotnet publish src\AllModsSky.App\AllModsSky.App.csproj `
   -o release\publish
 ```
 
-然后把 `release\publish\AllModsSky.exe` 复制到 `release\`。
-
 `EnableCompressionInSingleFile` 必须为 `false`：框架依赖单文件不支持压缩，开启会报 `NETSDK1176`。
 
 ---
@@ -727,19 +745,23 @@ dotnet publish src\AllModsSky.App\AllModsSky.App.csproj `
 ```text
 NMSModManager\
 ├─ AllModsSky.slnx                 解决方案
+├─ build.ps1                       一键构建（PowerShell 7）
 ├─ README.md                       中文说明（默认）
 ├─ README.en.md                    English README
 ├─ src\
 │  ├─ AllModsSky.Core\             UI 无关的核心逻辑
-│  │  ├─ Models.cs                 模组/设置/游戏信息模型
+│  │  ├─ Models.cs                 模组/配置/设置/游戏信息模型
 │  │  ├─ Infrastructure.cs         AppPaths / JsonStore / FileOps / 日志
-│  │  ├─ ModLibrary.cs             library.json 读写与规范化
+│  │  ├─ PathGuard.cs              按磁盘枚举定位条目（不拼路径）
+│  │  ├─ ModLibrary.cs             library.json 读写、配置与规范化
+│  │  ├─ ModInspector.cs           模组目录识别（pak / 散装 / 版本）
 │  │  ├─ Importer.cs               zip/rar/7z/tar/gz/bz2/xz/zst/cab/pak 导入
 │  │  ├─ DeploymentService.cs      MODS / MODS_disabled 同步
-│  │  ├─ VanillaLaunchStore.cs     原版启动状态保存/恢复
 │  │  ├─ ConflictAnalyzer.cs       EXML/MBIN 冲突扫描
 │  │  ├─ LoadOrderService.cs       GCMODSETTINGS.MXML
 │  │  ├─ LogDiagnostics.cs         游戏日志诊断
+│  │  ├─ GameLocator.cs            游戏安装目录探测
+│  │  ├─ VersionParser.cs          游戏版本号解析
 │  │  ├─ AmumssService.cs          AMUMSS 检测/分析/重建/收集
 │  │  ├─ NexusClient.cs            Nexus API
 │  │  ├─ OogcClient.cs             oogc.cc
@@ -749,16 +771,14 @@ NMSModManager\
 │  │  └─ Resources\mapping.json    内置映射数据
 │  └─ AllModsSky.App\              WPF 界面
 │     ├─ MainWindow.xaml(.cs)      主窗口、侧栏、Toast、动态 Logo
-│     ├─ ViewModels\               页面 ViewModel
-│     ├─ Views\                    Library / Discover / Tools / Settings / About
+│     ├─ ViewModels\               页面 ViewModel（含 ModPool）
+│     ├─ Views\                    Library / ModPool / Discover / Tools / Settings / About
 │     ├─ Themes\                   Dark / Light / Styles
 │     ├─ Services\                 Dialog / Shell UI / 主题等
 │     ├─ Controls\                 控件辅助
 │     └─ app.ico / app.manifest
-├─ tests\
-│  └─ AllModsSky.SelfTest\         控制台自检（111 项）
 ├─ tools\                          辅助脚本（非程序运行必需）
-├─ release\                        最终发布产物
+├─ release\                        最终发布产物（publish\ 为单文件 exe）
 ├─ dist\                           历史构建/临时发布目录
 └─ .tmp\                           本地临时目录
 ```
@@ -783,7 +803,7 @@ File system + Game directories
 
 - **Core** 不引用 WPF，方便自检和复用；
 - **App** 只负责界面、对话框、主题和 MVVM 编排；
-- **SelfTest** 直接调用 Core，覆盖文件操作和解析逻辑。
+- **SelfTest**（不随仓库发布）直接调用 Core，覆盖文件操作和解析逻辑。
 
 ### 9.2 关键服务
 

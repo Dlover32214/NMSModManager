@@ -672,7 +672,12 @@ If you hit permission issues, check directory ACLs first rather than elevating.
 
 ### Release files
 
-- `release\AllModsSky.exe`
+Produced by the build script:
+
+- `release\publish\AllModsSky.exe` — single file, double-click to run
+
+Added when cutting a public release (not part of the build):
+
 - `release\AllModsSky-2.0.6-win-x64.zip`
 - `release\README.txt` (quick-start guide)
 - `README.en.md` (this full guide)
@@ -683,13 +688,26 @@ If you hit permission issues, check directory ACLs first rather than elevating.
 
 ### Environment
 
-- .NET SDK 8
+- .NET SDK 8 (8.0.4xx is fine; a .NET 9/10 SDK also works — the script picks the right target)
 - Windows 10/11
-- PowerShell (Windows PowerShell 5.1 or PowerShell 7)
+- PowerShell 7 (`pwsh`) — required only by the build script; raw `dotnet` commands work in any terminal
 
-### Build
+### One-command build (recommended)
 
 From the project root:
+
+```powershell
+pwsh -File .\build.ps1                  # framework-dependent single file, ~1.2 MB
+pwsh -File .\build.ps1 -SelfContained   # bundles the .NET runtime, ~140 MB
+```
+
+The script compiles, wipes and publishes to `release\publish`, then prints the artifact path and size.
+
+- `.slnx` needs a .NET 9+ SDK. The script checks the major version of `dotnet --version` and falls back to building `AllModsSky.App.csproj` directly below 9, so no manual switching is needed.
+- Two preflight guards: `dotnet` missing from PATH, and `AllModsSky.exe` still running (the exe is locked, so cleanup and overwrite would both fail).
+- It pauses before exiting so you can read the result; pass `-NoPause` for terminals and CI.
+
+### Manual build
 
 ```powershell
 dotnet build AllModsSky.slnx -c Release
@@ -705,7 +723,9 @@ dotnet run --project src\AllModsSky.App\AllModsSky.App.csproj -c Release
 
 The self-test program is not published with this repository; building and running do not depend on it.
 
-### Publish a single file
+### Manual single-file publish
+
+This is exactly what `build.ps1` runs, if you prefer typing it yourself:
 
 ```powershell
 dotnet publish src\AllModsSky.App\AllModsSky.App.csproj `
@@ -717,8 +737,6 @@ dotnet publish src\AllModsSky.App\AllModsSky.App.csproj `
   -o release\publish
 ```
 
-Then copy `release\publish\AllModsSky.exe` to `release\`.
-
 `EnableCompressionInSingleFile` must be `false`: framework-dependent single-file publishing does not support compression and otherwise fails with `NETSDK1176`.
 
 ---
@@ -728,19 +746,23 @@ Then copy `release\publish\AllModsSky.exe` to `release\`.
 ```text
 NMSModManager\
 ├─ AllModsSky.slnx                 solution
+├─ build.ps1                       one-command build (PowerShell 7)
 ├─ README.md                       Chinese README (default)
 ├─ README.en.md                    English README
 ├─ src\
 │  ├─ AllModsSky.Core\             UI-independent core logic
-│  │  ├─ Models.cs                 mod/settings/game-info models
+│  │  ├─ Models.cs                 mod/profile/settings/game-info models
 │  │  ├─ Infrastructure.cs         AppPaths / JsonStore / FileOps / logging
-│  │  ├─ ModLibrary.cs             library.json load/save/normalize
+│  │  ├─ PathGuard.cs              locate entries by directory enumeration
+│  │  ├─ ModLibrary.cs             library.json load/save, profiles, normalize
+│  │  ├─ ModInspector.cs           mod folder detection (pak / loose / version)
 │  │  ├─ Importer.cs               zip/rar/7z/tar/gz/bz2/xz/zst/cab/pak import
 │  │  ├─ DeploymentService.cs      MODS / MODS_disabled synchronization
-│  │  ├─ VanillaLaunchStore.cs     vanilla launch state save/restore
 │  │  ├─ ConflictAnalyzer.cs       EXML/MBIN conflict scan
 │  │  ├─ LoadOrderService.cs       GCMODSETTINGS.MXML
 │  │  ├─ LogDiagnostics.cs         game log diagnostics
+│  │  ├─ GameLocator.cs            game install location detection
+│  │  ├─ VersionParser.cs          game version parsing
 │  │  ├─ AmumssService.cs          AMUMSS detect/analyze/rebuild/collect
 │  │  ├─ NexusClient.cs            Nexus API
 │  │  ├─ OogcClient.cs             oogc.cc
@@ -750,16 +772,14 @@ NMSModManager\
 │  │  └─ Resources\mapping.json    embedded mapping data
 │  └─ AllModsSky.App\              WPF UI
 │     ├─ MainWindow.xaml(.cs)      shell, sidebar, toast, animated logo
-│     ├─ ViewModels\               page view models
-│     ├─ Views\                    Library / Discover / Tools / Settings / About
+│     ├─ ViewModels\               page view models (incl. ModPool)
+│     ├─ Views\                    Library / ModPool / Discover / Tools / Settings / About
 │     ├─ Themes\                   Dark / Light / Styles
 │     ├─ Services\                 dialog / shell UI / theme services
 │     ├─ Controls\                 control helpers
 │     └─ app.ico / app.manifest
-├─ tests\
-│  └─ AllModsSky.SelfTest\         console self-test (111 checks)
 ├─ tools\                          helper scripts (not required at runtime)
-├─ release\                        final release artifacts
+├─ release\                        final release artifacts (publish\ holds the exe)
 ├─ dist\                           historical builds/temporary publish output
 └─ .tmp\                           local temporary directory
 ```
@@ -784,7 +804,7 @@ File system + game directories
 
 - **Core** does not reference WPF, making it reusable and easy to self-test.
 - **App** handles UI, dialogs, themes and MVVM orchestration.
-- **SelfTest** calls Core directly and covers file operations and parsing.
+- **SelfTest** (not shipped with this repository) calls Core directly and covers file operations and parsing.
 
 ### 9.2 Key services
 
