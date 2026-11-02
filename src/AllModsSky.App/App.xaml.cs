@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Windows;
 using System.Windows.Threading;
 using AllModsSky.App.Services;
@@ -9,10 +11,28 @@ namespace AllModsSky.App;
 public partial class App : Application
 {
     private MainViewModel? _shell;
+    private Mutex? _instanceMutex;
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        // 双开会让两个实例同时改写 library.json 和 MODS 目录，先挡住。
+        // 注意：string.GetHashCode() 在 .NET Core 每进程随机化，必须用稳定哈希。
+        var dir = AppContext.BaseDirectory.ToLowerInvariant();
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(dir)))[..16];
+        _instanceMutex = new Mutex(true, @"Local\AllModsSky_" + hash, out var isFirstInstance);
+
+        if (!isFirstInstance)
+        {
+            _instanceMutex.Dispose();
+            _instanceMutex = null;
+
+            MessageBox.Show("All Mod's Sky 已经在运行了。", "All Mod's Sky",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            Shutdown(0);
+            return;
+        }
 
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
@@ -49,6 +69,11 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         _shell?.Dispose();
+
+        try { _instanceMutex?.ReleaseMutex(); } catch { }
+        _instanceMutex?.Dispose();
+        _instanceMutex = null;
+
         base.OnExit(e);
     }
 
