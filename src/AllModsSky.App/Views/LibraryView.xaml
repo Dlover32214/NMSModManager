@@ -269,8 +269,14 @@
             <StackPanel>
                 <Grid Margin="0,0,0,7">
                     <TextBlock Text="MODS 里不由本管理器管理的模组" Style="{StaticResource MutedText}" />
-                    <Button Style="{StaticResource LinkButton}" Content="刷新"
-                            HorizontalAlignment="Right" Command="{Binding RefreshExternalCommand}" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Style="{StaticResource LinkButton}" Content="全部收编"
+                                Margin="0,0,14,0"
+                                ToolTip="把这些模组一次性登记进列表；失败的会单独提示，不影响其它的"
+                                Command="{Binding AdoptAllExternalCommand}" />
+                        <Button Style="{StaticResource LinkButton}" Content="刷新"
+                                Command="{Binding RefreshExternalCommand}" />
+                    </StackPanel>
                 </Grid>
 
                 <ScrollViewer MaxHeight="190" VerticalScrollBarVisibility="Auto">

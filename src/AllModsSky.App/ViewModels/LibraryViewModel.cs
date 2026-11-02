@@ -37,6 +37,7 @@ public sealed class LibraryViewModel : ObservableObject
         ToggleExternalPanelCommand = new AsyncRelayCommand(ToggleExternalPanelAsync);
         RefreshExternalCommand = new AsyncRelayCommand(RefreshExternalAsync);
         AdoptExternalCommand = new AsyncRelayCommand(p => AdoptAsync(p as ExternalModItemViewModel));
+        AdoptAllExternalCommand = new AsyncRelayCommand(AdoptAllAsync);
         ToggleExternalItemCommand = new AsyncRelayCommand(p => ToggleExternalAsync(p as ExternalModItemViewModel));
         OpenFolderCommand = new RelayCommand(p => OpenFolder(p as ModItemViewModel));
         DeleteCommand = new RelayCommand(p => Delete(p as ModItemViewModel));
@@ -75,6 +76,7 @@ public sealed class LibraryViewModel : ObservableObject
     public ICommand ToggleExternalPanelCommand { get; }
     public ICommand RefreshExternalCommand { get; }
     public ICommand AdoptExternalCommand { get; }
+    public ICommand AdoptAllExternalCommand { get; }
     public ICommand ToggleExternalItemCommand { get; }
     public ICommand OpenFolderCommand { get; }
     public ICommand DeleteCommand { get; }
@@ -673,6 +675,69 @@ public sealed class LibraryViewModel : ObservableObject
         {
             _ui.Toast("收编失败：" + ex.Message, false);
         }
+    }
+
+    /// <summary>一次性把外部模组全收编。逐个来，坏的跳过并汇报，不因为一个失败就整批中断。</summary>
+    private async Task AdoptAllAsync()
+    {
+        if (!_workspace.Game.IsValid)
+        {
+            _ui.Toast("先设置游戏目录", false);
+            return;
+        }
+
+        var pending = External.ToList();
+        if (pending.Count == 0)
+        {
+            _ui.Toast("没有可收编的外部模组", false);
+            return;
+        }
+
+        var confirm = _ui.Confirm($"全部收编（{pending.Count} 个）",
+            "把它们都登记进模组列表，之后就能在这里统一启停。\n\n" +
+            "文件不会被删除；MODS 根目录里散放的 pak 会收进同名文件夹，方便启停。",
+            "全部收编");
+        if (confirm != ConfirmResult.Primary) return;
+
+        var adopted = new List<string>();
+        var failed = new List<string>();
+
+        foreach (var item in pending)
+        {
+            try
+            {
+                var record = _workspace.Deployment.Adopt(
+                    _workspace.Game.GamePath, item.Model, _workspace.Library.NameExists);
+                _workspace.Library.Add(record);
+                adopted.Add(record.Name);
+            }
+            catch (Exception ex)
+            {
+                failed.Add(item.Name);
+                AppLog.Warn($"收编失败 {item.Name}：{ex.Message}");
+            }
+        }
+
+        if (adopted.Count > 0)
+        {
+            _workspace.Library.Save();
+            _workspace.NotifyLibraryChanged();
+        }
+
+        await RefreshExternalAsync();
+        await RefreshHealthAsync();
+
+        if (failed.Count == 0)
+        {
+            _ui.Toast($"已收编 {adopted.Count} 个模组", true);
+            return;
+        }
+
+        var sample = string.Join("、", failed.Take(3));
+        if (failed.Count > 3) sample += "…";
+        _ui.Toast(adopted.Count > 0
+            ? $"已收编 {adopted.Count} 个，{failed.Count} 个失败（{sample}）"
+            : $"收编失败：{sample}", false);
     }
 
     public async Task RefreshHealthAsync()
