@@ -1,9 +1,9 @@
-# All Mod's Sky 2.0.8
+# All Mod's Sky 2.1.0
 
 [简体中文](README.md) | **English**
 
 > A Windows mod manager for *No Man's Sky*  
-> .NET 8 + WPF · single-file release · Chinese UI · NMSModManager data compatibility
+> .NET 10 + WPF · single-file release · Chinese / English UI · NMSModManager data compatibility
 
 All Mod's Sky is a local mod manager for *No Man's Sky*. It does **not** copy mods into a separate library. Instead, it directly manages the game's real directories:
 
@@ -82,12 +82,12 @@ This project brings those workflows into one WPF desktop application.
 
 ### Technology
 
-- C# / .NET 8
+- C# / .NET 10
 - WPF (Windows Presentation Foundation)
 - MVVM with hand-written `ObservableObject` / `RelayCommand` / `AsyncRelayCommand`
 - `System.Text.Json`
 - No third-party NuGet dependencies
-- Framework-dependent single-file publishing (requires the .NET 8 Desktop Runtime)
+- Framework-dependent single-file publishing (requires the .NET 10 Desktop Runtime)
 
 ---
 
@@ -479,11 +479,14 @@ Settings include:
 - Nexus API key;
 - dark/light theme;
 - whether to create `DISABLEMODS.TXT` automatically;
+- UI language: System / Simplified Chinese / English (takes effect after restart);
 - save metadata reader;
 - open `MODS` / data directory / logs;
 - restart as administrator (only if that environment truly requires it).
 
 The API key is saved to `settings.json` in the data directory. If it cannot be saved, check whether the data directory is writable and whether another process is holding `settings.json`.
+
+The UI language is stored in the `Language` field of `settings.json` (`system`, `zh-CN`, or `en-US`). It is read once at startup, so a restart is required after changing it. The English catalog is `src/AllModsSky.Core/Localization/Strings.english.json`, keyed by the Chinese source string; add an English entry whenever you add user-facing text, otherwise the UI falls back to Chinese.
 
 ### 3.11 UI and Interaction
 
@@ -635,7 +638,7 @@ The legacy app only needs `LibraryPath` / `DeployName` / `PakFiles` / `Enabled` 
 | Item | Requirement |
 |---|---|
 | OS | Windows 10 / Windows 11, x64 |
-| Runtime | .NET 8 Desktop Runtime (x64) |
+| Runtime | .NET 10 Desktop Runtime (x64) |
 | Game | *No Man's Sky* with `GAMEDATA\PCBANKS` or `Binaries\NMS.exe` |
 | Optional | 7-Zip or Bandizip (`.rar` / `.7z` / `.cab`; tar-family archives can use Windows tar) |
 | Optional | AMUMSS (needed for the AMUMSS toolchain) |
@@ -645,7 +648,7 @@ The legacy app only needs `LibraryPath` / `DeployName` / `PakFiles` / `Enabled` 
 The release is **framework-dependent single-file**:
 
 - the exe itself is about 1.14 MiB;
-- the runtime comes from the installed .NET 8 Desktop Runtime;
+- the runtime comes from the installed .NET 10 Desktop Runtime;
 - the target machine must have that runtime;
 - framework-dependent single-file bundles cannot use compression, and WPF is not safe to trim, so the size will not return to the old .NET Framework 600 KB build.
 
@@ -678,7 +681,7 @@ Produced by the build script:
 
 Added when cutting a public release (not part of the build):
 
-- `release\AllModsSky-2.0.8-win-x64.zip`
+- `release\AllModsSky-2.1.0-win-x64.zip`
 - `release\README.txt` (quick-start guide)
 - `README.en.md` (this full guide)
 
@@ -704,7 +707,7 @@ pwsh -File .\build.ps1 -SelfContained   # bundles the .NET runtime, ~140 MB
 The script compiles, wipes and publishes to `release\publish`, then prints the artifact path and size.
 
 - `.slnx` needs a .NET 9+ SDK. The script checks the major version of `dotnet --version` and falls back to building `AllModsSky.App.csproj` directly below 9, so no manual switching is needed.
-- Single-file publish is best done with the .NET 8 SDK. If the current SDK is 10 and an 8.0.x SDK is installed, the script publishes under a temporary `global.json`; otherwise it tells you to install SDK 8.
+- Single-file publish is handled directly by the .NET 10 SDK; no older SDK is needed.
 - Two preflight guards: `dotnet` missing from PATH, and `AllModsSky.exe` still running (the exe is locked, so cleanup and overwrite would both fail).
 - It pauses before exiting so you can read the result; pass `-NoPause` for terminals and CI.
 
@@ -887,7 +890,7 @@ Yes. The app prefers `%APPDATA%\NMSModManager` and understands legacy `LibraryPa
 
 ### Why is it 1.14 MiB instead of 600 KB?
 
-The old 600 KB build was a .NET Framework 4.8 app using the runtime included with Windows. This version is .NET 8 WPF, published framework-dependent and single-file; the runtime comes from the installed .NET 8 Desktop Runtime. WPF is not safe to trim, so around 1 MB is the practical floor for this codebase.
+The old 600 KB build was a .NET Framework 4.8 app using the runtime included with Windows. This version is .NET 10 WPF, published framework-dependent and single-file; the runtime comes from the installed .NET 10 Desktop Runtime. WPF is not safe to trim, so around 1 MB is the practical floor for this codebase.
 
 ### Can I move the data directory to another drive?
 
@@ -907,7 +910,7 @@ The application UI is currently Chinese. This repository provides English and Ch
 
 ## 11. Known Limitations and Trade-offs
 
-1. **Requires the .NET 8 Desktop Runtime**  
+1. **Requires the .NET 10 Desktop Runtime**  
    The release is not self-contained; the target machine must have the runtime.
 
 2. **The game must be restarted after changing mods**  
@@ -929,10 +932,10 @@ The application UI is currently Chinese. This repository provides English and Ch
    The new app still uses the game's `MODS` as the only real library. If the legacy app used a separate library root, the new app does not create a second copy.
 
 8. **Single-file is not self-contained**  
-   The small size is paid for by requiring the system .NET 8 runtime; a fully offline self-contained build would be much larger.
+   The small size is paid for by requiring the system .NET 10 runtime; a fully offline self-contained build would be much larger.
 
-9. **The UI is Chinese-only**  
-   There is no multi-language UI switch yet; only the README is bilingual.
+9. **UI language changes take effect after restart**  
+   The UI supports System, Simplified Chinese, and English. The choice is saved in `settings.json` and applied on the next launch. Missing translations fall back to the Chinese source string.
 
 10. **It does not modify system settings**  
     The app only manages game mod directories and its own data directory. It does not change the system terminal, Start menu, etc.
@@ -948,7 +951,7 @@ MIT License (as declared by the project).
 ## Appendix: Quick Start
 
 ```text
-1. Install the .NET 8 Desktop Runtime.
+1. Install the .NET 10 Desktop Runtime.
 2. Extract the release and double-click AllModsSky.exe (do not run as administrator).
 3. Set the game directory (usually detected automatically).
 4. Drag in a zip/folder or click "Import Mods".

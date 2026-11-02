@@ -8,7 +8,7 @@
       1. dotnet build AllModsSky.slnx -c Release（.slnx 需要 .NET 9+，低版本自动改为直接编项目）
       2. dotnet publish 单文件到 release\publish\AllModsSky.exe
 
-    默认发布「框架依赖」单文件（约 1.2 MB），目标机器需要装 .NET 8 Desktop Runtime。
+    默认发布「框架依赖」单文件（约 1.2 MB），目标机器需要装 .NET 10 Desktop Runtime。
     加 -SelfContained 则把运行时一起打进去（约 150 MB，双击即用）。
 
 .PARAMETER SelfContained
@@ -53,52 +53,13 @@ function Write-Step {
 }
 
 <#
-    .NET 10 SDK 做 net8.0 的“单文件发布”时，仍会去找 8.0.x 的 ILLink targets，
-    在只装了 10 的机器上会报 MSB4019。编译继续用 10（能读 .slnx），
-    发布则临时切到已安装的 8.0.x SDK；两件事互不影响。
+    .NET 10 SDK 可以直接编译并单文件发布 net10.0-windows，
+    不再需要旧版 SDK 的 ILLink targets。
 #>
-function Invoke-Publish {
-    param([string[]]$Arguments)
-
-    if ($sdkMajor -lt 9) {
-        & dotnet @Arguments | Out-Host
-        return $LASTEXITCODE
-    }
-
-    $sdk8Line = (& dotnet --list-sdks | Where-Object { $_ -match '^8\.0\.' } | Select-Object -First 1)
-    if (-not $sdk8Line) {
-        Write-Host '  未找到 .NET 8 SDK，尝试直接用当前 SDK 发布；若报 MSB4019，请安装 .NET 8 SDK。' -ForegroundColor Yellow
-        & dotnet @Arguments | Out-Host
-        return $LASTEXITCODE
-    }
-
-    $sdk8Version = ($sdk8Line -split '\s+')[0]
-    $temp = Join-Path ([System.IO.Path]::GetTempPath()) ('allmodssky-sdk8-' + [Guid]::NewGuid().ToString('N'))
-    New-Item -ItemType Directory -Path $temp -Force | Out-Null
-
-    try {
-        @{ sdk = @{ version = $sdk8Version; rollForward = 'latestPatch' } } |
-            ConvertTo-Json -Compress |
-            Set-Content -LiteralPath (Join-Path $temp 'global.json') -Encoding utf8
-
-        Push-Location -LiteralPath $temp
-        try {
-            Write-Host "  发布使用 .NET SDK $sdk8Version（临时 global.json）" -ForegroundColor DarkGray
-            & dotnet @Arguments | Out-Host
-            return $LASTEXITCODE
-        }
-        finally {
-            Pop-Location
-        }
-    }
-    finally {
-        Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue
-    }
-}
 
 Write-Host "All Mod's Sky · 构建" -ForegroundColor White
 Write-Host "  输出目录  $outDir"
-Write-Host "  运行方式  $(if ($SelfContained) { '自带运行时（self-contained）' } else { '框架依赖（需 .NET 8 Desktop Runtime）' })"
+Write-Host "  运行方式  $(if ($SelfContained) { '自带运行时（self-contained）' } else { '框架依赖（需 .NET 10 Desktop Runtime）' })"
 
 # ---- 环境检查 -------------------------------------------------------------
 
@@ -157,8 +118,8 @@ foreach ($a in @(
     $publishArgs.Add($a)
 }
 
-$publishExit = Invoke-Publish $publishArgs.ToArray()
-if ($publishExit -ne 0) { Stop-Build "发布失败（exit $publishExit）" }
+& dotnet @publishArgs | Out-Host
+if ($LASTEXITCODE -ne 0) { Stop-Build "发布失败（exit $LASTEXITCODE）" }
 
 if (-not (Test-Path -LiteralPath $exe)) {
     Stop-Build "发布跑完了，但没找到 $exe"
@@ -175,7 +136,7 @@ Write-Host "  $($file.FullName)"
 Write-Host "  $('{0:N2} MB' -f ($file.Length / 1MB))"
 
 if (-not $SelfContained) {
-    Write-Host '  目标机器需要 .NET 8 Desktop Runtime。' -ForegroundColor DarkGray
+    Write-Host '  目标机器需要 .NET 10 Desktop Runtime。' -ForegroundColor DarkGray
 }
 
 Write-Host ''

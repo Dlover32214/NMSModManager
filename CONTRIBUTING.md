@@ -46,6 +46,19 @@
 
 ---
 
+## 本地化
+
+界面字符串以中文源文本为 key：
+
+- XAML：`{loc:T 中文源字符串}`；
+- C#：`L.T("中文源字符串")`，带参数用 `L.F("... {0}", arg)`；
+- 所有新增用户可见文案都要同步补 `src/AllModsSky.Core/Localization/Strings.english.json`；
+- 英文条目缺失时会回退中文，不会阻塞启动；日志和异常技术细节不要求翻译。
+
+语言在启动时读取 `AppSettings.Language`（`system` / `zh-CN` / `en-US`），切换后需要重启。
+
+---
+
 ## 构建
 
 ```powershell

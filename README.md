@@ -1,9 +1,9 @@
-# All Mod's Sky 2.0.8
+# All Mod's Sky 2.1.0
 
 [English](README.en.md) | **简体中文**
 
 > 《No Man's Sky》Windows 模组管理器  
-> .NET 8 + WPF · 单文件发布 · 中文界面 · 兼容旧版 NMSModManager 数据
+> .NET 10 + WPF · 单文件发布 · 中文 / English 界面 · 兼容旧版 NMSModManager 数据
 
 All Mod's Sky 是一个面向《No Man's Sky》的本地模组管理器。它不把模组复制到另一套“库”里，而是直接管理游戏真实的：
 
@@ -82,12 +82,12 @@ All Mod's Sky 是一个面向《No Man's Sky》的本地模组管理器。它不
 
 ### 技术栈
 
-- C# / .NET 8
+- C# / .NET 10
 - WPF（Windows Presentation Foundation）
 - MVVM（项目内手写 `ObservableObject` / `RelayCommand` / `AsyncRelayCommand`）
 - `System.Text.Json`
 - 无第三方 NuGet 依赖
-- 单文件发布（框架依赖，需要 .NET 8 Desktop Runtime）
+- 单文件发布（框架依赖，需要 .NET 10 Desktop Runtime）
 
 ---
 
@@ -479,11 +479,14 @@ magic(0xFEEDA1E5) / 压缩长度 / 解压长度 / 保留
 - Nexus API Key；
 - 深色/浅色主题；
 - 是否自动创建 `DISABLEMODS.TXT`；
+- 界面语言：跟随系统 / 简体中文 / English（重启后生效）；
 - 存档读取；
 - 打开 MODS / 数据目录 / 日志；
 - 以管理员身份重启（仅在该环境确实需要时使用）。
 
 API Key 会保存到数据目录的 `settings.json`。如果 API Key 无法保存，优先检查数据目录是否可写，以及 `settings.json` 是否被其他程序占用。
+
+界面语言也保存在 `settings.json` 的 `Language` 字段：`system`、`zh-CN` 或 `en-US`。程序启动时读取一次；切换语言后需要重启。英文目录位于 `src/AllModsSky.Core/Localization/Strings.english.json`，以中文源字符串为 key；新增界面文案时必须同时补英文条目，否则回退显示中文。
 
 ### 3.11 界面与交互
 
@@ -635,7 +638,7 @@ AllModsSky.exe --data "D:\NMSData"
 | 项目 | 要求 |
 |---|---|
 | 操作系统 | Windows 10 / Windows 11，x64 |
-| 运行时 | .NET 8 Desktop Runtime (x64) |
+| 运行时 | .NET 10 Desktop Runtime (x64) |
 | 游戏 | 《No Man's Sky》，有 `GAMEDATA\PCBANKS` 或 `Binaries\NMS.exe` |
 | 可选 | 7-Zip 或 Bandizip（`.rar` / `.7z` / `.cab`；tar 系列可用 Windows 自带 tar） |
 | 可选 | AMUMSS（使用 AMUMSS 工具链时需要） |
@@ -645,7 +648,7 @@ AllModsSky.exe --data "D:\NMSData"
 本程序发布为**框架依赖单文件**：
 
 - exe 本体约 1.14 MiB；
-- 运行时来自系统安装的 .NET 8 Desktop Runtime；
+- 运行时来自系统安装的 .NET 10 Desktop Runtime；
 - 因此换电脑时需要确认目标机器已安装该运行时；
 - 框架依赖单文件不支持压缩，WPF 也不适合安全裁剪，所以体积不会回到旧版 .NET Framework 的 600 KB。
 
@@ -678,7 +681,7 @@ AllModsSky.exe --data "D:\NMSData"
 
 对外发版时再补两样（不参与构建）：
 
-- `release\AllModsSky-2.0.8-win-x64.zip`
+- `release\AllModsSky-2.1.0-win-x64.zip`
 - `release\README.txt`（快速上手版）
 
 ---
@@ -703,7 +706,7 @@ pwsh -File .\build.ps1 -SelfContained   # 连 .NET 运行时一起打包，约 1
 脚本依次做三件事：编译 → 清空并发布到 `release\publish` → 打印产物路径与体积。
 
 - `.slnx` 需要 .NET 9+ SDK，脚本按 `dotnet --version` 的主版本号判断，低于 9 就直接编 `AllModsSky.App.csproj`，不用手动改
-- 单文件发布建议用 .NET 8 SDK：脚本检测到当前是 10 且机器装有 8.0.x 时，会在临时 `global.json` 下切到 8 发布；没有 8 会提示安装
+- 单文件发布由 .NET 10 SDK 直接完成，不再需要切换到旧版 SDK
 - 构建前会拦两件事：`dotnet` 不在 PATH、`AllModsSky.exe` 正在运行（exe 被锁住，清理和覆盖都会失败）
 - 默认结束前停一下等回车，方便直接看结果；给终端/CI 用加 `-NoPause`
 
@@ -886,7 +889,7 @@ File system + Game directories
 
 ### 为什么是 1.14 MiB，而不是 600 KB
 
-旧版 600 KB 是 .NET Framework 4.8 程序，运行时由 Windows 自带。本版是 .NET 8 WPF，使用框架依赖单文件，运行时来自系统安装的 .NET 8 Desktop Runtime；WPF 不适合裁剪，因此 1 MB 出头是当前代码形态的合理体积。
+旧版 600 KB 是 .NET Framework 4.8 程序，运行时由 Windows 自带。本版是 .NET 10 WPF，使用框架依赖单文件，运行时来自系统安装的 .NET 10 Desktop Runtime；WPF 不适合裁剪，因此 1 MB 出头是当前代码形态的合理体积。
 
 ### 数据目录能改到其他盘吗
 
@@ -902,7 +905,7 @@ AllModsSky.exe --data "D:\NMSData"
 
 ## 11. 已知限制与设计取舍
 
-1. **需要 .NET 8 Desktop Runtime**  
+1. **需要 .NET 10 Desktop Runtime**  
    不是自包含发布；换机器要确认运行时存在。
 
 2. **启停后需要重启游戏**  
@@ -924,10 +927,10 @@ AllModsSky.exe --data "D:\NMSData"
    新版仍以游戏 `MODS` 为唯一真实库；旧版如果配置了独立的旧库目录，新版不会复制出第二份模组。
 
 8. **单文件发布不是自包含**  
-   体积小是以“系统已有 .NET 8”为代价的；如果需要完全离线自包含，体积会显著增加。
+   体积小是以“系统已有 .NET 10”为代价的；如果需要完全离线自包含，体积会显著增加。
 
-9. **界面为中文单语言**  
-   当前没有多语言资源切换。
+9. **界面语言重启后生效**  
+   支持跟随系统、简体中文和 English；切换会写入 `settings.json`，重启程序后应用。缺少翻译的条目会回退到中文源字符串。
 
 10. **不主动修改系统设置**  
     程序只管理游戏模组目录和自己的数据目录；不会改系统终端、开始菜单等设置。
@@ -943,7 +946,7 @@ MIT License（以项目声明为准）。
 ## 附：快速上手
 
 ```text
-1. 安装 .NET 8 Desktop Runtime
+1. 安装 .NET 10 Desktop Runtime
 2. 解压 release 包，双击 AllModsSky.exe（不要管理员）
 3. 设置游戏目录（通常自动检测）
 4. 拖入 zip / 文件夹，或点“导入模组”
