@@ -48,7 +48,7 @@ public sealed class LibraryViewModel : ObservableObject
         BatchEnableCommand = new AsyncRelayCommand(() => SetSelectedEnabledAsync(true));
         BatchDisableCommand = new AsyncRelayCommand(() => SetSelectedEnabledAsync(false));
         BatchDeleteCommand = new AsyncRelayCommand(BatchDeleteAsync);
-        SelectAllCommand = new RelayCommand(SelectAll);
+        SelectAllCommand = new RelayCommand(ToggleSelectAll);
         ClearSelectionCommand = new RelayCommand(ExitBatch);
         ToggleBatchCommand = new RelayCommand(() => BatchMode = !BatchMode);
         ApplyOrderCommand = new RelayCommand(ApplyOrder);
@@ -113,7 +113,8 @@ public sealed class LibraryViewModel : ObservableObject
         {
             if (!SetProperty(ref _searchText, value)) return;
             View.Refresh();
-            Raise(nameof(HasVisibleMods));
+            Raise(nameof(HasVisibleMods), nameof(AllSelected), nameof(SelectAllText),
+                nameof(SelectAllTooltip));
         }
     }
 
@@ -124,7 +125,8 @@ public sealed class LibraryViewModel : ObservableObject
         {
             if (!SetProperty(ref _filter, value)) return;
             View.Refresh();
-            Raise(nameof(HasVisibleMods));
+            Raise(nameof(HasVisibleMods), nameof(AllSelected), nameof(SelectAllText),
+                nameof(SelectAllTooltip));
         }
     }
 
@@ -150,6 +152,17 @@ public sealed class LibraryViewModel : ObservableObject
     public int EnabledCount => Items.Count(i => i.Enabled);
     public int SelectedCount => Items.Count(i => i.IsSelected);
     public bool HasSelection => SelectedCount > 0;
+
+    /// <summary>当前筛选结果是不是已经全选中了（空列表不算）。</summary>
+    public bool AllSelected =>
+        !View.IsEmpty && View.OfType<ModItemViewModel>().All(i => i.IsSelected);
+
+    /// <summary>全选按钮点完就变成「取消全选」，不用再单独放一个按钮。</summary>
+    public string SelectAllText => AllSelected ? "取消全选" : "全选";
+
+    public string SelectAllTooltip => AllSelected
+        ? "取消当前搜索/筛选结果里的全部选中"
+        : "选中当前搜索/筛选结果里的全部模组";
 
     public string CountText =>
         $"配置「{ActiveProfileName}」· {TotalCount} 个模组 · 已启用 {EnabledCount}";
@@ -272,6 +285,7 @@ public sealed class LibraryViewModel : ObservableObject
     {
         Reindex();
         Raise(nameof(TotalCount), nameof(EnabledCount), nameof(SelectedCount), nameof(HasSelection),
+            nameof(AllSelected), nameof(SelectAllText), nameof(SelectAllTooltip),
             nameof(CountText), nameof(SelectedText), nameof(IsLibraryEmpty), nameof(HasVisibleMods),
             nameof(ShowBatchBar), nameof(BatchButtonText), nameof(ActiveProfileName),
             nameof(EmptyTitle), nameof(EmptyHint), nameof(ShowEmptyActions),
@@ -508,21 +522,24 @@ public sealed class LibraryViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 全选当前可见的模组（搜索和筛选之后的那一批），不是整个配置。
+    /// 全选 / 取消全选当前可见的模组（搜索和筛选之后的那一批），不是整个配置。
+    /// 已经全选了就反向取消，按钮文字跟着变，不额外占一个按钮的位置。
     /// 逐个设置会触发 N 次 RaiseCounts，这里先关掉通知再统一刷新。
     /// </summary>
-    private void SelectAll()
+    private void ToggleSelectAll()
     {
-        var added = 0;
+        var targets = View.OfType<ModItemViewModel>().ToList();
+        if (targets.Count == 0) return;
+
+        var select = !AllSelected;
 
         _bulkSelecting = true;
         try
         {
-            foreach (var obj in View)
+            foreach (var item in targets)
             {
-                if (obj is not ModItemViewModel item || item.IsSelected) continue;
-                item.IsSelected = true;
-                added++;
+                if (item.IsSelected == select) continue;
+                item.IsSelected = select;
             }
         }
         finally
@@ -531,8 +548,6 @@ public sealed class LibraryViewModel : ObservableObject
         }
 
         RaiseCounts();
-
-        if (added == 0) _ui.Toast("当前筛选下的模组都已经选中了", false);
     }
 
     /// <summary>退出批量模式并清空选择（Esc / 批量按钮 / 取消选择共用）。</summary>

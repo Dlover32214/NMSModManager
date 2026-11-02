@@ -103,7 +103,7 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
         ToggleExternalItemCommand = new AsyncRelayCommand(p => ToggleExternalAsync(p as ExternalModItemViewModel));
 
         ToggleBatchCommand = new RelayCommand(() => BatchMode = !BatchMode);
-        SelectAllCommand = new RelayCommand(SelectAll);
+        SelectAllCommand = new RelayCommand(ToggleSelectAll);
         ClearSelectionCommand = new RelayCommand(ExitBatch);
         BatchAddCommand = new AsyncRelayCommand(BatchAddAsync);
         BatchRemoveCommand = new AsyncRelayCommand(BatchRemoveAsync);
@@ -144,7 +144,8 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
         {
             if (!SetProperty(ref _searchText, value)) return;
             View.Refresh();
-            Raise(nameof(HasVisibleMods), nameof(IsEmpty));
+            Raise(nameof(HasVisibleMods), nameof(IsEmpty),
+                nameof(AllSelected), nameof(SelectAllText), nameof(SelectAllTooltip));
         }
     }
 
@@ -156,7 +157,8 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
         {
             if (!SetProperty(ref _onlyUnused, value)) return;
             View.Refresh();
-            Raise(nameof(HasVisibleMods), nameof(IsEmpty), nameof(UnusedButtonText));
+            Raise(nameof(HasVisibleMods), nameof(IsEmpty), nameof(UnusedButtonText),
+                nameof(AllSelected), nameof(SelectAllText), nameof(SelectAllTooltip));
         }
     }
 
@@ -200,9 +202,21 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
     public bool HasSelection => SelectedCount > 0;
     public string SelectedText => $"已选 {SelectedCount} 个";
 
+    /// <summary>当前筛选结果是不是已经全选中了（空列表不算）。</summary>
+    public bool AllSelected =>
+        !View.IsEmpty && View.OfType<PoolItemViewModel>().All(i => i.IsSelected);
+
+    /// <summary>全选按钮点完就变成「取消全选」。</summary>
+    public string SelectAllText => AllSelected ? "取消全选" : "全选";
+
+    public string SelectAllTooltip => AllSelected
+        ? "取消当前搜索/筛选结果里的全部选中"
+        : "选中当前搜索/筛选结果里的全部模组";
+
     /// <summary>行点击之后由视图调用，避免每行都挂一个 PropertyChanged。</summary>
     public void NotifySelectionChanged() =>
-        Raise(nameof(SelectedCount), nameof(SelectedText), nameof(HasSelection));
+        Raise(nameof(SelectedCount), nameof(SelectedText), nameof(HasSelection),
+            nameof(AllSelected), nameof(SelectAllText), nameof(SelectAllTooltip));
 
     private void ClearSelectionCore()
     {
@@ -221,21 +235,24 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
         ClearSelectionCore();
     }
 
-    /// <summary>全选当前可见的（搜索和「只看没加入」之后的）模组。</summary>
-    private void SelectAll()
+    /// <summary>
+    /// 全选 / 取消全选当前可见的（搜索和「只看没加入」之后的）模组。
+    /// 已经全选了就反向取消，按钮文字跟着变。
+    /// </summary>
+    private void ToggleSelectAll()
     {
-        var added = 0;
+        var targets = View.OfType<PoolItemViewModel>().ToList();
+        if (targets.Count == 0) return;
 
-        foreach (var obj in View)
+        var select = !AllSelected;
+
+        foreach (var item in targets)
         {
-            if (obj is not PoolItemViewModel item || item.IsSelected) continue;
-            item.IsSelected = true;
-            added++;
+            if (item.IsSelected == select) continue;
+            item.IsSelected = select;
         }
 
         NotifySelectionChanged();
-
-        if (added == 0) _ui.Toast("当前筛选下的模组都已经选中了", false);
     }
 
     public Task OnActivatedAsync()

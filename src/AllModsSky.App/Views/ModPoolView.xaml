@@ -108,8 +108,10 @@
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="{Binding SelectedText}" FontSize="12" FontWeight="SemiBold"
                                VerticalAlignment="Center" Margin="0,0,14,0" />
-                    <Button Style="{StaticResource GhostButton}" Content="全选" Padding="11,5"
-                            ToolTip="选中当前搜索/筛选结果里的全部模组"
+                    <!-- 全选 / 取消全选共用一个按钮，MinWidth 挡住文字变化带来的宽度跳动 -->
+                    <Button Style="{StaticResource GhostButton}" Content="{Binding SelectAllText}"
+                            Padding="11,5" MinWidth="72"
+                            ToolTip="{Binding SelectAllTooltip}"
                             Command="{Binding SelectAllCommand}" />
                     <Button Style="{StaticResource GhostButton}" Content="加入配置" Padding="11,5" Margin="4,0,0,0"
                             Command="{Binding BatchAddCommand}" />
