@@ -1,4 +1,4 @@
-# All Mod's Sky 2.0.5
+# All Mod's Sky 2.0.6
 
 [English](README.en.md) | **简体中文**
 
@@ -67,6 +67,7 @@ All Mod's Sky 是一个面向《No Man's Sky》的本地模组管理器。它不
 | 模组库 | 导入 zip / rar / 7z / tar / gz / bz2 / xz / zst / cab / pak / 文件夹，启用/停用、排序、批量操作 |
 | 外部模组 | 识别不由本程序管理的 `MODS` 内容，可直接启停或“收编” |
 | 部署同步 | 把界面状态同步到游戏目录，自动维护 `DISABLEMODS.TXT` |
+| 启动模式 | 启动原版（停用全部模组）或启动 Mod 版（恢复上次启用状态）；两者先同步再启动 |
 | 冲突检测 | 扫描 `EXML` / `MBIN` 的路径重叠，按加载顺序判断覆盖关系 |
 | 加载顺序 | 读取/写入 `GCMODSETTINGS.MXML` 的 `ModPriority`，自动备份 |
 | 日志诊断 | 从游戏日志里提取报错，并尝试归因到具体模组 |
@@ -238,6 +239,15 @@ All Mod's Sky 是一个面向《No Man's Sky》的本地模组管理器。它不
 #### 注意
 
 游戏只在启动时扫描 `MODS`。启用/停用后需要**重启游戏**才会生效。
+
+#### 原版 / Mod 版启动
+
+侧边栏提供两个启动按钮：
+
+- **启动 Mod 版**：如果之前点过“启动原版”，先恢复当时保存的启用状态；否则使用当前状态。随后同步并启动游戏。
+- **启动原版**：记录当前启用的模组，把受管理的模组全部停用并同步（必要时创建 `DISABLEMODS.TXT`），再启动无 Mod 的游戏。
+
+原版模式保存的启用 ID 写在数据目录的 `vanilla-launch.json`，下次点“启动 Mod 版”时恢复并删除。中途关闭管理器不会丢状态；如果同步失败，程序不会启动游戏；“启动原版”同步失败时会恢复原启用状态。
 
 ### 3.3 外部模组与收编
 
@@ -457,7 +467,7 @@ API Key 会保存到数据目录的 `settings.json`。如果 API Key 无法保�
 ### 3.11 界面与交互
 
 - 左侧导航：模组库 / 发现模组 / 工具 / 设置 / 关于；
-- 左下角：启动游戏按钮、游戏状态卡、深色模式开关；
+- 左下角：启动 Mod 版 / 启动原版按钮、当前模式提示、游戏状态卡、深色模式开关；
 - 顶部状态栏：MODS 路径、计数、版本；
 - 深色/浅色两套主题；
 - 全局 Toast 提示：带缩放、上浮、外层柔光和阴影；
@@ -641,7 +651,7 @@ AllModsSky.exe --data "D:\NMSData"
 ### release 文件
 
 - `release\AllModsSky.exe`
-- `release\AllModsSky-2.0.5-win-x64.zip`
+- `release\AllModsSky-2.0.6-win-x64.zip`
 - `release\README.txt`（快速上手版）
 
 ---
@@ -727,6 +737,7 @@ NMSModManager\
 │  │  ├─ ModLibrary.cs             library.json 读写与规范化
 │  │  ├─ Importer.cs               zip/rar/7z/tar/gz/bz2/xz/zst/cab/pak 导入
 │  │  ├─ DeploymentService.cs      MODS / MODS_disabled 同步
+│  │  ├─ VanillaLaunchStore.cs     原版启动状态保存/恢复
 │  │  ├─ ConflictAnalyzer.cs       EXML/MBIN 冲突扫描
 │  │  ├─ LoadOrderService.cs       GCMODSETTINGS.MXML
 │  │  ├─ LogDiagnostics.cs         游戏日志诊断
@@ -878,8 +889,8 @@ AllModsSky.exe --data "D:\NMSData"
 5. **AMUMSS 不随程序分发**  
    需要用户自行安装并指定目录。
 
-6. **不做云同步/自动更新**  
-   数据在本机；更新靠替换 release。
+6. **不做云同步；更新需要确认**  
+   数据在本机；关于页自动检查版本，只有点击“下载更新版本”才会下载、替换并重启。
 
 7. **旧版格式兼容是“字段级”兼容**  
    新版仍以游戏 `MODS` 为唯一真实库；旧版如果配置了独立的旧库目录，新版不会复制出第二份模组。

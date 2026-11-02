@@ -1,4 +1,4 @@
-# All Mod's Sky 2.0.5
+# All Mod's Sky 2.0.6
 
 [简体中文](README.md) | **English**
 
@@ -67,6 +67,7 @@ This project brings those workflows into one WPF desktop application.
 | Mod library | Import zip / rar / 7z / tar / gz / bz2 / xz / zst / cab / pak / folders; enable, disable, reorder and batch-manage |
 | External mods | Detect `MODS` content not owned by the app; enable/disable directly or adopt it |
 | Deployment sync | Reconcile the UI state with the game directory and maintain `DISABLEMODS.TXT` |
+| Launch modes | Launch vanilla (disable all mods) or launch modded (restore the last enabled set); both sync before launching |
 | Conflict detection | Scan `EXML` / `MBIN` path overlaps and predict the winner from load order |
 | Load order | Read/write `GCMODSETTINGS.MXML` `ModPriority` with automatic backup |
 | Log diagnostics | Extract errors from game logs and attribute them to mods where possible |
@@ -239,6 +240,15 @@ The sync report includes:
 #### Important
 
 The game scans `MODS` only at startup. Restart *No Man's Sky* after enabling or disabling mods.
+
+#### Launch Vanilla / Modded
+
+The sidebar has two launch buttons:
+
+- **Launch Modded**: if *Launch Vanilla* was used before, restore the enabled set saved at that time; otherwise use the current state. Then sync and launch.
+- **Launch Vanilla**: record the currently enabled mods, disable all managed mods, sync (creating `DISABLEMODS.TXT` when needed), then launch without mods.
+
+The enabled IDs for vanilla mode are stored in `vanilla-launch.json` in the data directory. The next *Launch Modded* restores them and deletes the file. Closing the manager does not lose the state; if syncing fails, the game is not launched, and a failed vanilla launch restores the previous enabled state.
 
 ### 3.3 External Mods and Adoption
 
@@ -458,7 +468,7 @@ The API key is saved to `settings.json` in the data directory. If it cannot be s
 ### 3.11 UI and Interaction
 
 - Left navigation: Library / Discover / Tools / Settings / About.
-- Bottom-left: Launch Game button, game status card, dark-mode switch.
+- Bottom-left: Launch Modded / Launch Vanilla buttons, current-mode hint, game status card, dark-mode switch.
 - Top status bar: `MODS` path, counts, version.
 - Dark and light themes.
 - Global toasts with scale/fade, glow and an outer shadow.
@@ -642,7 +652,7 @@ If you hit permission issues, check directory ACLs first rather than elevating.
 ### Release files
 
 - `release\AllModsSky.exe`
-- `release\AllModsSky-2.0.5-win-x64.zip`
+- `release\AllModsSky-2.0.6-win-x64.zip`
 - `release\README.txt` (quick-start guide)
 - `README.en.md` (this full guide)
 
@@ -729,6 +739,7 @@ NMSModManager\
 │  │  ├─ ModLibrary.cs             library.json load/save/normalize
 │  │  ├─ Importer.cs               zip/rar/7z/tar/gz/bz2/xz/zst/cab/pak import
 │  │  ├─ DeploymentService.cs      MODS / MODS_disabled synchronization
+│  │  ├─ VanillaLaunchStore.cs     vanilla launch state save/restore
 │  │  ├─ ConflictAnalyzer.cs       EXML/MBIN conflict scan
 │  │  ├─ LoadOrderService.cs       GCMODSETTINGS.MXML
 │  │  ├─ LogDiagnostics.cs         game log diagnostics
@@ -884,8 +895,8 @@ The application UI is currently Chinese. This repository provides English and Ch
 5. **AMUMSS is not bundled**  
    Users must install it and point the app at it.
 
-6. **No cloud sync or auto-update**  
-   Data is local; updates are done by replacing the release.
+6. **No cloud sync; updates are opt-in**  
+   Data stays local; the About page checks for versions automatically, but downloading, replacing and restarting happen only after you click **Download update**.
 
 7. **Legacy compatibility is field-level**  
    The new app still uses the game's `MODS` as the only real library. If the legacy app used a separate library root, the new app does not create a second copy.
