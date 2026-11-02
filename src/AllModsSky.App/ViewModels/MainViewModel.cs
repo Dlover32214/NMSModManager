@@ -321,6 +321,7 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
             _workspace.RefreshGame();
             await Library.RefreshExternalAsync();
             UpdateStatus();
+            await ReconcileModStatesAsync(report, game, mods);
 
             if (!silent)
             {
@@ -345,6 +346,44 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
         finally
         {
             EndBusy();
+        }
+    }
+
+    /// <summary>
+    /// 部署后对账：管理器里的启停 vs 游戏 GCMODSETTINGS 的 Enabled。
+    /// 只写 MXML 已有条目、游戏没在运行时才写；失败只记录，不影响部署结果。
+    /// </summary>
+    private async Task ReconcileModStatesAsync(DeployReport report, string game, IReadOnlyList<ModRecord> mods)
+    {
+        if (!_workspace.Settings.SyncEnabledFlags) return;
+
+        try
+        {
+            var stateReport = await Task.Run(() => _workspace.ModStates.Reconcile(game, mods));
+
+            foreach (var drift in stateReport.Drifts.Take(5))
+                AppLog.Info("启用状态不一致：" + drift.Text);
+
+            if (stateReport.BlockedByGameRunning)
+            {
+                AppLog.Warn("游戏正在运行，跳过启用状态校正（退出时游戏会覆盖 GCMODSETTINGS）");
+                report.Message("游戏正在运行，已跳过启用状态校正");
+            }
+            else if (!stateReport.Ok)
+            {
+                AppLog.Warn("启用状态校正失败：" + stateReport.Error);
+                report.Message("启用状态校正失败：" + stateReport.Error);
+            }
+            else if (stateReport.Repaired > 0)
+            {
+                AppLog.Info($"已按管理器状态校正 {stateReport.Repaired} 个模组的游戏内启用开关");
+                report.Message($"校正游戏内启用开关 {stateReport.Repaired} 个");
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error(ex, "启用状态对账");
+            report.Message("启用状态对账失败：" + ex.Message);
         }
     }
 

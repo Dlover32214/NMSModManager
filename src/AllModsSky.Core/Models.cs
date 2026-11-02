@@ -79,6 +79,9 @@ public sealed class AppSettings
     public string Theme { get; set; } = "Dark";
     public bool CreateDisableModsFile { get; set; } = true;
 
+    /// <summary>部署后把管理器的启停状态写回 GCMODSETTINGS 的 Enabled（游戏内开关），避免两套状态打架。</summary>
+    public bool SyncEnabledFlags { get; set; } = true;
+
     /// <summary>旧版字段：独立库根目录。新版模组就在 MODS 里，保留仅为格式兼容。</summary>
     public string LibraryPath { get; set; } = "";
 
@@ -96,6 +99,7 @@ public sealed class AppSettings
         NexusApiKey = NexusApiKey,
         Theme = Theme,
         CreateDisableModsFile = CreateDisableModsFile,
+        SyncEnabledFlags = SyncEnabledFlags,
         LibraryPath = LibraryPath,
         BackupOnDeploy = BackupOnDeploy
     };

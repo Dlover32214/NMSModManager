@@ -144,6 +144,11 @@
                             <TextBlock Text="没有启用任何模组时，自动写入 DISABLEMODS.TXT" FontSize="12"
                                        Foreground="{DynamicResource TextMuted}" />
                         </CheckBox>
+                        <CheckBox Style="{StaticResource ToggleSwitch}" Margin="0,12,0,0"
+                                  IsChecked="{Binding SyncEnabledFlags}">
+                            <TextBlock Text="部署后把启停状态写回 GCMODSETTINGS 的 Enabled（游戏内开关），避免两套状态打架"
+                                       FontSize="12" Foreground="{DynamicResource TextMuted}" />
+                        </CheckBox>
                     </StackPanel>
                 </Border>
 

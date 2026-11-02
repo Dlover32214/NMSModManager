@@ -16,6 +16,7 @@ public sealed class SettingsViewModel : ObservableObject, IActivatable
     private string _nexusKey = "";
     private string _amumssPath = "";
     private bool _createDisableModsFile;
+    private bool _syncEnabledFlags;
     private bool _isDirty;
     private string _saveState = "";
     private string _saveInfoText = "还没有读取存档";
@@ -117,6 +118,16 @@ public sealed class SettingsViewModel : ObservableObject, IActivatable
         }
     }
 
+    public bool SyncEnabledFlags
+    {
+        get => _syncEnabledFlags;
+        set
+        {
+            if (!SetProperty(ref _syncEnabledFlags, value)) return;
+            MarkDirty();
+        }
+    }
+
     public bool IsDirty
     {
         get => _isDirty;
@@ -207,6 +218,7 @@ public sealed class SettingsViewModel : ObservableObject, IActivatable
         NexusKey = settings.NexusApiKey;
         AmumssPath = settings.AmumssPath;
         CreateDisableModsFile = settings.CreateDisableModsFile;
+        SyncEnabledFlags = settings.SyncEnabledFlags;
 
         _loading = false;
         IsDirty = false;
@@ -264,6 +276,7 @@ public sealed class SettingsViewModel : ObservableObject, IActivatable
         settings.NexusApiKey = NexusKey.Trim();
         settings.AmumssPath = AmumssPath.Trim();
         settings.CreateDisableModsFile = CreateDisableModsFile;
+        settings.SyncEnabledFlags = SyncEnabledFlags;
 
         if (!_workspace.SaveSettings())
         {

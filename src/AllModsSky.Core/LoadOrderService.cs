@@ -29,6 +29,23 @@ public sealed class LoadOrderApplyResult
     public bool Ok => Error == null && Updated > 0;
 }
 
+/// <summary>一次 Enabled 开关写回的结果。</summary>
+public sealed class LoadOrderEnabledResult
+{
+    /// <summary>真正被改写的条目数。</summary>
+    public int Updated { get; set; }
+
+    /// <summary>管理器里有、但 MXML 里没有条目的模组数（游戏下次启动才会登记，无法写）。</summary>
+    public int Missing { get; set; }
+
+    /// <summary>MXML 里存在该条目、但没有 Enabled 属性的数量。</summary>
+    public int NoField { get; set; }
+
+    public string? Error { get; set; }
+    public string? BackupPath { get; set; }
+    public bool Ok => Error == null;
+}
+
 /// <summary>
 /// 加载顺序：Binaries\SETTINGS\GCMODSETTINGS.MXML 里的 ModPriority。
 /// 只改 ModPriority，Author / ID / Enabled / Dependencies 原样保留。
@@ -107,9 +124,7 @@ public sealed class LoadOrderService
         try
         {
             // File.ReadAllText 会吞掉 BOM，所以 BOM 必须从原始字节判断，否则"保留 BOM"永远不成立
-            var rawBytes = File.ReadAllBytes(file);
-            var hasBom = rawBytes.Length >= 3
-                         && rawBytes[0] == 0xEF && rawBytes[1] == 0xBB && rawBytes[2] == 0xBF;
+            var hasBom = HasBom(file);
             var original = File.ReadAllText(file);
             var priorities = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             for (var i = 0; i < orderedModNames.Count; i++)
@@ -154,22 +169,13 @@ public sealed class LoadOrderService
             var updatedText = builder.ToString();
             if (result.Updated > 0 && !string.Equals(updatedText, original, StringComparison.Ordinal))
             {
-                // 写回前先确认结果仍是合法 XML：正则改坏时宁可报错，也不要把游戏配置写脏
-                try
+                var error = TryWriteSettings(file, updatedText, hasBom, out var backup);
+                if (error != null)
                 {
-                    XDocument.Parse(updatedText);
-                }
-                catch (Exception ex)
-                {
-                    result.Error = "生成的 GCMODSETTINGS.MXML 不是合法 XML，已取消写入：" + ex.Message;
+                    result.Error = error;
                     return result;
                 }
-
-                result.BackupPath = file + ".bak";
-                try { File.Copy(file, result.BackupPath, true); }
-                catch (Exception ex) { AppLog.Warn("备份 GCMODSETTINGS 失败：" + ex.Message); }
-
-                AtomicWrite(file, updatedText, new UTF8Encoding(hasBom));
+                result.BackupPath = backup;
             }
         }
         catch (Exception ex)
@@ -179,6 +185,116 @@ public sealed class LoadOrderService
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// 把 Enabled 开关写回 GCMODSETTINGS.MXML（游戏内开关，与文件夹位置的启停是两套机制）。
+    /// 只改已有条目的 Enabled，不新增/删除条目；同样做 XML 校验、.bak 备份与原子写。
+    /// 键是 MXML 里的 Name（大写、XML 转义形式，可用 <see cref="ToXmlName"/> 生成）。
+    /// </summary>
+    public LoadOrderEnabledResult ApplyEnabledStates(string? gameDir, IReadOnlyDictionary<string, bool> enabledByXmlName)
+    {
+        var result = new LoadOrderEnabledResult();
+        var file = SettingsFile(gameDir);
+
+        if (string.IsNullOrEmpty(file) || !File.Exists(file))
+        {
+            result.Error = "找不到 GCMODSETTINGS.MXML";
+            return result;
+        }
+
+        try
+        {
+            var hasBom = HasBom(file);
+            var original = File.ReadAllText(file);
+            var wanted = new Dictionary<string, bool>(enabledByXmlName, StringComparer.OrdinalIgnoreCase);
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            var builder = new StringBuilder(original.Length + 64);
+            var lastIndex = 0;
+
+            foreach (Match block in BlockRegex.Matches(original))
+            {
+                builder.Append(original, lastIndex, block.Index - lastIndex);
+                lastIndex = block.Index + block.Length;
+
+                var body = block.Value;
+                var nameMatch = NameRegex.Match(body);
+                if (!nameMatch.Success || !wanted.TryGetValue(nameMatch.Groups[1].Value, out var enabled))
+                {
+                    builder.Append(body);
+                    continue;
+                }
+
+                var xmlName = nameMatch.Groups[1].Value;
+                seen.Add(xmlName);
+
+                if (!EnabledRegex.IsMatch(body))
+                {
+                    // 老版本/异常条目没有 Enabled 属性：不猜测、不插入，只统计
+                    result.NoField++;
+                    builder.Append(body);
+                    continue;
+                }
+
+                var replaced = EnabledRegex.Replace(body,
+                    m => "name=\"Enabled\" value=\"" + (enabled ? "true" : "false") + "\"", 1);
+                builder.Append(replaced);
+                if (!string.Equals(replaced, body, StringComparison.Ordinal)) result.Updated++;
+            }
+
+            builder.Append(original, lastIndex, original.Length - lastIndex);
+            result.Missing = wanted.Keys.Count(k => !seen.Contains(k));
+
+            var updatedText = builder.ToString();
+            if (result.Updated > 0 && !string.Equals(updatedText, original, StringComparison.Ordinal))
+            {
+                var error = TryWriteSettings(file, updatedText, hasBom, out var backup);
+                if (error != null)
+                {
+                    result.Error = error;
+                    return result;
+                }
+                result.BackupPath = backup;
+            }
+        }
+        catch (Exception ex)
+        {
+            result.Error = ex.Message;
+            AppLog.Error(ex, "写入启用状态");
+        }
+
+        return result;
+    }
+
+    /// <summary>从原始字节判断 UTF-8 BOM（File.ReadAllText 会吞掉 BOM，不能看字符串首字符）。</summary>
+    private static bool HasBom(string file)
+    {
+        var bytes = File.ReadAllBytes(file);
+        return bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF;
+    }
+
+    /// <summary>写回前校验 XML → 备份 → 原子替换。返回错误文本，成功返回 null。</summary>
+    private static string? TryWriteSettings(string file, string text, bool hasBom, out string? backupPath)
+    {
+        backupPath = null;
+
+        // 正则改坏时宁可报错，也不要把游戏配置写脏
+        try
+        {
+            XDocument.Parse(text);
+        }
+        catch (Exception ex)
+        {
+            return "生成的 GCMODSETTINGS.MXML 不是合法 XML，已取消写入：" + ex.Message;
+        }
+
+        backupPath = file + ".bak";
+        try { File.Copy(file, backupPath, true); }
+        catch (Exception ex) { AppLog.Warn("备份 GCMODSETTINGS 失败：" + ex.Message); }
+
+        AtomicWrite(file, text, new UTF8Encoding(hasBom));
+        return null;
     }
 
     /// <summary>

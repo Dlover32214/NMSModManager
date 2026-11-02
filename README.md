@@ -69,7 +69,8 @@ All Mod's Sky 是一个面向《No Man's Sky》的本地模组管理器。它不
 | 部署同步 | 把界面状态同步到游戏目录，自动维护 `DISABLEMODS.TXT` |
 | 启动模式 | 启动原版（停用全部模组）或启动 Mod 版（恢复上次启用状态）；两者先同步再启动 |
 | 冲突检测 | 扫描 `EXML` / `MBIN` 的路径重叠，按加载顺序判断覆盖关系 |
-| 加载顺序 | 读取/写入 `GCMODSETTINGS.MXML` 的 `ModPriority`，自动备份 |
+| 加载顺序 | 读取/写入 `GCMODSETTINGS.MXML` 的 `ModPriority`，自动备份（UTF-8 BOM / CRLF 原样保留，写入前校验 XML，原子替换） |
+| 启停对账 | 同步后把库里的启停状态写回 `GCMODSETTINGS.MXML` 的 `Enabled`，避免“管理器里关了、游戏里还开着”两套状态打架；游戏运行中自动跳过；可在设置里关闭 |
 | 日志诊断 | 从游戏日志里提取报错，并尝试归因到具体模组 |
 | AMUMSS | 检测 AMUMSS、分析修复方案、调用 `BUILDMOD.bat`、收录输出 |
 | 发现 | Nexus（API Key）与 oogc.cc 的浏览、分页、详情、浏览器跳转、随机抽 10 个（Nexus 不再提供关键词搜索） |
@@ -122,7 +123,9 @@ All Mod's Sky 是一个面向《No Man's Sky》的本地模组管理器。它不
 
 模组库列表的顺序就是加载顺序。列表越靠上，优先级越高；发生冲突时，靠上的模组覆盖靠下的模组。
 
-“同步到游戏”不会自动改 `GCMODSETTINGS.MXML`；需要显式点“应用顺序”，把当前列表顺序写入游戏的加载顺序配置。
+“同步到游戏”只负责搬文件，不会自动改 `ModPriority`；需要显式点“应用顺序”，把当前列表顺序写入游戏的加载顺序配置。
+
+不过“同步到游戏”会把每个模组的启用/停用状态写回 `GCMODSETTINGS.MXML` 的 `Enabled`（设置里的“同步启停状态”默认开启）：游戏本身的 `Enabled` 开关和本程序的启停是两套机制，不写回的话，游戏里被关掉的模组会在管理器里显示为启用。
 
 ### 2.5 5.50+ 的散装模组与旧式 pak
 
@@ -660,7 +663,8 @@ AllModsSky.exe --data "D:\NMSData"
 
 ### 环境
 
-- .NET SDK 8
+- .NET SDK 8 或更高（程序目标框架 `net8.0-windows`，运行时需要 .NET 8 Desktop Runtime）
+- 构建整套解决方案需要 SDK 9.0.200+（`.slnx` 是 9.0.200 起支持的新格式）；只有 SDK 8 时按下面的“分别构建”方式编译
 - Windows 10/11
 - PowerShell（Windows PowerShell 5.1 或 PowerShell 7 均可）
 
@@ -672,6 +676,14 @@ AllModsSky.exe --data "D:\NMSData"
 dotnet build AllModsSky.slnx -c Release
 ```
 
+只有 .NET 8 SDK（不认 `.slnx`）时，分别构建两个项目：
+
+```powershell
+dotnet build src\AllModsSky.Core\AllModsSky.Core.csproj -c Release
+dotnet build src\AllModsSky.App\AllModsSky.App.csproj -c Release
+dotnet build verify\AllModsSky.SelfCheck\AllModsSky.SelfCheck.csproj -c Release
+```
+
 ### 运行
 
 ```powershell
@@ -680,29 +692,24 @@ dotnet run --project src\AllModsSky.App\AllModsSky.App.csproj -c Release
 
 ### 自检
 
-项目自带一个无第三方测试框架的控制台自检程序：
+项目自带一个无第三方测试框架的控制台自检程序（不依赖真实游戏目录，全部在临时目录里构造场景）：
 
 ```powershell
-$env:ALLMODSSKY_DATA = "$PWD\.tmp\selftest"
-dotnet run --project tests\AllModsSky.SelfTest\AllModsSky.SelfTest.csproj -c Release
+dotnet run --project verify\AllModsSky.SelfCheck\AllModsSky.SelfCheck.csproj -c Release
 ```
 
 当前自检覆盖：
 
-- 导入/解压/内容根识别；
-- 启用/停用与文件移动；
-- 外部模组识别/收编；
-- `DISABLEMODS.TXT`；
-- 冲突扫描；
-- 加载顺序读写与备份；
-- AMUMSS 分析/收集；
-- 旧版数据迁移；
-- 其他核心路径。
+- `GCMODSETTINGS.MXML` 读取/写优先级/启用状态写回；
+- UTF-8 BOM、CRLF、`.bak` 备份、原子替换、无残留临时文件；
+- 缺失条目、缺失文件、非法输入的错误处理；
+- 管理器启停状态与游戏 `Enabled` 的对账（含只读预演、游戏运行中跳过）；
+- `MODS` / `MODS_disabled` 搬迁、`DISABLEMODS.TXT`、外部模组识别。
 
 自检结果应为：
 
 ```text
-结果：通过 111，失败 0
+结果：通过 48，失败 0
 ```
 
 ### 发布单文件
@@ -740,6 +747,7 @@ NMSModManager\
 │  │  ├─ VanillaLaunchStore.cs     原版启动状态保存/恢复
 │  │  ├─ ConflictAnalyzer.cs       EXML/MBIN 冲突扫描
 │  │  ├─ LoadOrderService.cs       GCMODSETTINGS.MXML
+│  │  ├─ ModStateService.cs        管理器启停 ↔ 游戏 Enabled 对账
 │  │  ├─ LogDiagnostics.cs         游戏日志诊断
 │  │  ├─ AmumssService.cs          AMUMSS 检测/分析/重建/收集
 │  │  ├─ NexusClient.cs            Nexus API
@@ -756,8 +764,8 @@ NMSModManager\
 │     ├─ Services\                 Dialog / Shell UI / 主题等
 │     ├─ Controls\                 控件辅助
 │     └─ app.ico / app.manifest
-├─ tests\
-│  └─ AllModsSky.SelfTest\         控制台自检（111 项）
+├─ verify\
+│  └─ AllModsSky.SelfCheck\        控制台自检（48 项，无需游戏目录）
 ├─ tools\                          辅助脚本（非程序运行必需）
 ├─ release\                        最终发布产物
 ├─ dist\                           历史构建/临时发布目录
@@ -784,7 +792,7 @@ File system + Game directories
 
 - **Core** 不引用 WPF，方便自检和复用；
 - **App** 只负责界面、对话框、主题和 MVVM 编排；
-- **SelfTest** 直接调用 Core，覆盖文件操作和解析逻辑。
+- **SelfCheck** 直接调用 Core，覆盖文件操作和解析逻辑。
 
 ### 9.2 关键服务
 
@@ -797,6 +805,7 @@ File system + Game directories
 | `DeploymentService` | 启停文件移动、外部模组、`DISABLEMODS.TXT` |
 | `ConflictAnalyzer` | EXML/MBIN 路径与属性冲突 |
 | `LoadOrderService` | 读取/写入 `GCMODSETTINGS.MXML` |
+| `ModStateService` | 管理器启停与游戏内 `Enabled` 开关对账 |
 | `LogDiagnostics` | 日志错误提取与模组归因 |
 | `AmumssService` | AMUMSS 检测、重建、收录 |
 | `NexusClient` / `OogcClient` | 网络资源列表/详情 |
