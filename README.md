@@ -1,4 +1,4 @@
-# All Mod's Sky 2.0.6
+# All Mod's Sky 2.0.8
 
 [English](README.en.md) | **简体中文**
 
@@ -678,7 +678,7 @@ AllModsSky.exe --data "D:\NMSData"
 
 对外发版时再补两样（不参与构建）：
 
-- `release\AllModsSky-2.0.6-win-x64.zip`
+- `release\AllModsSky-2.0.8-win-x64.zip`
 - `release\README.txt`（快速上手版）
 
 ---
@@ -687,7 +687,7 @@ AllModsSky.exe --data "D:\NMSData"
 
 ### 环境
 
-- .NET SDK **10.0.403**——仓库根的 `global.json` 钉住这个版本（`rollForward: latestPatch`，同档补丁号可用）
+- .NET SDK **10.0.201**——仓库根的 `global.json` 钉住这个版本（`rollForward: latestFeature`，同档补丁号可用）
 - Windows 10/11
 - PowerShell 7（`pwsh`）——只有构建脚本要求；手打 `dotnet` 命令在任意终端都行
 
@@ -703,6 +703,7 @@ pwsh -File .\build.ps1 -SelfContained   # 连 .NET 运行时一起打包，约 1
 脚本依次做三件事：编译 → 清空并发布到 `release\publish` → 打印产物路径与体积。
 
 - `.slnx` 需要 .NET 9+ SDK，脚本按 `dotnet --version` 的主版本号判断，低于 9 就直接编 `AllModsSky.App.csproj`，不用手动改
+- 单文件发布建议用 .NET 8 SDK：脚本检测到当前是 10 且机器装有 8.0.x 时，会在临时 `global.json` 下切到 8 发布；没有 8 会提示安装
 - 构建前会拦两件事：`dotnet` 不在 PATH、`AllModsSky.exe` 正在运行（exe 被锁住，清理和覆盖都会失败）
 - 默认结束前停一下等回车，方便直接看结果；给终端/CI 用加 `-NoPause`
 
@@ -745,7 +746,8 @@ dotnet publish src\AllModsSky.App\AllModsSky.App.csproj `
 ```text
 NMSModManager\
 ├─ AllModsSky.slnx                 解决方案
-├─ global.json                     钉住 .NET SDK 版本（10.0.403）
+├─ global.json                     钉住 .NET SDK 版本（10.0.201）
+├─ Directory.Build.props           全项目唯一版本号（AppVersion）
 ├─ build.ps1                       一键构建（PowerShell 7）
 ├─ README.md                       中文说明（默认）
 ├─ README.en.md                    English README
@@ -757,6 +759,7 @@ NMSModManager\
 │  │  │  └─ Models.cs              模组/配置/设置/游戏信息模型
 │  │  ├─ Infrastructure\           与业务无关的底座
 │  │  │  ├─ Infrastructure.cs      AppPaths / JsonStore / FileOps / 日志
+│  │  │  ├─ AppInfo.cs             从程序集读取版本（唯一运行时版本入口）
 │  │  │  ├─ PathGuard.cs           按磁盘枚举定位条目（不拼路径）
 │  │  │  ├─ TextLimit.cs           按「字」截断文本
 │  │  │  ├─ VersionParser.cs       游戏版本号解析

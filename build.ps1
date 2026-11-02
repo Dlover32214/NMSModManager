@@ -52,6 +52,50 @@ function Write-Step {
     Write-Host "▸ $Text" -ForegroundColor Cyan
 }
 
+<#
+    .NET 10 SDK 做 net8.0 的“单文件发布”时，仍会去找 8.0.x 的 ILLink targets，
+    在只装了 10 的机器上会报 MSB4019。编译继续用 10（能读 .slnx），
+    发布则临时切到已安装的 8.0.x SDK；两件事互不影响。
+#>
+function Invoke-Publish {
+    param([string[]]$Arguments)
+
+    if ($sdkMajor -lt 9) {
+        & dotnet @Arguments | Out-Host
+        return $LASTEXITCODE
+    }
+
+    $sdk8Line = (& dotnet --list-sdks | Where-Object { $_ -match '^8\.0\.' } | Select-Object -First 1)
+    if (-not $sdk8Line) {
+        Write-Host '  未找到 .NET 8 SDK，尝试直接用当前 SDK 发布；若报 MSB4019，请安装 .NET 8 SDK。' -ForegroundColor Yellow
+        & dotnet @Arguments | Out-Host
+        return $LASTEXITCODE
+    }
+
+    $sdk8Version = ($sdk8Line -split '\s+')[0]
+    $temp = Join-Path ([System.IO.Path]::GetTempPath()) ('allmodssky-sdk8-' + [Guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Path $temp -Force | Out-Null
+
+    try {
+        @{ sdk = @{ version = $sdk8Version; rollForward = 'latestPatch' } } |
+            ConvertTo-Json -Compress |
+            Set-Content -LiteralPath (Join-Path $temp 'global.json') -Encoding utf8
+
+        Push-Location -LiteralPath $temp
+        try {
+            Write-Host "  发布使用 .NET SDK $sdk8Version（临时 global.json）" -ForegroundColor DarkGray
+            & dotnet @Arguments | Out-Host
+            return $LASTEXITCODE
+        }
+        finally {
+            Pop-Location
+        }
+    }
+    finally {
+        Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
 Write-Host "All Mod's Sky · 构建" -ForegroundColor White
 Write-Host "  输出目录  $outDir"
 Write-Host "  运行方式  $(if ($SelfContained) { '自带运行时（self-contained）' } else { '框架依赖（需 .NET 8 Desktop Runtime）' })"
@@ -113,8 +157,8 @@ foreach ($a in @(
     $publishArgs.Add($a)
 }
 
-& dotnet @publishArgs
-if ($LASTEXITCODE -ne 0) { Stop-Build "发布失败（exit $LASTEXITCODE）" }
+$publishExit = Invoke-Publish $publishArgs.ToArray()
+if ($publishExit -ne 0) { Stop-Build "发布失败（exit $publishExit）" }
 
 if (-not (Test-Path -LiteralPath $exe)) {
     Stop-Build "发布跑完了，但没找到 $exe"

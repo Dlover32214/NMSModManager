@@ -1,4 +1,4 @@
-# All Mod's Sky 2.0.6
+# All Mod's Sky 2.0.8
 
 [简体中文](README.md) | **English**
 
@@ -678,7 +678,7 @@ Produced by the build script:
 
 Added when cutting a public release (not part of the build):
 
-- `release\AllModsSky-2.0.6-win-x64.zip`
+- `release\AllModsSky-2.0.8-win-x64.zip`
 - `release\README.txt` (quick-start guide)
 - `README.en.md` (this full guide)
 
@@ -688,7 +688,7 @@ Added when cutting a public release (not part of the build):
 
 ### Environment
 
-- .NET SDK 8 (8.0.4xx is fine; a .NET 9/10 SDK also works — the script picks the right target)
+- .NET SDK **10.0.201** (pinned by `global.json` with `rollForward: latestFeature`; later patches in the same band are accepted)
 - Windows 10/11
 - PowerShell 7 (`pwsh`) — required only by the build script; raw `dotnet` commands work in any terminal
 
@@ -704,6 +704,7 @@ pwsh -File .\build.ps1 -SelfContained   # bundles the .NET runtime, ~140 MB
 The script compiles, wipes and publishes to `release\publish`, then prints the artifact path and size.
 
 - `.slnx` needs a .NET 9+ SDK. The script checks the major version of `dotnet --version` and falls back to building `AllModsSky.App.csproj` directly below 9, so no manual switching is needed.
+- Single-file publish is best done with the .NET 8 SDK. If the current SDK is 10 and an 8.0.x SDK is installed, the script publishes under a temporary `global.json`; otherwise it tells you to install SDK 8.
 - Two preflight guards: `dotnet` missing from PATH, and `AllModsSky.exe` still running (the exe is locked, so cleanup and overwrite would both fail).
 - It pauses before exiting so you can read the result; pass `-NoPause` for terminals and CI.
 
@@ -746,7 +747,8 @@ dotnet publish src\AllModsSky.App\AllModsSky.App.csproj `
 ```text
 NMSModManager\
 ├─ AllModsSky.slnx                 solution
-├─ global.json                     pins the .NET SDK version (10.0.403)
+├─ global.json                     pins the .NET SDK version (10.0.201)
+├─ Directory.Build.props           single source of the app version (AppVersion)
 ├─ build.ps1                       one-command build (PowerShell 7)
 ├─ README.md                       Chinese README (default)
 ├─ README.en.md                    English README
@@ -758,6 +760,7 @@ NMSModManager\
 │  │  │  └─ Models.cs              mod/profile/settings/game-info models
 │  │  ├─ Infrastructure\           business-agnostic foundation
 │  │  │  ├─ Infrastructure.cs      AppPaths / JsonStore / FileOps / logging
+│  │  │  ├─ AppInfo.cs             assembly-backed version helper (single runtime entry)
 │  │  │  ├─ PathGuard.cs           locate entries by directory enumeration
 │  │  │  ├─ TextLimit.cs           truncate by text elements
 │  │  │  ├─ VersionParser.cs       game version parsing

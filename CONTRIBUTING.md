@@ -52,7 +52,7 @@
 pwsh -File ./build.ps1
 ```
 
-需要 PowerShell 7，以及 `global.json` 钉住的 .NET SDK **10.0.403**（`rollForward: latestPatch`，同档补丁号可用）。产物在 `release/publish/AllModsSky.exe`。
+需要 PowerShell 7，以及 `global.json` 钉住的 .NET SDK **10.0.201**（`rollForward: latestFeature`，同档补丁号可用）。产物在 `release/publish/AllModsSky.exe`。
 
 ---
 
