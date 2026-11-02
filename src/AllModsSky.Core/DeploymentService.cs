@@ -88,12 +88,16 @@ public sealed class DeploymentService
             return report;
         }
 
+        // 索引里只放磁盘上真实存在的条目，后面所有定位都从这里查，不拼路径。
+        var modsIndex = PathGuard.IndexEntries(modsDir);
+        var parkedIndex = PathGuard.IndexEntries(parkedDir);
+
         foreach (var record in mods)
         {
             try
             {
-                if (record.IsLegacyPak) SyncPak(record, modsDir, parkedDir, report);
-                else SyncFolder(record, modsDir, parkedDir, report);
+                if (record.IsLegacyPak) SyncPak(record, modsDir, parkedDir, modsIndex, report);
+                else SyncFolder(record, modsDir, parkedDir, modsIndex, parkedIndex, report);
             }
             catch (Exception ex)
             {
@@ -107,27 +111,41 @@ public sealed class DeploymentService
         return report;
     }
 
-    private static void SyncFolder(ModRecord record, string modsDir, string parkedDir, DeployReport report)
+    private static void SyncFolder(
+        ModRecord record, string modsDir, string parkedDir,
+        Dictionary<string, PathGuard.Entry> modsIndex,
+        Dictionary<string, PathGuard.Entry> parkedIndex,
+        DeployReport report)
     {
         var key = record.EffectiveFolder;
-        var live = Path.Combine(modsDir, key);
-        var parked = Path.Combine(parkedDir, key);
 
-        var hasLive = Directory.Exists(live);
-        var hasParked = Directory.Exists(parked);
+        if (!PathGuard.IsSafeSegment(key))
+        {
+            report.Failed++;
+            report.Message($"{record.Name}：目录名非法，已跳过（{PathGuard.Describe(key)}）");
+            AppLog.Warn($"跳过非法目录名：{PathGuard.Describe(key)}");
+            return;
+        }
+
+        // 只认磁盘上真实存在的目录：索引里的名字匹配不上，就等于不存在。
+        var live = modsIndex.TryGetValue(key, out var liveEntry) && liveEntry.IsDirectory ? liveEntry.Path : null;
+        var parked = parkedIndex.TryGetValue(key, out var parkedEntry) && parkedEntry.IsDirectory ? parkedEntry.Path : null;
 
         if (record.Enabled)
         {
-            if (hasLive)
+            if (live != null)
             {
-                if (hasParked) FileOps.TryDeleteDirectory(parked); // 以 MODS 里的副本为准
+                if (parked != null) FileOps.TryDeleteDirectory(parked); // 以 MODS 里的副本为准
                 report.Unchanged++;
                 return;
             }
 
-            if (hasParked)
+            if (parked != null)
             {
-                FileOps.MoveDirectory(parked, live);
+                var target = Path.Combine(modsDir, key);
+                FileOps.MoveDirectory(parked, target);
+                parkedIndex.Remove(key);
+                modsIndex[key] = new PathGuard.Entry(target, true);
                 report.Added++;
                 return;
             }
@@ -137,16 +155,19 @@ public sealed class DeploymentService
             return;
         }
 
-        if (hasParked && !hasLive)
+        if (parked != null && live == null)
         {
             report.Unchanged++;
             return;
         }
 
-        if (hasLive)
+        if (live != null)
         {
-            if (hasParked) FileOps.TryDeleteDirectory(parked);
-            FileOps.MoveDirectory(live, parked);
+            if (parked != null) FileOps.TryDeleteDirectory(parked);
+            var target = Path.Combine(parkedDir, key);
+            FileOps.MoveDirectory(live, target);
+            modsIndex.Remove(key);
+            parkedIndex[key] = new PathGuard.Entry(target, true);
             report.Removed++;
             return;
         }
@@ -155,39 +176,60 @@ public sealed class DeploymentService
         report.Message($"{record.Name}：目录不存在（{key}）");
     }
 
-    private static void SyncPak(ModRecord record, string modsDir, string parkedDir, DeployReport report)
+    private static void SyncPak(
+        ModRecord record, string modsDir, string parkedDir,
+        Dictionary<string, PathGuard.Entry> modsIndex,
+        DeployReport report)
     {
         var key = record.EffectiveFolder;
-        var parkedFolder = Path.Combine(parkedDir, key);
-        var stagingFolder = Path.Combine(modsDir, key);
+
+        if (!PathGuard.IsSafeSegment(key))
+        {
+            report.Failed++;
+            report.Message($"{record.Name}：目录名非法，已跳过（{PathGuard.Describe(key)}）");
+            AppLog.Warn($"跳过非法目录名：{PathGuard.Describe(key)}");
+            return;
+        }
+
+        // 子目录是否存在也从磁盘枚举，不靠拼接判断。
+        var parkedFolder = PathGuard.FindExisting(parkedDir, key);
+        var stagingFolder = PathGuard.FindExisting(modsDir, key);
+        var parkedTarget = parkedFolder ?? Path.Combine(parkedDir, key);
+        var stagingTarget = stagingFolder ?? Path.Combine(modsDir, key);
 
         foreach (var relative in record.PakFiles)
         {
             var fileName = Path.GetFileName(relative);
-            if (string.IsNullOrWhiteSpace(fileName)) continue;
+            if (!PathGuard.IsSafeSegment(fileName)) continue;
 
-            var live = Path.Combine(modsDir, fileName);
-            var parked = Path.Combine(parkedFolder, fileName);
-            var staged = Path.Combine(stagingFolder, fileName);
+            // MODS 根下的散装 pak 从索引里查
+            var live = modsIndex.TryGetValue(fileName, out var liveEntry) && !liveEntry.IsDirectory
+                ? liveEntry.Path
+                : null;
+
+            var parked = parkedFolder == null ? null : PathGuard.FindExisting(parkedFolder, fileName, wantFile: true);
+            var staged = stagingFolder == null ? null : PathGuard.FindExisting(stagingFolder, fileName, wantFile: true);
 
             if (record.Enabled)
             {
-                if (File.Exists(live))
+                if (live != null)
                 {
                     report.Unchanged++;
                     continue;
                 }
 
-                if (File.Exists(parked))
+                var target = Path.Combine(modsDir, fileName);
+
+                if (parked != null)
                 {
-                    FileOps.MoveFile(parked, live);
+                    FileOps.MoveFile(parked, target);
                     report.Added++;
                     continue;
                 }
 
-                if (File.Exists(staged))
+                if (staged != null)
                 {
-                    FileOps.MoveFile(staged, live);
+                    FileOps.MoveFile(staged, target);
                     report.Added++;
                     continue;
                 }
@@ -197,13 +239,13 @@ public sealed class DeploymentService
                 continue;
             }
 
-            if (File.Exists(parked))
+            if (parked != null)
             {
                 report.Unchanged++;
                 continue;
             }
 
-            var source = File.Exists(live) ? live : File.Exists(staged) ? staged : null;
+            var source = live ?? staged;
             if (source == null)
             {
                 report.Missing++;
@@ -211,19 +253,19 @@ public sealed class DeploymentService
                 continue;
             }
 
-            Directory.CreateDirectory(parkedFolder);
-            FileOps.MoveFile(source, parked);
+            Directory.CreateDirectory(parkedTarget);
+            FileOps.MoveFile(source, Path.Combine(parkedTarget, fileName));
             report.Removed++;
         }
 
         // 清理空的临时目录
-        if (Directory.Exists(stagingFolder) &&
-            !Directory.EnumerateFileSystemEntries(stagingFolder).Any())
-            FileOps.TryDeleteDirectory(stagingFolder);
+        if (Directory.Exists(stagingTarget) &&
+            !Directory.EnumerateFileSystemEntries(stagingTarget).Any())
+            FileOps.TryDeleteDirectory(stagingTarget);
 
-        if (Directory.Exists(parkedFolder) &&
-            !Directory.EnumerateFileSystemEntries(parkedFolder).Any())
-            FileOps.TryDeleteDirectory(parkedFolder);
+        if (Directory.Exists(parkedTarget) &&
+            !Directory.EnumerateFileSystemEntries(parkedTarget).Any())
+            FileOps.TryDeleteDirectory(parkedTarget);
     }
 
     public static void ApplyDisableModsFlag(string gameDir, bool createWhenAllDisabled, bool anyEnabled)
@@ -255,10 +297,19 @@ public sealed class DeploymentService
         var parkedDir = GameLocator.ParkedDir(gameDir);
         var key = record.EffectiveFolder;
 
+        if (PathGuard.HasPathSeparator(key)) return ModPresence.Missing;
+
+        // 存在性来自磁盘枚举，而不是拼接后 Directory.Exists。
+        var liveFolder = PathGuard.FindExisting(modsDir, key);
+        var parkedFolder = PathGuard.FindExisting(parkedDir, key);
+
         if (record.IsLegacyPak)
         {
-            var live = record.PakFiles.Any(p => File.Exists(Path.Combine(modsDir, Path.GetFileName(p))));
-            var parked = record.PakFiles.Any(p => File.Exists(Path.Combine(parkedDir, key, Path.GetFileName(p))));
+            var live = record.PakFiles.Any(p =>
+                PathGuard.FindExisting(modsDir, Path.GetFileName(p), wantFile: true) != null);
+            var parked = parkedFolder != null && record.PakFiles.Any(p =>
+                PathGuard.FindExisting(parkedFolder, Path.GetFileName(p), wantFile: true) != null);
+
             return (live, parked) switch
             {
                 (true, true) => ModPresence.Both,
@@ -268,9 +319,7 @@ public sealed class DeploymentService
             };
         }
 
-        var hasLive = Directory.Exists(Path.Combine(modsDir, key));
-        var hasParked = Directory.Exists(Path.Combine(parkedDir, key));
-        return (hasLive, hasParked) switch
+        return (liveFolder != null, parkedFolder != null) switch
         {
             (true, true) => ModPresence.Both,
             (true, false) => ModPresence.InMods,
@@ -344,15 +393,29 @@ public sealed class DeploymentService
         Directory.CreateDirectory(modsDir);
         Directory.CreateDirectory(parkedDir);
 
-        var source = Path.Combine(enable ? parkedDir : modsDir, external.Name);
-        var target = Path.Combine(enable ? modsDir : parkedDir, external.Name);
+        if (!PathGuard.IsSafeSegment(external.Name))
+            throw new InvalidOperationException("模组名非法：" + PathGuard.Describe(external.Name));
 
-        if (!Directory.Exists(source) && !File.Exists(source))
+        var sourceDir = enable ? parkedDir : modsDir;
+        var targetDir = enable ? modsDir : parkedDir;
+
+        // 源和目标都只认磁盘上真实存在的条目
+        var source = PathGuard.FindExisting(sourceDir, external.Name)
+                     ?? PathGuard.FindExisting(sourceDir, external.Name, wantFile: true);
+
+        if (source == null)
             throw new InvalidOperationException("找不到：" + external.Name);
 
-        if (Directory.Exists(target)) Directory.Delete(target, true);
-        else if (File.Exists(target)) File.Delete(target);
+        var existingTarget = PathGuard.FindExisting(targetDir, external.Name)
+                             ?? PathGuard.FindExisting(targetDir, external.Name, wantFile: true);
 
+        if (existingTarget != null)
+        {
+            if (Directory.Exists(existingTarget)) Directory.Delete(existingTarget, true);
+            else File.Delete(existingTarget);
+        }
+
+        var target = Path.Combine(targetDir, external.Name);
         if (Directory.Exists(source)) FileOps.MoveDirectory(source, target);
         else FileOps.MoveFile(source, target);
     }
@@ -362,8 +425,10 @@ public sealed class DeploymentService
     {
         var modsDir = GameLocator.ModsDir(gameDir);
         var parkedDir = GameLocator.ParkedDir(gameDir);
-        var livePath = Path.Combine(modsDir, external.Name);
-        var parkedPath = Path.Combine(parkedDir, external.Name);
+        var livePath = PathGuard.FindExisting(modsDir, external.Name)
+                       ?? PathGuard.FindExisting(modsDir, external.Name, wantFile: true);
+        var parkedPath = PathGuard.FindExisting(parkedDir, external.Name)
+                         ?? PathGuard.FindExisting(parkedDir, external.Name, wantFile: true);
 
         if (!Directory.Exists(livePath) && !Directory.Exists(parkedPath) && !File.Exists(livePath) && !File.Exists(parkedPath))
             throw new InvalidOperationException("找不到要收编的模组");
@@ -391,7 +456,8 @@ public sealed class DeploymentService
         }
         else
         {
-            var folder = enabled ? livePath : parkedPath;
+            var folder = (enabled ? livePath : parkedPath)
+                         ?? throw new InvalidOperationException("找不到要收编的模组");
             size = FileOps.DirSize(folder);
             pakFiles = DetectLegacyPaks(folder);
             folderName = external.Name;
@@ -442,7 +508,7 @@ public sealed class DeploymentService
         return hasExmlOrMbin || hasNested ? new List<string>() : paks;
     }
 
-    /// <summary>删除模组的实际文件（MODS 与停用区里的副本）。</summary>
+    /// <summary>删除模组的实际文件（MODS 与停用区里的副本）。只删磁盘上真实枚举到的条目。</summary>
     public void DeleteFiles(string gameDir, ModRecord record)
     {
         if (string.IsNullOrWhiteSpace(gameDir) || !GameLocator.IsValid(gameDir)) return;
@@ -451,21 +517,39 @@ public sealed class DeploymentService
         var parkedDir = GameLocator.ParkedDir(gameDir);
         var key = record.EffectiveFolder;
 
+        if (PathGuard.HasPathSeparator(key))
+        {
+            AppLog.Warn($"跳过非法目录名，未删除任何文件：{PathGuard.Describe(key)}");
+            return;
+        }
+
+        // 删除目标一律来自枚举结果，绝不使用拼接路径。
+        var live = PathGuard.FindExisting(modsDir, key);
+        var parked = PathGuard.FindExisting(parkedDir, key);
+
         if (record.IsLegacyPak)
         {
             foreach (var pak in record.PakFiles)
             {
                 var name = Path.GetFileName(pak);
-                if (string.IsNullOrEmpty(name)) continue;
-                FileOps.TryDeleteFile(Path.Combine(modsDir, name));
-                FileOps.TryDeleteFile(Path.Combine(parkedDir, key, name));
+                if (!PathGuard.IsSafeSegment(name)) continue;
+
+                var liveFile = PathGuard.FindExisting(modsDir, name, wantFile: true);
+                if (liveFile != null) FileOps.TryDeleteFile(liveFile);
+
+                if (parked != null)
+                {
+                    var parkedFile = PathGuard.FindExisting(parked, name, wantFile: true);
+                    if (parkedFile != null) FileOps.TryDeleteFile(parkedFile);
+                }
             }
-            FileOps.TryDeleteDirectory(Path.Combine(parkedDir, key));
-            FileOps.TryDeleteDirectory(Path.Combine(modsDir, key));
+
+            if (parked != null) FileOps.TryDeleteDirectory(parked);
+            if (live != null) FileOps.TryDeleteDirectory(live);
             return;
         }
 
-        FileOps.TryDeleteDirectory(Path.Combine(modsDir, key));
-        FileOps.TryDeleteDirectory(Path.Combine(parkedDir, key));
+        if (live != null) FileOps.TryDeleteDirectory(live);
+        if (parked != null) FileOps.TryDeleteDirectory(parked);
     }
 }

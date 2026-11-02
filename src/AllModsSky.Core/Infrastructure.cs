@@ -226,6 +226,45 @@ public static class JsonStore
         return string.IsNullOrWhiteSpace(text) ? null : Deserialize<T>(text);
     }
 
+    /// <summary>
+    /// 区分「文件不存在」「解析失败」的读取。返回 false 表示文件存在但内容无法解析（损坏）；
+    /// fileExists 用于区分首次运行与损坏两种情况。
+    /// </summary>
+    public static bool TryLoad<T>(string path, out T? value, out bool fileExists) where T : class
+    {
+        value = null;
+        fileExists = false;
+
+        string? text;
+        try
+        {
+            if (!File.Exists(path)) return true;
+            fileExists = true;
+            text = File.ReadAllText(path);
+        }
+        catch (Exception ex)
+        {
+            // 读不到不等于损坏（可能是权限/占用），交给调用方按「文件不存在」处理。
+            AppLog.Warn($"读取失败 {path}：{ex.Message}");
+            fileExists = false;
+            return true;
+        }
+
+        // 0 字节通常是被截断：断电或写入未落盘。
+        if (string.IsNullOrWhiteSpace(text)) return false;
+
+        try
+        {
+            value = JsonSerializer.Deserialize<T>(text, Options);
+            return value != null;
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn("JSON 解析失败：" + ex.Message);
+            return false;
+        }
+    }
+
     public static string? ReadText(string path)
     {
         try
@@ -248,7 +287,15 @@ public static class JsonStore
         if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
 
         var tmp = path + ".tmp";
-        File.WriteAllText(tmp, text, new UTF8Encoding(false));
+
+        // 显式 fsync：File.WriteAllText 不保证落盘，断电后会留下 0 字节文件。
+        using (var fs = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None))
+        using (var writer = new StreamWriter(fs, new UTF8Encoding(false)))
+        {
+            writer.Write(text);
+            writer.Flush();
+            fs.Flush(true);
+        }
 
         if (File.Exists(path))
         {
@@ -283,9 +330,21 @@ public static class FileOps
         catch (IOException) { }
         catch (UnauthorizedAccessException) { }
 
-        if (Directory.Exists(dst)) Directory.Delete(dst, true);
-        CopyTree(src, dst);
-        Directory.Delete(src, true);
+        // 跨卷：先完整复制到暂存目录，成功后再替换目标、最后删源。
+        // 反过来（先删 dst 再复制）在复制中途失败时会两头都残缺。
+        var staging = dst + ".nmsmm_tmp";
+        try
+        {
+            TryDeleteDirectory(staging);
+            CopyTree(src, staging);
+            if (Directory.Exists(dst)) Directory.Delete(dst, true);
+            Directory.Move(staging, dst);
+            Directory.Delete(src, true);
+        }
+        finally
+        {
+            TryDeleteDirectory(staging);
+        }
     }
 
     public static void MoveFile(string src, string dst)
@@ -321,7 +380,23 @@ public static class FileOps
         foreach (var dir in Directory.EnumerateDirectories(source))
         {
             if (skip != null && skip(dir)) continue;
+
+            // 不跟随 junction / 符号链接：否则可能一路复制到系统目录，或陷入递归。
+            if (IsReparsePoint(dir)) continue;
+
             CopyTree(dir, Path.Combine(dest, Path.GetFileName(dir)), skip);
+        }
+    }
+
+    private static bool IsReparsePoint(string path)
+    {
+        try
+        {
+            return (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
+        }
+        catch
+        {
+            return true; // 读不到属性时按「不安全」处理，跳过
         }
     }
 

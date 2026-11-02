@@ -52,13 +52,9 @@ public sealed class Workspace : IDisposable
         if (!Game.IsValid || record.IsLegacyPak) return null;
 
         var key = record.EffectiveFolder;
-        var live = Path.Combine(ModsDir, key);
-        if (Directory.Exists(live)) return live;
 
-        var parked = Path.Combine(ParkedDir, key);
-        if (Directory.Exists(parked)) return parked;
-
-        return null;
+        // 只在磁盘上真实存在的目录里找，不拼路径。
+        return PathGuard.FindExisting(ModsDir, key) ?? PathGuard.FindExisting(ParkedDir, key);
     }
 
     public void Dispose()

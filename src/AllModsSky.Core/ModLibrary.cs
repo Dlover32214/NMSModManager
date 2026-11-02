@@ -9,11 +9,40 @@ public sealed class ModLibrary
     public string? LoadMessage { get; private set; }
     public string? LastSaveError { get; private set; }
 
+    private bool _corrupt;
+
+    /// <summary>本次加载发现 library.json 损坏，写盘被锁定，直到 UI 确认。</summary>
+    public bool IsCorrupt => _corrupt;
+
+    /// <summary>用户确认「以空库继续」后解锁写入。</summary>
+    public void AcknowledgeCorruption() => _corrupt = false;
+
     public void Load()
     {
         _mods.Clear();
+        _corrupt = false;
+        LoadMessage = null;
 
-        var state = JsonStore.Load<LibraryState>(AppPaths.DataFile);
+        // 解析失败时先备份原文件并锁死写入，避免空列表被 Save() 覆盖回去。
+        if (!JsonStore.TryLoad<LibraryState>(AppPaths.DataFile, out var state, out _))
+        {
+            var backup = NextBackupPath();
+            try
+            {
+                File.Move(AppPaths.DataFile, backup);
+                AppLog.Warn("library.json 无法解析，已备份到 " + backup);
+            }
+            catch (Exception ex)
+            {
+                AppLog.Error(ex, "备份损坏的 library.json");
+                backup = AppPaths.DataFile;
+            }
+
+            _corrupt = true;
+            LoadMessage = $"library.json 无法解析，已备份到 {backup}。本次以空库启动，不会覆盖原文件。";
+            return;
+        }
+
         var migrated = false;
 
         if (state == null)
@@ -43,8 +72,27 @@ public sealed class ModLibrary
         if (state == null) LoadMessage ??= "这是第一次运行，模组库为空";
     }
 
+    /// <summary>损坏备份名：backup_library_20261102125300.json.bak，与 library.json 同目录。</summary>
+    private static string NextBackupPath()
+    {
+        var dir = Path.GetDirectoryName(AppPaths.DataFile) ?? AppPaths.Root;
+        var stamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+        var path = Path.Combine(dir, $"backup_library_{stamp}.json.bak");
+
+        for (var n = 2; File.Exists(path); n++)
+            path = Path.Combine(dir, $"backup_library_{stamp}_{n}.json.bak");
+
+        return path;
+    }
+
     public bool Save()
     {
+        if (_corrupt)
+        {
+            LastSaveError = "模组库处于损坏保护状态，已跳过写入";
+            return false;
+        }
+
         try
         {
             AppPaths.Ensure();
@@ -82,9 +130,14 @@ public sealed class ModLibrary
                 fixes++;
             }
 
-            if (string.IsNullOrWhiteSpace(record.FolderName))
+            // 磁盘上的目录名一定是 SafeFileName 净化过的；旧索引里的 FolderName 可能还带 : ? * 等字符，
+            // 两边不统一就永远匹配不上，模组在界面上会变成「不存在」。
+            var desiredFolder = FileOps.SafeFileName(
+                string.IsNullOrWhiteSpace(record.FolderName) ? record.Name : record.FolderName, 80);
+
+            if (!string.Equals(desiredFolder, record.FolderName, StringComparison.Ordinal))
             {
-                record.FolderName = FileOps.SafeFileName(record.Name, 80);
+                record.FolderName = desiredFolder;
                 fixes++;
             }
 

@@ -217,7 +217,17 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
 
             _initialized = true;
 
-            if (!string.IsNullOrEmpty(loadMessage)) ShowToast(loadMessage, true);
+            // 库损坏时写入被锁死，必须让用户明确知道，否则会以为程序坏了、且永远存不进去。
+            if (_workspace.Library.IsCorrupt)
+            {
+                Confirm("模组库损坏", loadMessage ?? "library.json 无法解析。", "以空库继续");
+                _workspace.Library.AcknowledgeCorruption();
+            }
+            else if (!string.IsNullOrEmpty(loadMessage))
+            {
+                ShowToast(loadMessage, true);
+            }
+
             if (!_workspace.Game.IsValid)
                 ShowToast("没找到游戏目录，请到「设置」里指定", false);
 
