@@ -14,6 +14,7 @@
             <Setter Property="Padding" Value="0" />
             <Setter Property="Margin" Value="0,0,0,4" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <EventSetter Event="PreviewMouseLeftButtonDown" Handler="PoolRow_PreviewMouseLeftButtonDown" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
@@ -40,6 +41,7 @@
 
     <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -91,16 +93,39 @@
             </StackPanel>
 
             <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
-                <Button Style="{StaticResource GhostButton}" Content="全部加入配置"
-                        Command="{Binding AddAllCommand}" Margin="0,0,6,0"
-                        ToolTip="把还没进当前配置的模组一次性加进去" />
+                <Button Style="{StaticResource GhostButton}" Content="{Binding BatchButtonText}"
+                        Command="{Binding ToggleBatchCommand}" Margin="0,0,6,0"
+                        ToolTip="批量选取后可以一次加入配置或一次移出模组库" />
                 <Button Style="{StaticResource GhostButton}" Content="{Binding ExternalButtonText}"
                         Command="{Binding ToggleExternalPanelCommand}" />
             </StackPanel>
         </Grid>
 
+        <!-- 批量条 -->
+        <Border Grid.Row="2" Style="{StaticResource CardSoft}" Padding="12,8" Margin="0,0,0,10"
+                Visibility="{Binding ShowBatchBar, Converter={StaticResource BoolToVisibility}}">
+            <Grid>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding SelectedText}" FontSize="12" FontWeight="SemiBold"
+                               VerticalAlignment="Center" Margin="0,0,14,0" />
+                    <Button Style="{StaticResource GhostButton}" Content="全选" Padding="11,5"
+                            ToolTip="选中当前搜索/筛选结果里的全部模组"
+                            Command="{Binding SelectAllCommand}" />
+                    <Button Style="{StaticResource GhostButton}" Content="加入配置" Padding="11,5" Margin="4,0,0,0"
+                            Command="{Binding BatchAddCommand}" />
+                    <Button Style="{StaticResource GhostButton}" Content="移出模组库" Padding="11,5" Margin="4,0,0,0"
+                            ToolTip="文件移到 MODS_disabled，不会删除"
+                            Foreground="{DynamicResource Danger}"
+                            Command="{Binding BatchRemoveCommand}" />
+                </StackPanel>
+                <Button Style="{StaticResource LinkButton}" Content="取消选择"
+                        HorizontalAlignment="Right" VerticalAlignment="Center"
+                        Command="{Binding ClearSelectionCommand}" />
+            </Grid>
+        </Border>
+
         <!-- 外部模组 -->
-        <Border Grid.Row="2" Style="{StaticResource CardSoft}" Padding="14,12" Margin="0,0,0,10"
+        <Border Grid.Row="3" Style="{StaticResource CardSoft}" Padding="14,12" Margin="0,0,0,10"
                 Visibility="{Binding ShowExternal, Converter={StaticResource BoolToVisibility}}">
             <StackPanel>
                 <Grid Margin="0,0,0,7">
@@ -151,7 +176,7 @@
         </Border>
 
         <!-- 列表 -->
-        <Grid Grid.Row="3">
+        <Grid Grid.Row="4">
             <ListBox Style="{StaticResource PlainListBox}"
                      ItemsSource="{Binding View}"
                      ItemContainerStyle="{StaticResource PoolRowContainer}"
@@ -162,64 +187,88 @@
 
                 <ListBox.ItemTemplate>
                     <DataTemplate DataType="{x:Type vm:PoolItemViewModel}">
-                        <Grid Height="60">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
+                        <!-- 批量模式下选中行整块高亮，不额外加勾选框 -->
+                        <Border x:Name="Row" CornerRadius="11" Background="Transparent"
+                                BorderThickness="1" BorderBrush="Transparent">
+                            <Grid Height="60" Margin="4,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
 
-                            <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="4,0,10,0">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="{Binding Name}" FontSize="13.5" FontWeight="SemiBold"
-                                               TextTrimming="CharacterEllipsis" MaxWidth="480" />
-                                    <Border Style="{StaticResource BadgeWarn}" Margin="8,0,0,0"
-                                            Visibility="{Binding IsLegacyPak, Converter={StaticResource BoolToVisibility}}">
-                                        <TextBlock Text="旧式 pak" FontSize="9.5" Foreground="{DynamicResource Warn}" />
-                                    </Border>
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="4,0,10,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Name}" FontSize="13.5" FontWeight="SemiBold"
+                                                   TextTrimming="CharacterEllipsis" MaxWidth="480" />
+                                        <Border Style="{StaticResource BadgeWarn}" Margin="8,0,0,0"
+                                                Visibility="{Binding IsLegacyPak, Converter={StaticResource BoolToVisibility}}">
+                                            <TextBlock Text="旧式 pak" FontSize="9.5" Foreground="{DynamicResource Warn}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding MetaText}" Style="{StaticResource SmallText}"
+                                               Margin="0,5,0,0" TextTrimming="CharacterEllipsis" MaxWidth="560"
+                                               HorizontalAlignment="Left" />
                                 </StackPanel>
-                                <TextBlock Text="{Binding MetaText}" Style="{StaticResource SmallText}"
-                                           Margin="0,5,0,0" TextTrimming="CharacterEllipsis" MaxWidth="560"
-                                           HorizontalAlignment="Left" />
-                            </StackPanel>
 
-                            <TextBlock Grid.Column="1" Text="{Binding StateText}" Style="{StaticResource CaptionText}"
-                                       VerticalAlignment="Center" Margin="0,0,14,0" />
+                                <TextBlock Grid.Column="1" Text="{Binding StateText}" Style="{StaticResource CaptionText}"
+                                           VerticalAlignment="Center" Margin="0,0,14,0" />
 
-                            <Button Grid.Column="2"
-                                    Content="{Binding AddText}"
-                                    Command="{Binding DataContext.AddCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                    CommandParameter="{Binding}">
-                                <Button.Style>
-                                    <Style TargetType="Button" BasedOn="{StaticResource GhostButton}">
-                                        <Setter Property="Padding" Value="12,5" />
-                                        <Setter Property="FontSize" Value="11.5" />
-                                        <Setter Property="Margin" Value="0,0,8,0" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding InProfile}" Value="True">
-                                                <Setter Property="Visibility" Value="Collapsed" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Button.Style>
-                            </Button>
-
-                            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
-                                <Button Style="{StaticResource IconButton}"
-                                        ToolTip="打开模组文件夹"
-                                        Command="{Binding DataContext.OpenFolderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                <Button Grid.Column="2"
+                                        Content="{Binding AddText}"
+                                        Command="{Binding DataContext.AddCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                         CommandParameter="{Binding}">
-                                    <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="13" />
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource GhostButton}">
+                                            <Setter Property="Padding" Value="12,5" />
+                                            <Setter Property="FontSize" Value="11.5" />
+                                            <Setter Property="Margin" Value="0,0,8,0" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding InProfile}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
                                 </Button>
-                                <Button Style="{StaticResource IconButton}"
-                                        ToolTip="从模组库移除 / 永久删除"
-                                        Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                        CommandParameter="{Binding}" Margin="2,0,0,0">
-                                    <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="12" />
-                                </Button>
-                            </StackPanel>
-                        </Grid>
+
+                                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <!-- 链接：没设过就弹出输入框，设过就打开页面 -->
+                                    <Button Style="{StaticResource IconButton}"
+                                            ToolTip="{Binding LinkTooltip}"
+                                            Command="{Binding DataContext.LinkCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}">
+                                        <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" FontSize="13" />
+                                    </Button>
+                                    <Button Style="{StaticResource IconButton}" Margin="2,0,0,0"
+                                            ToolTip="修改 / 清除链接"
+                                            Visibility="{Binding HasLink, Converter={StaticResource BoolToVisibility}}"
+                                            Command="{Binding DataContext.EditLinkCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}">
+                                        <TextBlock Text="&#xE70F;" FontFamily="Segoe MDL2 Assets" FontSize="12" />
+                                    </Button>
+                                    <Button Style="{StaticResource IconButton}" Margin="2,0,0,0"
+                                            ToolTip="打开模组文件夹"
+                                            Command="{Binding DataContext.OpenFolderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}">
+                                        <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="13" />
+                                    </Button>
+                                    <Button Style="{StaticResource IconButton}"
+                                            ToolTip="从模组库移除 / 永久删除"
+                                            Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}" Margin="2,0,0,0">
+                                        <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="12" />
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                <Setter TargetName="Row" Property="Background" Value="{DynamicResource Selection}" />
+                                <Setter TargetName="Row" Property="BorderBrush" Value="{DynamicResource Accent}" />
+                            </DataTrigger>
+                        </DataTemplate.Triggers>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>

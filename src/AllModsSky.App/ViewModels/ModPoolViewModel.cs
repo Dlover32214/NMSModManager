@@ -12,6 +12,7 @@ namespace AllModsSky.App.ViewModels;
 public sealed class PoolItemViewModel : ObservableObject
 {
     private bool _inProfile;
+    private bool _isSelected;
     private string _profileName = "";
 
     public PoolItemViewModel(ModRecord record) => Record = record;
@@ -23,6 +24,22 @@ public sealed class PoolItemViewModel : ObservableObject
     public string FolderText => Record.EffectiveFolder;
     public bool IsLegacyPak => Record.IsLegacyPak;
     public string SizeText => Record.SizeText;
+
+    /// <summary>批量选取时用。</summary>
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set => SetProperty(ref _isSelected, value);
+    }
+
+    public bool HasLink => !string.IsNullOrWhiteSpace(Record.Url);
+
+    public string LinkTooltip => HasLink
+        ? "打开模组页面：" + Record.Url + "\n点右侧铅笔可以改"
+        : "给这个模组加一个页面链接";
+
+    /// <summary>链接改过之后刷新按钮的提示文字。</summary>
+    public void RefreshLink() => Raise(nameof(HasLink), nameof(LinkTooltip));
 
     /// <summary>当前配置的名字。状态文字里要带上它，不然「已在当前配置」等于没说。</summary>
     public string ProfileName
@@ -60,6 +77,7 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
     private string _searchText = "";
     private bool _onlyUnused;
     private bool _showExternal;
+    private bool _batchMode;
 
     public ModPoolViewModel(Workspace workspace, IShellUi ui)
     {
@@ -75,7 +93,6 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
         ImportFolderCommand = new RelayCommand(ImportFolder);
         RefreshCommand = new AsyncRelayCommand(() => _ui.RefreshAllAsync());
         AddCommand = new AsyncRelayCommand(p => AddAsync(p as PoolItemViewModel));
-        AddAllCommand = new AsyncRelayCommand(AddAllAsync);
         OpenFolderCommand = new RelayCommand(p => OpenFolder(p as PoolItemViewModel));
         DeleteCommand = new RelayCommand(p => Delete(p as PoolItemViewModel));
         ToggleUnusedCommand = new RelayCommand(() => OnlyUnused = !OnlyUnused);
@@ -84,6 +101,14 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
         AdoptExternalCommand = new AsyncRelayCommand(p => AdoptAsync(p as ExternalModItemViewModel));
         AdoptAllExternalCommand = new AsyncRelayCommand(AdoptAllAsync);
         ToggleExternalItemCommand = new AsyncRelayCommand(p => ToggleExternalAsync(p as ExternalModItemViewModel));
+
+        ToggleBatchCommand = new RelayCommand(() => BatchMode = !BatchMode);
+        SelectAllCommand = new RelayCommand(SelectAll);
+        ClearSelectionCommand = new RelayCommand(ExitBatch);
+        BatchAddCommand = new AsyncRelayCommand(BatchAddAsync);
+        BatchRemoveCommand = new AsyncRelayCommand(BatchRemoveAsync);
+        LinkCommand = new RelayCommand(p => OpenLink(p as PoolItemViewModel));
+        EditLinkCommand = new RelayCommand(p => EditLink(p as PoolItemViewModel));
 
         _workspace.LibraryChanged += Reload;
     }
@@ -96,7 +121,6 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
     public ICommand ImportFolderCommand { get; }
     public ICommand RefreshCommand { get; }
     public ICommand AddCommand { get; }
-    public ICommand AddAllCommand { get; }
     public ICommand OpenFolderCommand { get; }
     public ICommand DeleteCommand { get; }
     public ICommand ToggleUnusedCommand { get; }
@@ -105,6 +129,13 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
     public ICommand AdoptExternalCommand { get; }
     public ICommand AdoptAllExternalCommand { get; }
     public ICommand ToggleExternalItemCommand { get; }
+    public ICommand ToggleBatchCommand { get; }
+    public ICommand SelectAllCommand { get; }
+    public ICommand ClearSelectionCommand { get; }
+    public ICommand BatchAddCommand { get; }
+    public ICommand BatchRemoveCommand { get; }
+    public ICommand LinkCommand { get; }
+    public ICommand EditLinkCommand { get; }
 
     public string SearchText
     {
@@ -147,6 +178,65 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
     public bool IsEmpty => Items.Count == 0;
     public bool HasVisibleMods => !View.IsEmpty;
     public string ExternalButtonText => $"外部模组 ({External.Count})";
+
+    // ---- 批量选取 ----
+
+    /// <summary>批量模式：单击整行选中/取消，工具栏换成批量条。</summary>
+    public bool BatchMode
+    {
+        get => _batchMode;
+        set
+        {
+            if (!SetProperty(ref _batchMode, value)) return;
+            if (!value) ClearSelectionCore();
+            Raise(nameof(ShowBatchBar), nameof(BatchButtonText));
+        }
+    }
+
+    public bool ShowBatchBar => _batchMode;
+    public string BatchButtonText => _batchMode ? "退出批量" : "批量选取";
+
+    public int SelectedCount => Items.Count(i => i.IsSelected);
+    public bool HasSelection => SelectedCount > 0;
+    public string SelectedText => $"已选 {SelectedCount} 个";
+
+    /// <summary>行点击之后由视图调用，避免每行都挂一个 PropertyChanged。</summary>
+    public void NotifySelectionChanged() =>
+        Raise(nameof(SelectedCount), nameof(SelectedText), nameof(HasSelection));
+
+    private void ClearSelectionCore()
+    {
+        foreach (var item in Items) item.IsSelected = false;
+        NotifySelectionChanged();
+    }
+
+    private void ExitBatch()
+    {
+        if (_batchMode)
+        {
+            BatchMode = false;   // setter 会清空选择
+            return;
+        }
+
+        ClearSelectionCore();
+    }
+
+    /// <summary>全选当前可见的（搜索和「只看没加入」之后的）模组。</summary>
+    private void SelectAll()
+    {
+        var added = 0;
+
+        foreach (var obj in View)
+        {
+            if (obj is not PoolItemViewModel item || item.IsSelected) continue;
+            item.IsSelected = true;
+            added++;
+        }
+
+        NotifySelectionChanged();
+
+        if (added == 0) _ui.Toast("当前筛选下的模组都已经选中了", false);
+    }
 
     public Task OnActivatedAsync()
     {
@@ -233,16 +323,97 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
         await AddRecordsAsync(new[] { item.Record });
     }
 
-    private async Task AddAllAsync()
+    private async Task BatchAddAsync()
     {
-        var pending = Items.Where(i => !i.InProfile).Select(i => i.Record).ToList();
-        if (pending.Count == 0)
+        var records = Items.Where(i => i.IsSelected && !i.InProfile).Select(i => i.Record).ToList();
+        if (records.Count == 0)
         {
-            _ui.Toast("都在当前配置里了", false);
+            _ui.Toast(SelectedCount == 0 ? "先选中模组" : "选中的模组都已经在当前配置里了", false);
             return;
         }
 
-        await AddRecordsAsync(pending);
+        await AddRecordsAsync(records);
+        ExitBatch();
+    }
+
+    private async Task BatchRemoveAsync()
+    {
+        var selected = Items.Where(i => i.IsSelected).ToList();
+        if (selected.Count == 0)
+        {
+            _ui.Toast("先选中模组", false);
+            return;
+        }
+
+        var names = string.Join("\n", selected.Take(6).Select(i => "  · " + i.Name));
+        if (selected.Count > 6) names += $"\n  … 另有 {selected.Count - 6} 个";
+
+        var confirm = _ui.Confirm($"把 {selected.Count} 个模组移出模组库",
+            $"文件会被移到 MODS_disabled，随时可以重新收编，不会删除。\n\n{names}",
+            "移出模组库");
+
+        if (confirm != ConfirmResult.Primary) return;
+
+        try
+        {
+            // 顺序跟单个移出保持一致：先摘出配置并落盘，部署时文件才会挪进 MODS_disabled，
+            // 之后再把记录删掉。反过来的话文件会被当成「外部模组」留在 MODS 里。
+            foreach (var item in selected)
+                _workspace.Library.RemoveFromActiveProfile(item.Record);
+
+            _workspace.Library.Save();
+            if (_workspace.Game.IsValid) await _ui.DeployAsync(silent: true);
+
+            foreach (var item in selected)
+                _workspace.Library.Remove(item.Record);
+
+            _workspace.Library.Save();
+            _workspace.NotifyLibraryChanged();
+            await RefreshExternalAsync();
+
+            ExitBatch();
+            _ui.Toast($"已移出 {selected.Count} 个模组，文件在 MODS_disabled 里", true);
+        }
+        catch (Exception ex)
+        {
+            _ui.Toast("移出失败：" + ex.Message, false);
+        }
+    }
+
+    private void OpenLink(PoolItemViewModel? item)
+    {
+        if (item == null) return;
+
+        if (!item.HasLink)
+        {
+            EditLink(item);
+            return;
+        }
+
+        Launcher.OpenUrl(item.Record.Url);
+    }
+
+    private void EditLink(PoolItemViewModel? item)
+    {
+        if (item == null) return;
+
+        var input = DialogService.Prompt($"模组链接 · {item.Name}",
+            "粘贴这个模组的页面地址（Nexus、oogc、论坛都行），留空表示清除。", item.Record.Url);
+        if (input == null) return;   // 取消
+
+        var url = ModRecord.NormalizeUrl(input);
+        if (url == null)
+        {
+            _ui.Toast("链接要写成 https:// 开头的网址", false);
+            return;
+        }
+
+        if (url == item.Record.Url) return;
+
+        item.Record.Url = url;
+        _workspace.Library.Save();
+        item.RefreshLink();
+        _ui.Toast(url.Length == 0 ? "已清除链接" : "已保存链接", true);
     }
 
     private async Task AddRecordsAsync(IReadOnlyList<ModRecord> records)

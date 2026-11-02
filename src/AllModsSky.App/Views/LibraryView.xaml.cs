@@ -206,15 +206,6 @@ public partial class LibraryView : UserControl
         Dispatcher.BeginInvoke(new Action(() => AnimatePositions(before)), DispatcherPriority.Loaded);
     }
 
-    private void ModList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
-    {
-        var item = ItemAt(e.GetPosition(ModList));
-        if (item == null || ViewModel == null) return;
-
-        if (ViewModel.OpenFolderCommand.CanExecute(item))
-            ViewModel.OpenFolderCommand.Execute(item);
-    }
-
     private ModItemViewModel? ItemAt(Point point)
     {
         if (ModList.InputHitTest(point) is not DependencyObject hit) return null;

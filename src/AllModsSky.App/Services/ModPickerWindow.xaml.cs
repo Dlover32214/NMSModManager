@@ -24,7 +24,7 @@ public partial class ModPickerWindow : Window
             };
 
         TitleText.Text = $"添加到「{profileName}」";
-        MessageText.Text = "勾选要放进这套配置的模组。加入后会出现在列表最下面，可以拖动排序。";
+        MessageText.Text = "点选要放进这套配置的模组，可以多选。加入后会出现在列表最下面，可以拖动排序。";
         ModList.ItemsSource = _visible;
 
         Filter("");
@@ -67,26 +67,13 @@ public partial class ModPickerWindow : Window
     private void SearchBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e) =>
         Filter(SearchBox.Text);
 
+    /// <summary>没有勾选框了：点整行就是切换选中，靠行底色高亮表示。</summary>
     private void Row_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (sender is not System.Windows.Controls.ListBoxItem { DataContext: PickerItem item }) return;
-        if (e.OriginalSource is DependencyObject source && FindCheckBox(source) != null) return;
 
         item.IsSelected = !item.IsSelected;
         e.Handled = true;
-    }
-
-    private static object? FindCheckBox(DependencyObject source)
-    {
-        var current = source;
-        while (current != null)
-        {
-            if (current is System.Windows.Controls.CheckBox) return current;
-            if (current is System.Windows.Controls.ListBoxItem) return null;
-            current = System.Windows.Media.VisualTreeHelper.GetParent(current);
-        }
-
-        return null;
     }
 
     private void SelectAll_Click(object sender, RoutedEventArgs e)

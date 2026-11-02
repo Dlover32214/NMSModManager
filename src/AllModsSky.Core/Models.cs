@@ -53,6 +53,31 @@ public sealed class ModRecord
     public DateTimeOffset ImportedAt { get; set; } = DateTimeOffset.Now;
     public string Note { get; set; } = "";
 
+    /// <summary>模组页面链接（Nexus / oogc / 论坛等），用户手动填。空串表示没设。</summary>
+    public string Url { get; set; } = "";
+
+    /// <summary>
+    /// 整理用户输入的链接：没写协议就补 https://，只接受 http/https。
+    /// 返回空串表示「清除链接」，返回 null 表示输入不合法。
+    /// </summary>
+    public static string? NormalizeUrl(string? input)
+    {
+        var text = (input ?? "").Trim();
+        if (text.Length == 0) return "";
+
+        if (!text.Contains("://", StringComparison.Ordinal)) text = "https://" + text;
+
+        if (!Uri.TryCreate(text, UriKind.Absolute, out var uri)) return null;
+        if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) return null;
+
+        // 只认带点的域名：中文串也能被当成 IDN 域名收下，但那不是用户想要的链接
+        var host = uri.Host;
+        if (host.Length == 0 || !host.Contains('.', StringComparison.Ordinal)) return null;
+        if (host.StartsWith('.') || host.EndsWith('.')) return null;
+
+        return uri.ToString();
+    }
+
     [JsonIgnore]
     public ModKind Kind => PakFiles.Count > 0 ? ModKind.LegacyPak : ModKind.Folder;
 

@@ -268,7 +268,10 @@
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="{Binding SelectedText}" FontSize="12" FontWeight="SemiBold"
                                VerticalAlignment="Center" Margin="0,0,14,0" />
-                    <Button Style="{StaticResource GhostButton}" Content="启用" Padding="11,5"
+                    <Button Style="{StaticResource GhostButton}" Content="全选" Padding="11,5"
+                            ToolTip="选中当前搜索/筛选结果里的全部模组"
+                            Command="{Binding SelectAllCommand}" />
+                    <Button Style="{StaticResource GhostButton}" Content="启用" Padding="11,5" Margin="4,0,0,0"
                             Command="{Binding BatchEnableCommand}" />
                     <Button Style="{StaticResource GhostButton}" Content="停用" Padding="11,5" Margin="4,0,0,0"
                             Command="{Binding BatchDisableCommand}" />
@@ -302,8 +305,7 @@
                      GiveFeedback="ModList_GiveFeedback"
                      DragOver="ModList_DragOver"
                      DragLeave="ModList_DragLeave"
-                     Drop="ModList_Drop"
-                     MouseDoubleClick="ModList_MouseDoubleClick">
+                     Drop="ModList_Drop">
 
                 <ListBox.ItemTemplate>
                     <DataTemplate DataType="{x:Type vm:ModItemViewModel}">

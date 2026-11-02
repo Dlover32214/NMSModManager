@@ -22,6 +22,7 @@ public sealed class LibraryViewModel : ObservableObject
     private string _filter = "All";
     private bool _batchMode;
     private bool _profileMenuOpen;
+    private bool _bulkSelecting;
 
     public LibraryViewModel(Workspace workspace, IShellUi ui)
     {
@@ -47,6 +48,7 @@ public sealed class LibraryViewModel : ObservableObject
         BatchEnableCommand = new AsyncRelayCommand(() => SetSelectedEnabledAsync(true));
         BatchDisableCommand = new AsyncRelayCommand(() => SetSelectedEnabledAsync(false));
         BatchDeleteCommand = new AsyncRelayCommand(BatchDeleteAsync);
+        SelectAllCommand = new RelayCommand(SelectAll);
         ClearSelectionCommand = new RelayCommand(ExitBatch);
         ToggleBatchCommand = new RelayCommand(() => BatchMode = !BatchMode);
         ApplyOrderCommand = new RelayCommand(ApplyOrder);
@@ -83,6 +85,7 @@ public sealed class LibraryViewModel : ObservableObject
     public ICommand BatchEnableCommand { get; }
     public ICommand BatchDisableCommand { get; }
     public ICommand BatchDeleteCommand { get; }
+    public ICommand SelectAllCommand { get; }
     public ICommand ClearSelectionCommand { get; }
     public ICommand ToggleBatchCommand { get; }
     public ICommand ApplyOrderCommand { get; }
@@ -259,8 +262,10 @@ public sealed class LibraryViewModel : ObservableObject
 
     private void Item_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(ModItemViewModel.IsSelected) or nameof(ModItemViewModel.Enabled))
-            RaiseCounts();
+        if (e.PropertyName is not (nameof(ModItemViewModel.IsSelected) or nameof(ModItemViewModel.Enabled))) return;
+        if (_bulkSelecting) return;   // 批量改选中状态时先别刷新，循环结束统一来一次
+
+        RaiseCounts();
     }
 
     private void RaiseCounts()
@@ -500,6 +505,34 @@ public sealed class LibraryViewModel : ObservableObject
     {
         foreach (var item in Items) item.IsSelected = false;
         RaiseCounts();
+    }
+
+    /// <summary>
+    /// 全选当前可见的模组（搜索和筛选之后的那一批），不是整个配置。
+    /// 逐个设置会触发 N 次 RaiseCounts，这里先关掉通知再统一刷新。
+    /// </summary>
+    private void SelectAll()
+    {
+        var added = 0;
+
+        _bulkSelecting = true;
+        try
+        {
+            foreach (var obj in View)
+            {
+                if (obj is not ModItemViewModel item || item.IsSelected) continue;
+                item.IsSelected = true;
+                added++;
+            }
+        }
+        finally
+        {
+            _bulkSelecting = false;
+        }
+
+        RaiseCounts();
+
+        if (added == 0) _ui.Toast("当前筛选下的模组都已经选中了", false);
     }
 
     /// <summary>退出批量模式并清空选择（Esc / 批量按钮 / 取消选择共用）。</summary>

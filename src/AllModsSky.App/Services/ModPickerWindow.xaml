@@ -77,7 +77,7 @@
                                 <Setter Property="Template">
                                     <Setter.Value>
                                         <ControlTemplate TargetType="ListBoxItem">
-                                            <Border x:Name="Root" Background="Transparent" Padding="12,0">
+                                            <Border x:Name="Root" Background="Transparent" Padding="6,1">
                                                 <ContentPresenter />
                                             </Border>
                                             <ControlTemplate.Triggers>
@@ -94,23 +94,25 @@
 
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Grid Height="46">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-
-                                    <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                              VerticalAlignment="Center" Margin="0,0,10,0"
-                                              Focusable="False" />
-
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <!-- 不设勾选框，点整行切换选中，靠底色高亮表示 -->
+                                <Border x:Name="Row" CornerRadius="10" Padding="10,0"
+                                        Background="Transparent" BorderThickness="1"
+                                        BorderBrush="Transparent">
+                                    <StackPanel VerticalAlignment="Center" Margin="0,7">
                                         <TextBlock Text="{Binding Name}" FontSize="12.5"
                                                    TextTrimming="CharacterEllipsis" />
                                         <TextBlock Text="{Binding MetaText}" Style="{StaticResource CaptionText}"
                                                    Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
                                     </StackPanel>
-                                </Grid>
+                                </Border>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                        <Setter TargetName="Row" Property="Background"
+                                                Value="{DynamicResource Selection}" />
+                                        <Setter TargetName="Row" Property="BorderBrush"
+                                                Value="{DynamicResource Accent}" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
