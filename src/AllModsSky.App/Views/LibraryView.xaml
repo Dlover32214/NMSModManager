@@ -6,6 +6,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
+             Unloaded="LibraryView_Unloaded"
              d:DesignHeight="760" d:DesignWidth="1040">
 
     <UserControl.Resources>
@@ -42,6 +43,13 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+
+        <!-- 配置菜单里的一行（整块可点 = 切换） -->
+        <Style x:Key="ProfileRowButton" TargetType="Button" BasedOn="{StaticResource ButtonBase}">
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Padding" Value="8,6" />
+            <Setter Property="Foreground" Value="{DynamicResource Text}" />
         </Style>
     </UserControl.Resources>
 
@@ -112,12 +120,14 @@
         <!-- 搜索 + 筛选 -->
         <Grid Grid.Row="2" Margin="0,0,0,10">
             <Grid.ColumnDefinitions>
+                <!-- 搜索框随窗口伸缩（200~360），窗口压到最小宽度时先挤它，别挤按钮 -->
+                <ColumnDefinition Width="*" MinWidth="200" MaxWidth="360" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <TextBox Width="360" Style="{StaticResource InputBox}"
+            <TextBox Style="{StaticResource InputBox}" HorizontalAlignment="Stretch"
                      Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                      Tag="搜索模组名、版本或来源…" />
 
@@ -132,7 +142,93 @@
                              IsChecked="{Binding Filter, Converter={StaticResource StringEquals}, ConverterParameter=Issues, Mode=TwoWay}" />
             </StackPanel>
 
-            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button x:Name="ProfileButton" Style="{StaticResource GhostButton}" Margin="0,0,6,0"
+                        Command="{Binding ToggleProfileMenuCommand}"
+                        ToolTip="把当前这套启停组合存成配置，之后一键切换">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="配置" VerticalAlignment="Center" />
+                        <TextBlock Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" FontSize="8"
+                                   VerticalAlignment="Center" Margin="6,1,0,0" Opacity="0.75" />
+                    </StackPanel>
+                </Button>
+
+                <!-- 配置菜单：StaysOpen=True + 视图里的一层透明遮罩负责“点外面关闭”，
+                     避免 StaysOpen=False 时点击按钮先被弹层吞掉再重开的老问题 -->
+                <Popup IsOpen="{Binding IsProfileMenuOpen, Mode=TwoWay}"
+                       PlacementTarget="{Binding ElementName=ProfileButton}"
+                       Placement="Bottom" VerticalOffset="6" HorizontalOffset="-46"
+                       StaysOpen="True" AllowsTransparency="True" PopupAnimation="Fade">
+                    <Border Width="292" Margin="10"
+                            Background="{DynamicResource Surface}"
+                            BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                            CornerRadius="14" Padding="10,9">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="26" ShadowDepth="5" Opacity="0.42" Color="#000000" />
+                        </Border.Effect>
+
+                        <StackPanel>
+                            <TextBlock Text="配置" FontSize="12" FontWeight="SemiBold" Margin="6,2,0,0" />
+                            <TextBlock Text="保存多套启停组合，一键切换" Style="{StaticResource CaptionText}"
+                                       Margin="6,2,0,0" />
+
+                            <Border Style="{StaticResource Divider}" Margin="0,9" />
+
+                            <TextBlock Text="还没有配置。点下面「保存当前配置…」把现在的启停状态存成一套。"
+                                       Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="6,2,6,4"
+                                       Visibility="{Binding HasProfiles, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}" />
+
+                            <ItemsControl ItemsSource="{Binding Profiles}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <Button Style="{StaticResource ProfileRowButton}"
+                                                    CommandParameter="{Binding}"
+                                                    Command="{Binding DataContext.ApplyProfileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    ToolTip="切换到这组启停状态">
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Name}" FontSize="12.5"
+                                                               Foreground="{DynamicResource Text}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding SummaryText}"
+                                                               Style="{StaticResource CaptionText}" Margin="0,1,0,0" />
+                                                </StackPanel>
+                                            </Button>
+
+                                            <Button Grid.Column="1" Style="{StaticResource LinkButton}"
+                                                    Content="更新" FontSize="11" Margin="6,0,0,0"
+                                                    VerticalAlignment="Center"
+                                                    Foreground="{DynamicResource TextFaint}"
+                                                    CommandParameter="{Binding}"
+                                                    Command="{Binding DataContext.UpdateProfileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    ToolTip="用当前启停状态覆盖这套配置" />
+
+                                            <Button Grid.Column="2" Style="{StaticResource LinkButton}"
+                                                    Content="删除" FontSize="11" Margin="9,0,6,0"
+                                                    VerticalAlignment="Center"
+                                                    Foreground="{DynamicResource TextFaint}"
+                                                    CommandParameter="{Binding}"
+                                                    Command="{Binding DataContext.DeleteProfileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <Border Style="{StaticResource Divider}" Margin="0,9" />
+
+                            <Button Style="{StaticResource GhostButton}" Content="＋ 保存当前配置…"
+                                    HorizontalAlignment="Left" Margin="2,0,0,0"
+                                    Command="{Binding SaveProfileCommand}" />
+                        </StackPanel>
+                    </Border>
+                </Popup>
+
                 <Button Style="{StaticResource GhostButton}" Content="{Binding BatchButtonText}"
                         Command="{Binding ToggleBatchCommand}" Margin="0,0,6,0"
                         ToolTip="批量选取：开启后单击整行即可选中/取消" />
@@ -346,5 +442,10 @@
                 </TextBlock.Style>
             </TextBlock>
         </Grid>
+
+        <!-- 配置菜单打开时的点击遮罩：点任意位置关闭菜单 -->
+        <Border Grid.Row="0" Grid.RowSpan="6" Background="Transparent"
+                Visibility="{Binding IsProfileMenuOpen, Converter={StaticResource BoolToVisibility}}"
+                MouseDown="ProfileMenuScrim_MouseDown" />
     </Grid>
 </UserControl>

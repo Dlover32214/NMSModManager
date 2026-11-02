@@ -101,11 +101,31 @@ public sealed class AppSettings
     };
 }
 
+/// <summary>一套启停组合，用于在「画质档 / 纯净档 / 联机档」之间快速切换。</summary>
+public sealed class ModProfile
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+    public string Name { get; set; } = "";
+
+    /// <summary>这套组合里处于启用状态的模组 Id。模组被删掉后残留的 Id 会被忽略。</summary>
+    public List<string> EnabledIds { get; set; } = new();
+
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.Now;
+
+    [JsonIgnore]
+    public string UpdatedText => Humanize.DateTime(UpdatedAt);
+
+    /// <summary>菜单里一行显示的信息：启用数量 + 更新时间。</summary>
+    [JsonIgnore]
+    public string SummaryText => $"启用 {EnabledIds.Count} 个 · {UpdatedText}";
+}
+
 /// <summary>library.json 的根对象。</summary>
 public sealed class LibraryState
 {
     public int SchemaVersion { get; set; } = 2;
     public List<ModRecord> Mods { get; set; } = new();
+    public List<ModProfile> Profiles { get; set; } = new();
 }
 
 /// <summary>游戏目录与版本信息快照，供界面展示。</summary>

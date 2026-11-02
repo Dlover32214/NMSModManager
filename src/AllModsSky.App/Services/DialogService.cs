@@ -41,6 +41,17 @@ public static class DialogService
         return dialog.Result;
     }
 
+    /// <summary>带输入框的确认框，返回去空白后的文本；取消返回 null。</summary>
+    public static string? Prompt(string title, string message, string initial = "")
+    {
+        var dialog = new DialogWindow();
+        AttachOwner(dialog);
+        dialog.Configure(title, message, "确定", null, alertOnly: false, input: initial);
+
+        var ok = dialog.ShowDialog();
+        return ok == true ? dialog.InputText.Trim() : null;
+    }
+
     public static void Alert(string title, string message)
     {
         var dialog = new DialogWindow();

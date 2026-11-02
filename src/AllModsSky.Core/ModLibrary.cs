@@ -4,8 +4,10 @@ namespace AllModsSky.Core;
 public sealed class ModLibrary
 {
     private readonly List<ModRecord> _mods = new();
+    private readonly List<ModProfile> _profiles = new();
 
     public IReadOnlyList<ModRecord> Mods => _mods;
+    public IReadOnlyList<ModProfile> Profiles => _profiles;
     public string? LoadMessage { get; private set; }
     public string? LastSaveError { get; private set; }
 
@@ -20,6 +22,7 @@ public sealed class ModLibrary
     public void Load()
     {
         _mods.Clear();
+        _profiles.Clear();
         _corrupt = false;
         LoadMessage = null;
 
@@ -65,6 +68,17 @@ public sealed class ModLibrary
             }
         }
 
+        if (state?.Profiles != null)
+        {
+            foreach (var profile in state.Profiles)
+            {
+                if (profile == null || string.IsNullOrWhiteSpace(profile.Name)) continue;
+                if (string.IsNullOrWhiteSpace(profile.Id)) profile.Id = Guid.NewGuid().ToString("N");
+                profile.EnabledIds ??= new List<string>();
+                _profiles.Add(profile);
+            }
+        }
+
         var normalized = Normalize();
         if (migrated) Save();
         else if (normalized > 0) Save();
@@ -96,7 +110,11 @@ public sealed class ModLibrary
         try
         {
             AppPaths.Ensure();
-            JsonStore.Save(AppPaths.DataFile, new LibraryState { Mods = _mods.ToList() });
+            JsonStore.Save(AppPaths.DataFile, new LibraryState
+            {
+                Mods = _mods.ToList(),
+                Profiles = _profiles.ToList()
+            });
             LastSaveError = null;
             return true;
         }
@@ -200,6 +218,55 @@ public sealed class ModLibrary
     }
 
     public void Reverse() => _mods.Reverse();
+
+    // ---- 配置 ----
+
+    /// <summary>用当前启停状态生成一个配置（不加入集合）。</summary>
+    public ModProfile CaptureProfile(string name) => new()
+    {
+        Name = name,
+        EnabledIds = _mods.Where(m => m.Enabled).Select(m => m.Id).ToList(),
+        UpdatedAt = DateTimeOffset.Now
+    };
+
+    public void AddProfile(ModProfile profile) => _profiles.Add(profile);
+
+    public bool RemoveProfile(ModProfile profile) => _profiles.Remove(profile);
+
+    public bool ProfileNameExists(string name, ModProfile? except = null) =>
+        _profiles.Any(p => !ReferenceEquals(p, except)
+                           && string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>用当前启停状态覆盖已有配置。</summary>
+    public void RefreshProfile(ModProfile profile)
+    {
+        profile.EnabledIds = _mods.Where(m => m.Enabled).Select(m => m.Id).ToList();
+        profile.UpdatedAt = DateTimeOffset.Now;
+    }
+
+    /// <summary>按配置设置启停状态。配置里已不存在的模组 Id 会被忽略，返回实际改变的条数。</summary>
+    public int ApplyProfile(ModProfile profile)
+    {
+        var enabled = new HashSet<string>(profile.EnabledIds, StringComparer.OrdinalIgnoreCase);
+        var changed = 0;
+
+        foreach (var record in _mods)
+        {
+            var want = enabled.Contains(record.Id);
+            if (record.Enabled == want) continue;
+            record.Enabled = want;
+            changed++;
+        }
+
+        return changed;
+    }
+
+    /// <summary>配置引用了、但库里已不存在的模组数量。</summary>
+    public int MissingProfileEntries(ModProfile profile)
+    {
+        var ids = new HashSet<string>(_mods.Select(m => m.Id), StringComparer.OrdinalIgnoreCase);
+        return profile.EnabledIds.Count(id => !ids.Contains(id));
+    }
 
     public void ReplaceAll(IEnumerable<ModRecord> records)
     {

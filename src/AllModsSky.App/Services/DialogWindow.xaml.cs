@@ -12,7 +12,11 @@ public partial class DialogWindow : Window
 
     public ConfirmResult Result { get; private set; } = ConfirmResult.None;
 
-    public void Configure(string title, string message, string primary, string? danger, bool alertOnly)
+    /// <summary>输入框里的文本；没启用输入时为空串。</summary>
+    public string InputText => InputBox.Text;
+
+    public void Configure(string title, string message, string primary, string? danger, bool alertOnly,
+        string? input = null)
     {
         TitleText.Text = title;
         MessageText.Text = message;
@@ -31,7 +35,29 @@ public partial class DialogWindow : Window
 
         if (alertOnly) CancelButton.Visibility = Visibility.Collapsed;
 
-        Loaded += (_, _) => PrimaryButton.Focus();
+        if (input != null)
+        {
+            InputBox.Text = input;
+            InputBox.Visibility = Visibility.Visible;
+
+            // 输入框里回车 = 确定（TextBox 默认不吃回车，不接这一下就得去点按钮）
+            InputBox.KeyDown += (_, e) =>
+            {
+                if (e.Key != Key.Enter) return;
+                e.Handled = true;
+                Primary_Click(this, new RoutedEventArgs());
+            };
+
+            Loaded += (_, _) =>
+            {
+                InputBox.Focus();
+                InputBox.SelectAll();
+            };
+        }
+        else
+        {
+            Loaded += (_, _) => PrimaryButton.Focus();
+        }
     }
 
     private void Primary_Click(object sender, RoutedEventArgs e)

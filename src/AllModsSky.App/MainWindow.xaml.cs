@@ -197,7 +197,12 @@ public partial class MainWindow : Window
         }
         else if (e.Key == Key.Escape)
         {
-            if (_viewModel.Library.BatchMode)
+            if (_viewModel.Library.IsProfileMenuOpen)
+            {
+                _viewModel.Library.IsProfileMenuOpen = false;
+                e.Handled = true;
+            }
+            else if (_viewModel.Library.BatchMode)
             {
                 _viewModel.Library.ExitBatch();
                 e.Handled = true;

@@ -17,6 +17,7 @@ public sealed class LibraryViewModel : ObservableObject
     private string _filter = "All";
     private bool _showExternal;
     private bool _batchMode;
+    private bool _profileMenuOpen;
 
     public LibraryViewModel(Workspace workspace, IShellUi ui)
     {
@@ -48,6 +49,16 @@ public sealed class LibraryViewModel : ObservableObject
         ToggleBatchCommand = new RelayCommand(() => BatchMode = !BatchMode);
         ApplyOrderCommand = new RelayCommand(ApplyOrder);
 
+        ToggleProfileMenuCommand = new RelayCommand(() =>
+        {
+            if (!IsProfileMenuOpen) RefreshProfiles();
+            IsProfileMenuOpen = !IsProfileMenuOpen;
+        });
+        SaveProfileCommand = new RelayCommand(SaveProfile);
+        ApplyProfileCommand = new AsyncRelayCommand(p => ApplyProfileAsync(p as ModProfile));
+        UpdateProfileCommand = new RelayCommand(p => UpdateProfile(p as ModProfile));
+        DeleteProfileCommand = new RelayCommand(p => DeleteProfile(p as ModProfile));
+
         _workspace.LibraryChanged += SyncFromLibrary;
         _workspace.GameChanged += OnGameChanged;
     }
@@ -75,6 +86,21 @@ public sealed class LibraryViewModel : ObservableObject
     public ICommand ClearSelectionCommand { get; }
     public ICommand ToggleBatchCommand { get; }
     public ICommand ApplyOrderCommand { get; }
+    public ICommand ToggleProfileMenuCommand { get; }
+    public ICommand SaveProfileCommand { get; }
+    public ICommand ApplyProfileCommand { get; }
+    public ICommand UpdateProfileCommand { get; }
+    public ICommand DeleteProfileCommand { get; }
+
+    public ObservableCollection<ModProfile> Profiles { get; } = new();
+
+    public bool HasProfiles => Profiles.Count > 0;
+
+    public bool IsProfileMenuOpen
+    {
+        get => _profileMenuOpen;
+        set => SetProperty(ref _profileMenuOpen, value);
+    }
 
     public string SearchText
     {
@@ -473,6 +499,87 @@ public sealed class LibraryViewModel : ObservableObject
         _workspace.Library.Save();
         SyncFromLibrary();
         _ui.Toast("顺序已更新", true);
+    }
+
+    // ---- 配置 ----
+
+    private void RefreshProfiles()
+    {
+        Profiles.Clear();
+        foreach (var profile in _workspace.Library.Profiles) Profiles.Add(profile);
+        Raise(nameof(HasProfiles));
+    }
+
+    private void SaveProfile()
+    {
+        // 弹层是独立窗口，会浮在模态对话框上面，所以先收起菜单再问名字
+        IsProfileMenuOpen = false;
+
+        var suggested = "配置 " + (_workspace.Library.Profiles.Count + 1);
+        var name = DialogService.Prompt("保存配置", "给当前这套启停组合起个名字：", suggested);
+        if (string.IsNullOrWhiteSpace(name)) return;
+
+        if (_workspace.Library.ProfileNameExists(name))
+        {
+            _ui.Toast("已经有同名配置了", false);
+            return;
+        }
+
+        var profile = _workspace.Library.CaptureProfile(name);
+        _workspace.Library.AddProfile(profile);
+        _workspace.Library.Save();
+
+        RefreshProfiles();
+        _ui.Toast($"已保存「{name}」，启用 {profile.EnabledIds.Count} 个模组", true);
+    }
+
+    private async Task ApplyProfileAsync(ModProfile? profile)
+    {
+        if (profile == null) return;
+
+        var missing = _workspace.Library.MissingProfileEntries(profile);
+        var changed = _workspace.Library.ApplyProfile(profile);
+
+        SyncFromLibrary();
+        _workspace.Library.Save();
+        RaiseCounts();
+        IsProfileMenuOpen = false;
+
+        if (_workspace.Game.IsValid) await _ui.DeployAsync(silent: true);
+
+        var text = $"已切换到「{profile.Name}」";
+        text += changed > 0 ? $"，{changed} 个模组状态改变" : "，状态没有变化";
+        if (missing > 0) text += $"；{missing} 个模组已不在库中";
+
+        _ui.Toast(text, true);
+    }
+
+    private void UpdateProfile(ModProfile? profile)
+    {
+        if (profile == null) return;
+
+        _workspace.Library.RefreshProfile(profile);
+        _workspace.Library.Save();
+        RefreshProfiles();
+
+        _ui.Toast($"已用当前状态更新「{profile.Name}」", true);
+    }
+
+    private void DeleteProfile(ModProfile? profile)
+    {
+        if (profile == null) return;
+
+        IsProfileMenuOpen = false;
+
+        var confirm = _ui.Confirm($"删除配置「{profile.Name}」",
+            "只删除这套组合记录，不会动任何模组文件。", "删除");
+        if (confirm != ConfirmResult.Primary) return;
+
+        _workspace.Library.RemoveProfile(profile);
+        _workspace.Library.Save();
+        RefreshProfiles();
+
+        _ui.Toast("已删除配置", true);
     }
 
     private void ApplyOrder()

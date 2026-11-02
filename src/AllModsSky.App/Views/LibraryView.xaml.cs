@@ -22,6 +22,20 @@ public partial class LibraryView : UserControl
 
     private LibraryViewModel? ViewModel => DataContext as LibraryViewModel;
 
+    /// <summary>点菜单外的任意位置关闭配置菜单（弹层本身是独立窗口，不受这层遮罩影响）。</summary>
+    private void ProfileMenuScrim_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (ViewModel == null) return;
+        ViewModel.IsProfileMenuOpen = false;
+        e.Handled = true;
+    }
+
+    /// <summary>切页/关闭视图时收起菜单，避免弹层留在屏幕上。</summary>
+    private void LibraryView_Unloaded(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel != null) ViewModel.IsProfileMenuOpen = false;
+    }
+
     private void ModList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         _dragStart = e.GetPosition(ModList);
