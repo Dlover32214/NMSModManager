@@ -26,6 +26,13 @@ public partial class LibraryView : UserControl
     private bool _lifted;
     private DragGhostAdorner? _ghost;
 
+    /// <summary>
+    /// 拖拽开始时量一次的行位置（上/下边界）与对应数据，两个列表一一对应。
+    /// 拖拽期间列表不会变，不必每帧重算；提示线和落点都从这里取。
+    /// </summary>
+    private readonly List<DragGeometry.RowSpan> _rowSpans = new();
+    private readonly List<ModItemViewModel> _rowItems = new();
+
     public LibraryView()
     {
         InitializeComponent();
@@ -162,26 +169,32 @@ public partial class LibraryView : UserControl
 
     private void ModList_DragLeave(object sender, DragEventArgs e)
     {
-        if (_ghost != null) _ghost.MarkerY = double.NaN;
+        // DragLeave 会从行、ScrollViewer 这些子元素一路冒泡上来：光标只是从某一行挪到
+        // 行间那 4px 空隙时也会触发，直接隐藏提示线就会「闪」。只有真的出界才收起来。
+        if (_ghost == null) return;
+
+        var position = e.GetPosition(ModList);
+        var inside = position.X >= 0 && position.Y >= 0
+                     && position.X <= ModList.ActualWidth && position.Y <= ModList.ActualHeight;
+
+        if (!inside) _ghost.MarkerY = double.NaN;
     }
 
     private void ModList_Drop(object sender, DragEventArgs e)
     {
         if (e.Data.GetData(typeof(ModItemViewModel)) is not ModItemViewModel source) return;
 
-        var target = ItemAt(e.GetPosition(ModList));
-        if (ReferenceEquals(target, source)) return;
-
-        var after = false;
-        if (target != null &&
-            ModList.ItemContainerGenerator.ContainerFromItem(target) is ListBoxItem container)
-        {
-            var position = e.GetPosition(container);
-            after = position.Y > container.ActualHeight / 2;
-        }
+        // 落点跟提示线用同一份计算：以前走命中测试，掉在行间空隙里会拿到 null，
+        // 结果「线指着中间，东西飞到最后面去了」。
+        var slot = DragGeometry.Slot(_rowSpans, e.GetPosition(ModList).Y);
+        var target = slot.Index < _rowItems.Count ? _rowItems[slot.Index] : null;
+        var after = slot.After;
 
         EndGhost();
         ResetLift(source);
+
+        if (ReferenceEquals(target, source) && !after) return;
+
         var before = CapturePositions();
 
         ViewModel?.MoveItem(source, target, after);
@@ -228,15 +241,30 @@ public partial class LibraryView : UserControl
         return false;
     }
 
-    /// <summary>插入位置提示线：落在目标行的上半 → 画在它上面，下半 → 画在它下面。</summary>
-    private double MarkerY(Point point)
-    {
-        var container = ContainerOf(ItemAt(point));
-        if (container == null) return double.NaN;
+    /// <summary>
+    /// 插入位置提示线：落在行的上半 → 画在它上面，下半 → 画在它下面。
+    /// 用几何位置算，不依赖命中测试——行间距 4px、列表顶部留白这些「没压在任何行上」
+    /// 的地方原来会算不出位置，线就闪一下或者干脆没了。
+    /// </summary>
+    private double MarkerY(Point point) =>
+        DragGeometry.MarkerY(_rowSpans, DragGeometry.Slot(_rowSpans, point.Y));
 
-        var top = container.TranslatePoint(new Point(0, 0), ModList).Y;
-        var middle = top + container.ActualHeight / 2;
-        return point.Y > middle ? top + container.ActualHeight + 2 : top - 2;
+    /// <summary>拖拽开始时把每一行的上下边界量一遍，DragOver 里只做比较。</summary>
+    private void CaptureRows()
+    {
+        _rowSpans.Clear();
+        _rowItems.Clear();
+
+        foreach (var obj in ModList.Items)
+        {
+            if (obj is not ModItemViewModel item) continue;
+            var container = ContainerOf(item);
+            if (container == null) continue;
+
+            var top = container.TranslatePoint(new Point(0, 0), ModList).Y;
+            _rowSpans.Add(new DragGeometry.RowSpan(top, top + container.ActualHeight));
+            _rowItems.Add(item);
+        }
     }
 
     // ---- 长按 / 拖拽预览 ----
@@ -260,12 +288,17 @@ public partial class LibraryView : UserControl
         _ghost = new DragGhostAdorner(ModList, snapshot, size, position, AdornerLayerBrush());
         layer.Add(_ghost);
 
+        CaptureRows();
+
         LiftItem(item);
         _lifted = true;
     }
 
     private void EndGhost()
     {
+        _rowSpans.Clear();
+        _rowItems.Clear();
+
         if (_ghost == null) return;
 
         AdornerLayer.GetAdornerLayer(ModList)?.Remove(_ghost);
@@ -386,23 +419,28 @@ internal sealed class DragGhostAdorner : Adorner
 
     protected override void OnRender(DrawingContext dc)
     {
-        var width = AdornedElement.RenderSize.Width;
+        var size = AdornedElement.RenderSize;
+        var width = size.Width;
 
-        if (!double.IsNaN(_markerY) && _markerY > 0)
+        if (_snapshot != null)
         {
-            dc.DrawLine(_markerPen, new Point(10, _markerY), new Point(width - 10, _markerY));
-            dc.DrawEllipse(_markerPen.Brush, null, new Point(10, _markerY), 2.5, 2.5);
-            dc.DrawEllipse(_markerPen.Brush, null, new Point(width - 10, _markerY), 2.5, 2.5);
+            var rect = new Rect(_position.X - _grab.X, _position.Y - _grab.Y, _size.Width, _size.Height);
+            var shadow = new SolidColorBrush(Color.FromArgb(90, 0, 0, 0));
+
+            dc.PushOpacity(0.96);
+            dc.DrawRoundedRectangle(shadow, null, new Rect(rect.X + 4, rect.Y + 6, rect.Width, rect.Height), 12, 12);
+            dc.DrawRoundedRectangle(new ImageBrush(_snapshot) { Stretch = Stretch.Fill }, null, rect, 12, 12);
+            dc.Pop();
         }
 
-        if (_snapshot == null) return;
+        if (double.IsNaN(_markerY)) return;
 
-        var rect = new Rect(_position.X - _grab.X, _position.Y - _grab.Y, _size.Width, _size.Height);
-        var shadow = new SolidColorBrush(Color.FromArgb(90, 0, 0, 0));
+        // 夹进可见范围：第一行上方算出来是负值，画到外面就被裁掉，看着像「线没了」。
+        // 提示线最后画，否则会被跟手的预览图盖住，光标扫过时忽隐忽现。
+        var y = DragGeometry.ClampToView(_markerY, size.Height);
 
-        dc.PushOpacity(0.96);
-        dc.DrawRoundedRectangle(shadow, null, new Rect(rect.X + 4, rect.Y + 6, rect.Width, rect.Height), 12, 12);
-        dc.DrawRoundedRectangle(new ImageBrush(_snapshot) { Stretch = Stretch.Fill }, null, rect, 12, 12);
-        dc.Pop();
+        dc.DrawLine(_markerPen, new Point(10, y), new Point(width - 10, y));
+        dc.DrawEllipse(_markerPen.Brush, null, new Point(10, y), 2.5, 2.5);
+        dc.DrawEllipse(_markerPen.Brush, null, new Point(width - 10, y), 2.5, 2.5);
     }
 }
