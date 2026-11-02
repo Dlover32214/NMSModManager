@@ -67,7 +67,9 @@
             <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom">
                 <TextBlock Text="模组" Style="{StaticResource H1}" />
                 <TextBlock Text="{Binding CountText}" Style="{StaticResource MutedText}"
-                           VerticalAlignment="Bottom" Margin="12,0,0,5" />
+                           VerticalAlignment="Bottom" Margin="12,0,0,5"
+                           MaxWidth="520" TextTrimming="CharacterEllipsis"
+                           ToolTip="{Binding CountText}" />
             </StackPanel>
 
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
@@ -157,8 +159,10 @@
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="配置" VerticalAlignment="Center" Foreground="{DynamicResource TextFaint}" />
                         <TextBlock Text="·" Margin="5,0" VerticalAlignment="Center" Opacity="0.5" />
+                        <!-- 名字区固定宽度：跟着文字长短伸缩的话，切配置时左边的「添加模组」会跟着左右晃 -->
                         <TextBlock Text="{Binding ActiveProfileName}" VerticalAlignment="Center"
-                                   MaxWidth="120" TextTrimming="CharacterEllipsis"
+                                   Width="96" TextTrimming="CharacterEllipsis"
+                                   ToolTip="{Binding ActiveProfileName}"
                                    Foreground="{DynamicResource Text}" />
                         <TextBlock Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" FontSize="8"
                                    VerticalAlignment="Center" Margin="6,1,0,0" Opacity="0.75" />

@@ -570,10 +570,14 @@ public sealed class LibraryViewModel : ObservableObject
         // 弹层是独立窗口，会浮在模态对话框上面，所以先收起菜单再问名字
         IsProfileMenuOpen = false;
 
-        var name = DialogService.Prompt("新建配置",
-            "把当前这套模组（含顺序和启停状态）复制成一套新配置：",
+        var input = DialogService.Prompt("新建配置",
+            $"把当前这套模组（含顺序和启停状态）复制成一套新配置，最多 {ModProfile.MaxNameLength} 个字：",
             _workspace.Library.NextProfileName());
-        if (string.IsNullOrWhiteSpace(name)) return;
+        if (string.IsNullOrWhiteSpace(input)) return;
+
+        // 先截断再查重：不然「超长名」和「截断后同名」会各判一次，提示对不上
+        var name = TextLimit.Clamp(input, ModProfile.MaxNameLength);
+        var truncated = name != input.Trim();
 
         if (_workspace.Library.ProfileNameExists(name))
         {
@@ -586,8 +590,11 @@ public sealed class LibraryViewModel : ObservableObject
         _workspace.Library.Save();
 
         SyncFromLibrary();
-        _ui.Toast($"已新建「{profile.Name}」，复制了 {profile.Entries.Count} 个模组", true);
+        _ui.Toast($"已新建「{profile.Name}」，复制了 {profile.Entries.Count} 个模组" + TruncatedHint(truncated), true);
     }
+
+    private static string TruncatedHint(bool truncated) =>
+        truncated ? $"（名字超过 {ModProfile.MaxNameLength} 个字，已截断）" : "";
 
     private async Task SwitchProfileAsync(ModProfile? profile)
     {
@@ -620,8 +627,14 @@ public sealed class LibraryViewModel : ObservableObject
 
         IsProfileMenuOpen = false;
 
-        var name = DialogService.Prompt($"重命名配置「{profile.Name}」", "新名字：", profile.Name);
-        if (string.IsNullOrWhiteSpace(name) || name == profile.Name) return;
+        var input = DialogService.Prompt($"重命名配置「{profile.Name}」",
+            $"新名字（最多 {ModProfile.MaxNameLength} 个字）：", profile.Name);
+        if (string.IsNullOrWhiteSpace(input)) return;
+
+        var name = TextLimit.Clamp(input, ModProfile.MaxNameLength);
+        var truncated = name != input.Trim();
+
+        if (name == profile.Name) return;
 
         if (_workspace.Library.ProfileNameExists(name, profile))
         {
@@ -633,7 +646,7 @@ public sealed class LibraryViewModel : ObservableObject
         _workspace.Library.Save();
         RefreshProfiles();
         Raise(nameof(ActiveProfileName), nameof(CountText));
-        _ui.Toast("已重命名为「" + name + "」", true);
+        _ui.Toast("已重命名为「" + name + "」" + TruncatedHint(truncated), true);
     }
 
     private void DeleteProfile(ModProfile? profile)

@@ -117,6 +117,12 @@ public sealed class ModProfile
     /// <summary>内置「无模组」的固定 Id。</summary>
     public const string NoneId = "builtin-none";
 
+    /// <summary>
+    /// 配置名的字数上限。按「字」算（一个汉字、一个字母都算 1），不按 UTF-16 长度算，
+    /// 否则 emoji 会被当成 2 个字，名字还没满就被截了。
+    /// </summary>
+    public const int MaxNameLength = 20;
+
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string Name { get; set; } = "";
     public List<ConfigEntry> Entries { get; set; } = new();

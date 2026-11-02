@@ -247,6 +247,18 @@ public sealed class ModLibrary
             if (record.ImportedAt == default) record.ImportedAt = DateTimeOffset.Now;
         }
 
+        // 配置名超长的（旧数据或手改过 json）也一起收进来，界面宽度是按 20 个字排的
+        foreach (var profile in _profiles)
+        {
+            if (profile.BuiltIn) continue;
+
+            var clamped = TextLimit.Clamp(profile.Name, ModProfile.MaxNameLength);
+            if (clamped.Length == 0 || clamped == profile.Name) continue;
+
+            profile.Name = clamped;
+            fixes++;
+        }
+
         return fixes;
     }
 
@@ -371,10 +383,15 @@ public sealed class ModLibrary
 
     /// <summary>
     /// 新建一套配置。copyActive 为真时把当前配置整份复制过来（含顺序与启停状态）。
+    /// 名字超过 <see cref="ModProfile.MaxNameLength"/> 个字会被截断。
     /// </summary>
     public ModProfile CreateProfile(string name, bool copyActive = true)
     {
-        var profile = new ModProfile { Name = name, UpdatedAt = DateTimeOffset.Now };
+        var profile = new ModProfile
+        {
+            Name = TextLimit.Clamp(name, ModProfile.MaxNameLength),
+            UpdatedAt = DateTimeOffset.Now
+        };
 
         if (copyActive)
             foreach (var entry in ActiveProfile.Entries)
@@ -410,8 +427,12 @@ public sealed class ModLibrary
 
     public bool RenameProfile(ModProfile profile, string name)
     {
-        if (profile.BuiltIn || string.IsNullOrWhiteSpace(name)) return false;
-        profile.Name = name.Trim();
+        if (profile.BuiltIn) return false;
+
+        var clamped = TextLimit.Clamp(name, ModProfile.MaxNameLength);
+        if (clamped.Length == 0) return false;
+
+        profile.Name = clamped;
         profile.UpdatedAt = DateTimeOffset.Now;
         return true;
     }
