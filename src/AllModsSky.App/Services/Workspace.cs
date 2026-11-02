@@ -14,6 +14,7 @@ public sealed class Workspace : IDisposable
     public ModLibrary Library { get; } = new();
     public DeploymentService Deployment { get; } = new();
     public LoadOrderService LoadOrder { get; } = new();
+    public ModStateService ModStates { get; } = new();
     public AmumssService Amumss { get; } = new();
     public NexusClient Nexus { get; } = new();
     public OogcClient Oogc { get; } = new();

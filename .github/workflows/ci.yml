@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-selfcheck:
+    name: Build + self-check (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          # .slnx needs SDK 9.0.200+; the projects themselves target net8.0-windows,
+          # so both SDKs are installed and the newest one drives the build.
+          dotnet-version: |
+            8.0.x
+            9.0.x
+
+      - name: Build
+        run: dotnet build AllModsSky.slnx -c Release
+
+      - name: Self-check
+        run: dotnet run --project verify/AllModsSky.SelfCheck/AllModsSky.SelfCheck.csproj -c Release --no-build

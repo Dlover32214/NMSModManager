@@ -69,7 +69,8 @@ This project brings those workflows into one WPF desktop application.
 | Deployment sync | Reconcile the UI state with the game directory and maintain `DISABLEMODS.TXT` |
 | Launch modes | Launch vanilla (disable all mods) or launch modded (restore the last enabled set); both sync before launching |
 | Conflict detection | Scan `EXML` / `MBIN` path overlaps and predict the winner from load order |
-| Load order | Read/write `GCMODSETTINGS.MXML` `ModPriority` with automatic backup |
+| Load order | Read/write `GCMODSETTINGS.MXML` `ModPriority` with automatic backup (UTF-8 BOM / CRLF preserved, XML validated before writing, atomic replace) |
+| Enabled-state sync | After syncing, write each mod's enabled state back to `GCMODSETTINGS.MXML` `Enabled` so the manager and the in-game switches agree; skipped while the game is running; can be turned off in Settings |
 | Log diagnostics | Extract errors from game logs and attribute them to mods where possible |
 | AMUMSS | Detect AMUMSS, analyze repair plans, run `BUILDMOD.bat`, collect output |
 | Discover | Browse Nexus (API key) and oogc.cc with paging, details, browser jump and random 10 (Nexus has no keyword search) |
@@ -123,7 +124,9 @@ When the library is empty, the external mod panel opens automatically so existin
 
 The order of the library list is the load order. Items higher in the list have higher priority; when mods conflict, the higher item overrides the lower one.
 
-"Sync to Game" does not rewrite `GCMODSETTINGS.MXML`. Use "Apply Order" explicitly to write the current list order into the game's load-order configuration.
+"Sync to Game" only moves files and does not rewrite `ModPriority`. Use "Apply Order" explicitly to write the current list order into the game's load-order configuration.
+
+It does, however, write each mod's enabled state back to `GCMODSETTINGS.MXML` `Enabled` (Settings → "Sync enabled state", on by default). The in-game `Enabled` switch and the manager's enable/disable are two separate mechanisms: without writing back, a mod turned off in-game still shows as enabled in the manager.
 
 ### 2.5 Loose 5.50+ mods vs. legacy `.pak`
 
@@ -662,7 +665,8 @@ If you hit permission issues, check directory ACLs first rather than elevating.
 
 ### Environment
 
-- .NET SDK 8
+- .NET SDK 8 or newer (the app targets `net8.0-windows` and needs the .NET 8 Desktop Runtime)
+- Building the whole solution needs SDK 9.0.200+ (`.slnx` is a 9.0.200+ format); with SDK 8 only, build the projects individually as shown below
 - Windows 10/11
 - PowerShell (Windows PowerShell 5.1 or PowerShell 7)
 
@@ -674,38 +678,45 @@ From the project root:
 dotnet build AllModsSky.slnx -c Release
 ```
 
+With .NET 8 SDK only (no `.slnx` support), build the projects one by one:
+
+```powershell
+dotnet build src\AllModsSky.Core\AllModsSky.Core.csproj -c Release
+dotnet build src\AllModsSky.App\AllModsSky.App.csproj -c Release
+dotnet build verify\AllModsSky.SelfCheck\AllModsSky.SelfCheck.csproj -c Release
+```
+
 ### Run
 
 ```powershell
 dotnet run --project src\AllModsSky.App\AllModsSky.App.csproj -c Release
 ```
 
-### Self-test
+### Self-check
 
-The repository includes a console self-test program with no third-party test framework:
+The repository includes a console self-check program with no third-party test framework. It never touches a real game install: every scenario is built in a temp directory.
 
 ```powershell
-$env:ALLMODSSKY_DATA = "$PWD\.tmp\selftest"
-dotnet run --project tests\AllModsSky.SelfTest\AllModsSky.SelfTest.csproj -c Release
+dotnet run --project verify\AllModsSky.SelfCheck\AllModsSky.SelfCheck.csproj -c Release
 ```
 
 Current coverage includes:
 
-- import/extraction/content-root detection;
-- enable/disable and file movement;
-- external mod detection/adoption;
-- `DISABLEMODS.TXT`;
-- conflict scanning;
-- load-order read/write and backup;
-- AMUMSS analysis/collection;
-- legacy data migration;
-- other core paths.
+- `GCMODSETTINGS.MXML` read, priority write, enabled-state write-back;
+- UTF-8 BOM / CRLF preservation, `.bak` backups, atomic replace, no leftover temp files;
+- error handling for missing entries, missing files and invalid input;
+- manager-vs-game `Enabled` reconciliation (including dry run and skip while the game is running);
+- `MODS` / `MODS_disabled` moves, `DISABLEMODS.TXT`, external mod detection.
 
 Expected result:
 
 ```text
-Result: 111 passed, 0 failed
+Result: 48 passed, 0 failed
 ```
+
+### CI
+
+The repository ships a GitHub Actions workflow (`.github/workflows/ci.yml`): every push to `main` and every PR runs `dotnet build AllModsSky.slnx -c Release` on `windows-latest`, then the self-check above; any failure fails the job. It needs no game install and no player data.
 
 ### Publish a single file
 
@@ -742,6 +753,7 @@ NMSModManager\
 │  │  ├─ VanillaLaunchStore.cs     vanilla launch state save/restore
 │  │  ├─ ConflictAnalyzer.cs       EXML/MBIN conflict scan
 │  │  ├─ LoadOrderService.cs       GCMODSETTINGS.MXML
+│  │  ├─ ModStateService.cs        manager toggle ↔ game Enabled reconciliation
 │  │  ├─ LogDiagnostics.cs         game log diagnostics
 │  │  ├─ AmumssService.cs          AMUMSS detect/analyze/rebuild/collect
 │  │  ├─ NexusClient.cs            Nexus API
@@ -758,8 +770,8 @@ NMSModManager\
 │     ├─ Services\                 dialog / shell UI / theme services
 │     ├─ Controls\                 control helpers
 │     └─ app.ico / app.manifest
-├─ tests\
-│  └─ AllModsSky.SelfTest\         console self-test (111 checks)
+├─ verify\
+│  └─ AllModsSky.SelfCheck\         console self-check (48 checks, no game needed)
 ├─ tools\                          helper scripts (not required at runtime)
 ├─ release\                        final release artifacts
 ├─ dist\                           historical builds/temporary publish output
@@ -786,7 +798,7 @@ File system + game directories
 
 - **Core** does not reference WPF, making it reusable and easy to self-test.
 - **App** handles UI, dialogs, themes and MVVM orchestration.
-- **SelfTest** calls Core directly and covers file operations and parsing.
+- **SelfCheck** calls Core directly and covers file operations and parsing.
 
 ### 9.2 Key services
 
@@ -799,6 +811,7 @@ File system + game directories
 | `DeploymentService` | Enable/disable moves, external mods, `DISABLEMODS.TXT` |
 | `ConflictAnalyzer` | EXML/MBIN path and property conflicts |
 | `LoadOrderService` | Read/write `GCMODSETTINGS.MXML` |
+| `ModStateService` | Reconcile manager enable/disable with the game's `Enabled` flags |
 | `LogDiagnostics` | Error extraction and mod attribution |
 | `AmumssService` | AMUMSS detection, rebuild, collection |
 | `NexusClient` / `OogcClient` | Network listing/details |
