@@ -45,7 +45,7 @@ jobs:
     # 缓存 NuGet 全局包目录。publish -r win-x64 要拉 RID 运行时包，
     # 命中后省掉这部分下载；将来加 PackageReference 同样受益。
     - name: Cache NuGet packages
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ~/.nuget/packages
         key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'AllModsSky.slnx') }}
