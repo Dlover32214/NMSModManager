@@ -682,30 +682,7 @@ dotnet run --project src\AllModsSky.App\AllModsSky.App.csproj -c Release
 
 ### Self-test
 
-The repository includes a console self-test program with no third-party test framework:
-
-```powershell
-$env:ALLMODSSKY_DATA = "$PWD\.tmp\selftest"
-dotnet run --project tests\AllModsSky.SelfTest\AllModsSky.SelfTest.csproj -c Release
-```
-
-Current coverage includes:
-
-- import/extraction/content-root detection;
-- enable/disable and file movement;
-- external mod detection/adoption;
-- `DISABLEMODS.TXT`;
-- conflict scanning;
-- load-order read/write and backup;
-- AMUMSS analysis/collection;
-- legacy data migration;
-- other core paths.
-
-Expected result:
-
-```text
-Result: 111 passed, 0 failed
-```
+The self-test program is not published with this repository; building and running do not depend on it.
 
 ### Publish a single file
 

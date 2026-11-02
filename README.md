@@ -680,30 +680,7 @@ dotnet run --project src\AllModsSky.App\AllModsSky.App.csproj -c Release
 
 ### 自检
 
-项目自带一个无第三方测试框架的控制台自检程序：
-
-```powershell
-$env:ALLMODSSKY_DATA = "$PWD\.tmp\selftest"
-dotnet run --project tests\AllModsSky.SelfTest\AllModsSky.SelfTest.csproj -c Release
-```
-
-当前自检覆盖：
-
-- 导入/解压/内容根识别；
-- 启用/停用与文件移动；
-- 外部模组识别/收编；
-- `DISABLEMODS.TXT`；
-- 冲突扫描；
-- 加载顺序读写与备份；
-- AMUMSS 分析/收集；
-- 旧版数据迁移；
-- 其他核心路径。
-
-自检结果应为：
-
-```text
-结果：通过 111，失败 0
-```
+自检程序暂未随仓库发布，构建与运行不依赖它。
 
 ### 发布单文件
 
