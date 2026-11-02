@@ -26,7 +26,6 @@
 | `Core/Services/Importer.cs` 有一处 `.Result` | 不用 `.Result` / `.Wait()` | 在 async 方法里阻塞等进程输出，是唯一例外 |
 | 空 `catch` 约 31 处 | 空 catch 必须带一行注释说明为什么可以吞 | 多数有注释（如 `PathGuard.Match`），少数没有 |
 | `App/ViewModels/ModItemViewModel.cs` 手写 setter，并在 setter 里 `Raise(nameof(...))` | 默认用 `SetProperty` | setter 有副作用（同步 `Record.Enabled` 并触发回调），属合理例外，但 `Raise()` 未显式写属性名 |
-| `Core/Infrastructure/PathGuard.cs:24-32` `HasPathSeparator` 上方连着两个 `<summary>` | 一个成员一个摘要 | `FindExisting` 的摘要被误粘到了 `HasPathSeparator` 上，`FindExisting` 自己反而没有摘要。因 `GenerateDocumentationFile=false`，编译器不报 |
 
 ---
 
@@ -39,7 +38,7 @@
 | 无 `global.json` | SDK 版本钉死 | SDK 口径三处不同（见第 6 节） |
 | 无 `.gitattributes` | 行尾策略声明 | 靠 `core.autocrlf=true` 维持，源码实际是 CRLF 无 BOM |
 | 未开 `TreatWarningsAsErrors` | 警告即错误 | 目前是 0 警告，但没有机制防止退化 |
-| `Core/AllModsSky.Core.csproj` 的 `GenerateDocumentationFile=false` | 写了 `<see cref>` 就该校验 | 源码有 552 行 `///`，但不产出 XML，编译器不检查摘要完整性（见第 2 节最后一条） |
+| `Core/AllModsSky.Core.csproj` 的 `GenerateDocumentationFile=false` | 写了 `<see cref>` 就该校验 | 源码有 552 行 `///`，但不产出 XML，IDE 里也不提示摘要缺失。**注意打开它也只能补出 CS1591（缺注释）**——摘要写错、写重复，编译器都不会有诊断（实测） |
 | `Core` 的 TFM 是 `net8.0-windows` | Core 不依赖 UI | 不依赖 WPF 属实，但依赖 `Microsoft.Win32` 注册表，所以降不到 `net8.0` |
 
 ---

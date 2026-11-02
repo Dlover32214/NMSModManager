@@ -22,10 +22,6 @@ public static class PathGuard
     }
 
     /// <summary>
-    /// 在 root 下枚举真实条目并按名字精确匹配（忽略大小写）。
-    /// 找不到返回 null —— 调用方应视为「不存在」，而不是去拼路径。
-    /// </summary>
-    /// <summary>
     /// 名字里含路径分隔符 —— 这类值不可能对应磁盘上的条目，直接判定非法。
     /// <c>: ? * " &lt; &gt; |</c> 不在此列：它们在 Windows 上同样建不出文件，
     /// 但旧索引里很常见（如 <c>Better Ship: Redux</c>），交给 SafeFileName 规范化后再匹配。
@@ -37,6 +33,7 @@ public static class PathGuard
     /// 在 root 下枚举真实条目并按名字匹配。
     /// 先按原名匹配；匹配不到再按 SafeFileName 规范化一次 —— 磁盘上的名字一定是净化过的，
     /// 而旧数据里的 FolderName 可能还带着 : ? * 这些字符。
+    /// 找不到返回 null —— 调用方应视为「不存在」，而不是去拼路径。
     /// </summary>
     public static string? FindExisting(string? root, string? name, bool wantFile = false)
     {
