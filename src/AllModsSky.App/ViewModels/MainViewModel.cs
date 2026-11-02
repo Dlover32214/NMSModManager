@@ -11,6 +11,16 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
     private readonly Workspace _workspace = new();
     private readonly DispatcherTimer _toastTimer;
 
+    /// <summary>忙等遮罩延迟显示：半秒内跑完的操作不该闪一下遮罩。</summary>
+    private static readonly TimeSpan BusyShowDelay = TimeSpan.FromMilliseconds(500);
+
+    /// <summary>遮罩一旦显示出来，至少留这么久——否则 0.5~0.7 秒的任务只闪 100 毫秒，比不显示更难受。</summary>
+    private static readonly TimeSpan BusyMinVisible = TimeSpan.FromMilliseconds(200);
+
+    private readonly DispatcherTimer _busyShowTimer;
+    private readonly DispatcherTimer _busyHideTimer;
+    private DateTime _busyShownUtc;
+
     private PageKey _currentPage = PageKey.Library;
     private object _currentPageViewModel;
     private bool _isDark;
@@ -68,6 +78,24 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
         {
             _toastTimer.Stop();
             IsToastVisible = false;
+        };
+
+        // 忙等遮罩：先等 0.5 秒，还没跑完才显示；显示后至少留 200 毫秒再收
+        _busyShowTimer = new DispatcherTimer { Interval = BusyShowDelay };
+        _busyShowTimer.Tick += (_, _) =>
+        {
+            _busyShowTimer.Stop();
+            if (_busyCount == 0 || IsBusy) return;
+
+            _busyShownUtc = DateTime.UtcNow;
+            IsBusy = true;
+        };
+
+        _busyHideTimer = new DispatcherTimer();
+        _busyHideTimer.Tick += (_, _) =>
+        {
+            _busyHideTimer.Stop();
+            if (_busyCount == 0) HideBusy();
         };
 
         _workspace.LibraryChanged += OnLibraryChanged;
@@ -296,17 +324,46 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
     {
         _busyCount++;
         BusyText = text;
-        IsBusy = true;
+
+        // 已经有一套流程在跑：共用同一个遮罩，不重新计时
+        if (_busyCount > 1) return;
+
+        _busyHideTimer.Stop();   // 上一轮还在等最短展示时间，取消掉
+        if (IsBusy) return;      // 遮罩已经在屏幕上，不用再等
+
+        _busyShowTimer.Stop();
+        _busyShowTimer.Start();
     }
 
     public void EndBusy()
     {
         _busyCount = Math.Max(0, _busyCount - 1);
-        if (_busyCount == 0)
+        if (_busyCount > 0) return;
+
+        _busyShowTimer.Stop();
+
+        // 没等到 0.5 秒就结束了：遮罩根本没出现，什么都不用做
+        if (!IsBusy)
         {
-            IsBusy = false;
             BusyText = "";
+            return;
         }
+
+        var remain = BusyMinVisible - (DateTime.UtcNow - _busyShownUtc);
+        if (remain <= TimeSpan.Zero)
+        {
+            HideBusy();
+            return;
+        }
+
+        _busyHideTimer.Interval = remain;
+        _busyHideTimer.Start();
+    }
+
+    private void HideBusy()
+    {
+        IsBusy = false;
+        BusyText = "";
     }
 
     public async Task<DeployReport?> DeployAsync(bool silent = false)
@@ -576,6 +633,8 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
     public void Dispose()
     {
         _toastTimer.Stop();
+        _busyShowTimer.Stop();
+        _busyHideTimer.Stop();
         _workspace.Dispose();
     }
 }
