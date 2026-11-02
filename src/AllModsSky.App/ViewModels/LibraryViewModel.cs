@@ -348,6 +348,9 @@ public sealed class LibraryViewModel : ObservableObject
         _workspace.Library.Save();
         SyncFromLibrary();
 
+        // 新加进来的条目还没有格式/适配信息，只补查缺的
+        await RefreshHealthAsync(onlyMissing: true);
+
         if (_workspace.Game.IsValid) await _ui.DeployAsync(silent: true);
 
         _ui.Toast($"已加入 {added} 个模组到「{target.Name}」", true);
@@ -657,6 +660,11 @@ public sealed class LibraryViewModel : ObservableObject
         var changed = _workspace.Library.SetActiveProfile(profile.Id);
 
         SyncFromLibrary();
+
+        // 切到「无模组」会把缓存里的条目全丢掉，切回来是新对象，格式/适配都是空的。
+        // 这里补查一遍，已经查过的直接跳过。
+        await RefreshHealthAsync(onlyMissing: true);
+
         _workspace.Library.Save();
         IsProfileMenuOpen = false;
 
@@ -780,10 +788,16 @@ public sealed class LibraryViewModel : ObservableObject
         _ui.Toast($"{item.Name}：已移出配置，回到模组库", true);
     }
 
-    public async Task RefreshHealthAsync()
+    /// <summary>
+    /// 检查模组的格式/适配情况。
+    /// <paramref name="onlyMissing"/> 为真时只补查还没查过的——切换配置时用，
+    /// 切到「无模组」会把缓存清空，切回来新建的条目是空的，但已经查过的不用重扫磁盘。
+    /// </summary>
+    public async Task RefreshHealthAsync(bool onlyMissing = false)
     {
         var gameVersion = _workspace.Settings.GameVersion;
-        var items = _cache.Values.ToList();
+        var items = _cache.Values.Where(i => !onlyMissing || !i.IsHealthReady).ToList();
+        if (items.Count == 0) return;
 
         var results = await Task.Run(() => items
             .Select(item => (Item: item, Health: ModInspector.Evaluate(
