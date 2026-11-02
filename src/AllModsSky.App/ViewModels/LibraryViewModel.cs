@@ -547,8 +547,13 @@ public sealed class LibraryViewModel : ObservableObject
         if (_workspace.Library.PruneMissingEntries() > 0) _workspace.Library.Save();
 
         var menu = _workspace.Library.MenuProfiles.ToList();
-        if (Profiles.Count == menu.Count && Profiles.Zip(menu).All(p => ReferenceEquals(p.First, p.Second)))
-            return;
+
+        // SummaryText 是算出来的，对象没换就绑不到新值：清理过条目之后必须重建一次，
+        // 否则菜单还写着旧的「1 / 1 个启用」。
+        var same = Profiles.Count == menu.Count
+                   && Profiles.Zip(menu).All(p => ReferenceEquals(p.First, p.Second)
+                                                  && p.First.SummaryText == p.Second.SummaryText);
+        if (same) return;
 
         Profiles.Clear();
         foreach (var profile in menu) Profiles.Add(profile);
