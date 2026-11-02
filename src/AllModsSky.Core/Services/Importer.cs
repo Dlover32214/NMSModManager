@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.IO.Compression;
 using System.Text.RegularExpressions;
 
-namespace AllModsSky.Core;
+namespace AllModsSky.Core.Services;
 
 public sealed class ImportOutcome
 {

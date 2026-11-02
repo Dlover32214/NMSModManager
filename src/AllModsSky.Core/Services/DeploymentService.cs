@@ -1,4 +1,4 @@
-namespace AllModsSky.Core;
+namespace AllModsSky.Core.Services;
 
 public enum ModPresence
 {

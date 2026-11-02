@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace AllModsSky.Core;
+namespace AllModsSky.Core.Infrastructure;
 
 /// <summary>
 /// 按「字」而不是按 UTF-16 长度截断文本。

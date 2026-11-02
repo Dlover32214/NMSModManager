@@ -3,7 +3,6 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
 using AllModsSky.App.Mvvm;
-using AllModsSky.Core;
 
 namespace AllModsSky.App.Services;
 

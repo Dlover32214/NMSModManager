@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
 
-namespace AllModsSky.Core;
+namespace AllModsSky.Core.Integrations;
 
 public sealed record NexusModInfo(
     string ModId,

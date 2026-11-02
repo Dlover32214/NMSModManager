@@ -1,4 +1,4 @@
-namespace AllModsSky.Core;
+namespace AllModsSky.Core.Infrastructure;
 
 /// <summary>
 /// 不信任 library.json 里的目录名。

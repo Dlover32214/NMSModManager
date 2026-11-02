@@ -4,7 +4,6 @@ using System.Windows;
 using System.Windows.Threading;
 using AllModsSky.App.Services;
 using AllModsSky.App.ViewModels;
-using AllModsSky.Core;
 
 namespace AllModsSky.App;
 

@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace AllModsSky.Core;
+namespace AllModsSky.Core.Models;
 
 /// <summary>模组的物理形态。5.50 之后游戏读取散装目录，旧式 .pak 仅作兼容展示。</summary>
 public enum ModKind

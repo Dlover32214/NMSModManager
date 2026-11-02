@@ -7,7 +7,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace AllModsSky.Core;
+namespace AllModsSky.Core.Integrations;
 
 public sealed class UpdateAsset
 {

@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using Microsoft.Win32;
 
-namespace AllModsSky.Core;
+namespace AllModsSky.Core.Integrations;
 
 /// <summary>设置文件的读写（单例缓存）。</summary>
 public static class SettingsStore

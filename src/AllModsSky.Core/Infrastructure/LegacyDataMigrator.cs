@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace AllModsSky.Core;
+namespace AllModsSky.Core.Infrastructure;
 
 public sealed class LegacyData
 {

@@ -1,4 +1,4 @@
-namespace AllModsSky.Core;
+namespace AllModsSky.Core.Services;
 
 /// <summary>模组目录的格式统计（5.50+ 的 EXML 补丁 / MBIN 替换模型）。</summary>
 public sealed class ModFormatInfo

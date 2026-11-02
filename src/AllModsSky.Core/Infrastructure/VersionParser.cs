@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 
-namespace AllModsSky.Core;
+namespace AllModsSky.Core.Infrastructure;
 
 public sealed record ParsedVersion(double Value, bool IsMinimum, string Raw)
 {

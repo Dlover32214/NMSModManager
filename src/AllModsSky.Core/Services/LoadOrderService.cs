@@ -2,7 +2,7 @@ using System.Security;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace AllModsSky.Core;
+namespace AllModsSky.Core.Services;
 
 public sealed class LoadOrderEntry
 {

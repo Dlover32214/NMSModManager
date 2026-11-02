@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace AllModsSky.Core;
+namespace AllModsSky.Core.Integrations;
 
 /// <summary>
 /// 存档键名映射（来自 NMSE 的 mapping.json，1400+ 条）。

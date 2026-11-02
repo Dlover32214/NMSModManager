@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace AllModsSky.Core;
+namespace AllModsSky.Core.Services;
 
 public sealed class ConflictTarget
 {

@@ -5,7 +5,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace AllModsSky.Core;
+namespace AllModsSky.Core.Infrastructure;
 
 /// <summary>应用的各个数据目录（索引、设置、缓存、日志）。</summary>
 public static class AppPaths

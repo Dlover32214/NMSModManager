@@ -1,5 +1,4 @@
 using System.Windows;
-using AllModsSky.Core;
 using Microsoft.Win32;
 
 namespace AllModsSky.App.Services;

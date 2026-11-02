@@ -1,4 +1,4 @@
-namespace AllModsSky.Core;
+namespace AllModsSky.Core.Services;
 
 /// <summary>
 /// library.json 的内存模型。
