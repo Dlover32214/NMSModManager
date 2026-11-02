@@ -52,6 +52,14 @@ public static class DialogService
         return ok == true ? dialog.InputText.Trim() : null;
     }
 
+    /// <summary>从模组库里挑模组加进配置；取消返回 null。</summary>
+    public static IReadOnlyList<ModRecord>? PickMods(IEnumerable<ModRecord> candidates, string profileName)
+    {
+        var dialog = new ModPickerWindow(candidates, profileName);
+        AttachOwner(dialog);
+        return dialog.ShowDialog() == true ? dialog.Selected : null;
+    }
+
     public static void Alert(string title, string message)
     {
         var dialog = new DialogWindow();

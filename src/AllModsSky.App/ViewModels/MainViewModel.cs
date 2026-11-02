@@ -28,6 +28,7 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
     public MainViewModel()
     {
         Library = new LibraryViewModel(_workspace, this);
+        Pool = new ModPoolViewModel(_workspace, this);
         Discover = new DiscoverViewModel(_workspace, this);
         Tools = new ToolsViewModel(_workspace, this);
         SettingsPage = new SettingsViewModel(_workspace, this);
@@ -78,6 +79,7 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
 
     public Workspace Workspace => _workspace;
     public LibraryViewModel Library { get; }
+    public ModPoolViewModel Pool { get; }
     public DiscoverViewModel Discover { get; }
     public ToolsViewModel Tools { get; }
     public SettingsViewModel SettingsPage { get; }
@@ -99,7 +101,8 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
         private set
         {
             if (!SetProperty(ref _currentPage, value)) return;
-            Raise(nameof(IsLibraryPage), nameof(IsDiscoverPage), nameof(IsToolsPage), nameof(IsSettingsPage), nameof(IsAboutPage));
+            Raise(nameof(IsLibraryPage), nameof(IsPoolPage), nameof(IsDiscoverPage), nameof(IsToolsPage),
+                nameof(IsSettingsPage), nameof(IsAboutPage));
         }
     }
 
@@ -110,6 +113,7 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
     }
 
     public bool IsLibraryPage => CurrentPage == PageKey.Library;
+    public bool IsPoolPage => CurrentPage == PageKey.Pool;
     public bool IsDiscoverPage => CurrentPage == PageKey.Discover;
     public bool IsToolsPage => CurrentPage == PageKey.Tools;
     public bool IsSettingsPage => CurrentPage == PageKey.Settings;
@@ -207,7 +211,7 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
 
             if (_workspace.Game.IsValid)
             {
-                await Library.RefreshExternalAsync();
+                await Pool.RefreshExternalAsync();
                 await Library.RefreshHealthAsync();
             }
 
@@ -246,6 +250,7 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
         CurrentPage = page;
         CurrentPageViewModel = page switch
         {
+            PageKey.Pool => Pool,
             PageKey.Discover => Discover,
             PageKey.Tools => Tools,
             PageKey.Settings => SettingsPage,
@@ -325,7 +330,7 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
                         (report.Messages.Count > 0 ? "；" + string.Join("；", report.Messages.Take(6)) : ""));
 
             _workspace.RefreshGame();
-            await Library.RefreshExternalAsync();
+            await Pool.RefreshExternalAsync();
             UpdateStatus();
 
             if (!silent)
@@ -389,12 +394,14 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
 
             var imported = 0;
             var failures = new List<string>();
+            var importedRecords = new List<ModRecord>();
 
             foreach (var outcome in outcomes)
             {
                 if (outcome.Ok && outcome.Record != null)
                 {
                     _workspace.Library.Add(outcome.Record);
+                    importedRecords.Add(outcome.Record);
                     imported++;
                     AppLog.Info($"导入成功：{outcome.DisplayName}（{outcome.Record.FolderName}）");
                 }
@@ -405,17 +412,22 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
                 }
             }
 
+            // 新导入的模组直接进当前配置，否则会掉进模组库、部署时被停用
+            if (importedRecords.Count > 0) _workspace.Library.AddToActiveProfile(importedRecords);
+
             if (imported > 0)
             {
                 _workspace.Library.Save();
                 _workspace.NotifyLibraryChanged();
                 await DeployAsync(silent: true);
                 await Library.RefreshHealthAsync();
-                await Library.RefreshExternalAsync();
+                await Pool.RefreshExternalAsync();
                 UpdateStatus();
             }
 
-            ShowToast(imported > 0 ? $"已导入 {imported} 个模组" : "没有导入任何模组", imported > 0);
+            ShowToast(imported > 0
+                ? $"已导入 {imported} 个模组，加入配置「{_workspace.Library.ActiveProfile.Name}」"
+                : "没有导入任何模组", imported > 0);
 
             if (failures.Count > 0)
                 Alert("部分导入失败", string.Join(Environment.NewLine, failures.Take(8)));
@@ -439,7 +451,7 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
             _workspace.RefreshGame();
             Library.SyncFromLibrary();
             SettingsPage.RefreshDerived();
-            await Library.RefreshExternalAsync();
+            await Pool.RefreshExternalAsync();
             await Library.RefreshHealthAsync();
             UpdateStatus();
         }

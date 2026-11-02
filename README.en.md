@@ -21,7 +21,7 @@ Enabling a mod means keeping its folder or `.pak` file in `MODS`; disabling mean
 - [1. Project Overview](#1-project-overview)
 - [2. Core Concepts](#2-core-concepts)
 - [3. Feature Reference](#3-feature-reference)
-  - [3.1 Mod Library](#31-mod-library)
+  - [3.1 Mods, Profiles and the Mod Library](#31-mods-profiles-and-the-mod-library)
   - [3.2 Enable, Disable and Sync](#32-enable-disable-and-sync)
   - [3.3 External Mods and Adoption](#33-external-mods-and-adoption)
   - [3.4 Batch Selection and Drag Reordering](#34-batch-selection-and-drag-reordering)
@@ -64,10 +64,12 @@ This project brings those workflows into one WPF desktop application.
 
 | Capability | Description |
 |---|---|
-| Mod library | Import zip / rar / 7z / tar / gz / bz2 / xz / zst / cab / pak / folders; enable, disable, reorder and batch-manage |
+| Mods | The mods in the current profile: enable/disable, drag to reorder (with a live preview), batch actions, apply load order |
+| Profiles | Several mod lists, switch with one click; the built-in **No mods** profile is how you launch vanilla |
+| Mod library | The global pool: import zip / rar / 7z / tar / gz / bz2 / xz / zst / cab / pak / folders; add to a profile, remove from the pool |
 | External mods | Detect `MODS` content not owned by the app; enable/disable directly or adopt it |
 | Deployment sync | Reconcile the UI state with the game directory and maintain `DISABLEMODS.TXT` |
-| Launch modes | Launch vanilla (disable all mods) or launch modded (restore the last enabled set); both sync before launching |
+| Launch | A single **Launch game**: sync first, then the current profile decides whether mods are loaded (the **No mods** profile means vanilla) |
 | Conflict detection | Scan `EXML` / `MBIN` path overlaps and predict the winner from load order |
 | Load order | Read/write `GCMODSETTINGS.MXML` `ModPriority` with automatic backup |
 | Log diagnostics | Extract errors from game logs and attribute them to mods where possible |
@@ -144,9 +146,27 @@ The setting `CreateDisableModsFile` controls automatic creation.
 
 ## 3. Feature Reference
 
-### 3.1 Mod Library
+### 3.1 Mods, Profiles and the Mod Library
 
-The library is the main page.
+The app separates the mods you have from the mods you are currently using:
+
+- **Mods** page: shows only the mods in the current profile; the list order is the load order.
+- **Mod library** page: the whole pool. Importing, adopting external mods and deleting from the pool all happen here.
+- **Profiles**: a profile is a mod list plus each mod's enabled state. Switching a profile updates the list and the on-disk enabled state together.
+
+#### Profiles
+
+- There is a built-in **No mods** profile: always first in the menu, cannot be renamed or deleted. Switching to it disables everything, so **Launch game** starts vanilla.
+- Other profiles can be created (copying the current one), renamed and deleted.
+- The last remaining profile cannot be deleted — there always has to be somewhere to put mods.
+- Deleting a profile only deletes the list; the mods and their files stay and return to the mod library.
+- The active profile is stored as `ActiveProfileId` in `library.json` and restored on the next start.
+
+#### Adding mods
+
+**+ Add mods** in the Mods toolbar lists the library mods that are not in this profile yet; tick them and they are appended to the list (you can drag them afterwards).
+
+**Remove from profile** at the end of a row only takes the mod out of this profile. Files are untouched and the mod can be added back later.
 
 #### Import
 
@@ -467,8 +487,8 @@ The API key is saved to `settings.json` in the data directory. If it cannot be s
 
 ### 3.11 UI and Interaction
 
-- Left navigation: Library / Discover / Tools / Settings / About.
-- Bottom-left: Launch Modded / Launch Vanilla buttons, current-mode hint, game status card, dark-mode switch.
+- Left navigation: Mods / Mod library / Discover / Tools / Settings / About.
+- Bottom-left: **Launch game** button, game status card, dark-mode switch.
 - Top status bar: `MODS` path, counts, version.
 - Dark and light themes.
 - Global toasts with scale/fade, glow and an outer shadow.
@@ -481,11 +501,12 @@ The API key is saved to `settings.json` in the data directory. If it cannot be s
   - subtitle `A NMS MOD MANAGER`.
 - Keyboard shortcuts:
   - `Ctrl+O` import
-  - `Ctrl+1` Library
-  - `Ctrl+2` Discover
-  - `Ctrl+3` Tools
-  - `Ctrl+4` Settings
-  - `Ctrl+5` About
+  - `Ctrl+1` Mods
+  - `Ctrl+2` Mod library
+  - `Ctrl+3` Discover
+  - `Ctrl+4` Tools
+  - `Ctrl+5` Settings
+  - `Ctrl+6` About
   - `F5` refresh
   - `Esc` exit batch / dismiss toast
 

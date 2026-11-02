@@ -3,6 +3,7 @@ namespace AllModsSky.App.Services;
 public enum PageKey
 {
     Library,
+    Pool,
     Discover,
     Tools,
     Settings,

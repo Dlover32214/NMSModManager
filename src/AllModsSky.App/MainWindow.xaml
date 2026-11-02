@@ -24,6 +24,9 @@
         <DataTemplate DataType="{x:Type vm:LibraryViewModel}">
             <views:LibraryView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ModPoolViewModel}">
+            <views:ModPoolView />
+        </DataTemplate>
         <DataTemplate DataType="{x:Type vm:DiscoverViewModel}">
             <views:DiscoverView />
         </DataTemplate>
@@ -226,6 +229,15 @@
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource EnumEquals}, ConverterParameter=Library, Mode=OneWay}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE8F1;" Style="{StaticResource Glyph}" Margin="0,0,12,0" />
+                            <TextBlock Text="模组" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </RadioButton>
+
+                    <RadioButton Style="{StaticResource NavItem}" GroupName="nav"
+                                 Command="{Binding NavigateCommand}" CommandParameter="Pool"
+                                 IsChecked="{Binding CurrentPage, Converter={StaticResource EnumEquals}, ConverterParameter=Pool, Mode=OneWay}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE8B7;" Style="{StaticResource Glyph}" Margin="0,0,12,0" />
                             <TextBlock Text="模组库" VerticalAlignment="Center" />
                         </StackPanel>
                     </RadioButton>

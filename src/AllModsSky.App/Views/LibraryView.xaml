@@ -59,14 +59,13 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
         <!-- 标题 -->
         <Grid Grid.Row="0" Margin="0,0,0,14">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom">
-                <TextBlock Text="模组库" Style="{StaticResource H1}" />
+                <TextBlock Text="模组" Style="{StaticResource H1}" />
                 <TextBlock Text="{Binding CountText}" Style="{StaticResource MutedText}"
                            VerticalAlignment="Bottom" Margin="12,0,0,5" />
             </StackPanel>
@@ -143,11 +142,24 @@
             </StackPanel>
 
             <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Style="{StaticResource GhostButton}" Margin="0,0,6,0"
+                        Command="{Binding AddModsCommand}"
+                        ToolTip="从模组库里挑模组加进当前配置">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="＋" FontSize="12" VerticalAlignment="Center" Margin="0,0,5,0" />
+                        <TextBlock Text="添加模组" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+
                 <Button x:Name="ProfileButton" Style="{StaticResource GhostButton}" Margin="0,0,6,0"
                         Command="{Binding ToggleProfileMenuCommand}"
-                        ToolTip="把当前这套启停组合存成配置，之后一键切换">
+                        ToolTip="当前配置。点开可以切换、重命名或新建一套">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="配置" VerticalAlignment="Center" />
+                        <TextBlock Text="配置" VerticalAlignment="Center" Foreground="{DynamicResource TextFaint}" />
+                        <TextBlock Text="·" Margin="5,0" VerticalAlignment="Center" Opacity="0.5" />
+                        <TextBlock Text="{Binding ActiveProfileName}" VerticalAlignment="Center"
+                                   MaxWidth="120" TextTrimming="CharacterEllipsis"
+                                   Foreground="{DynamicResource Text}" />
                         <TextBlock Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" FontSize="8"
                                    VerticalAlignment="Center" Margin="6,1,0,0" Opacity="0.75" />
                     </StackPanel>
@@ -159,7 +171,7 @@
                        PlacementTarget="{Binding ElementName=ProfileButton}"
                        Placement="Bottom" VerticalOffset="6" HorizontalOffset="-46"
                        StaysOpen="True" AllowsTransparency="True" PopupAnimation="Fade">
-                    <Border Width="292" Margin="10"
+                    <Border Width="312" Margin="10"
                             Background="{DynamicResource Surface}"
                             BorderBrush="{DynamicResource Border}" BorderThickness="1"
                             CornerRadius="14" Padding="10,9">
@@ -169,14 +181,10 @@
 
                         <StackPanel>
                             <TextBlock Text="配置" FontSize="12" FontWeight="SemiBold" Margin="6,2,0,0" />
-                            <TextBlock Text="保存多套启停组合，一键切换" Style="{StaticResource CaptionText}"
-                                       Margin="6,2,0,0" />
+                            <TextBlock Text="每套配置管自己那份模组清单，切换即生效"
+                                       Style="{StaticResource CaptionText}" Margin="6,2,0,0" />
 
                             <Border Style="{StaticResource Divider}" Margin="0,9" />
-
-                            <TextBlock Text="还没有配置。点下面「保存当前配置…」把现在的启停状态存成一套。"
-                                       Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="6,2,6,4"
-                                       Visibility="{Binding HasProfiles, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}" />
 
                             <ItemsControl ItemsSource="{Binding Profiles}">
                                 <ItemsControl.ItemTemplate>
@@ -190,30 +198,41 @@
 
                                             <Button Style="{StaticResource ProfileRowButton}"
                                                     CommandParameter="{Binding}"
-                                                    Command="{Binding DataContext.ApplyProfileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                    ToolTip="切换到这组启停状态">
+                                                    Command="{Binding DataContext.SwitchProfileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    ToolTip="切换到这组配置">
                                                 <StackPanel>
-                                                    <TextBlock Text="{Binding Name}" FontSize="12.5"
-                                                               Foreground="{DynamicResource Text}"
-                                                               TextTrimming="CharacterEllipsis" />
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding Name}" FontSize="12.5"
+                                                                   Foreground="{DynamicResource Text}"
+                                                                   TextTrimming="CharacterEllipsis" MaxWidth="180" />
+                                                        <Border Style="{StaticResource Badge}" Margin="6,0,0,0"
+                                                                Padding="5,1"
+                                                                Visibility="{Binding BuiltIn, Converter={StaticResource BoolToVisibility}}">
+                                                            <TextBlock Text="内置" FontSize="9"
+                                                                       Foreground="{DynamicResource TextMuted}" />
+                                                        </Border>
+                                                    </StackPanel>
                                                     <TextBlock Text="{Binding SummaryText}"
                                                                Style="{StaticResource CaptionText}" Margin="0,1,0,0" />
                                                 </StackPanel>
                                             </Button>
 
                                             <Button Grid.Column="1" Style="{StaticResource LinkButton}"
-                                                    Content="更新" FontSize="11" Margin="6,0,0,0"
+                                                    Content="重命名" FontSize="11" Margin="6,0,0,0"
                                                     VerticalAlignment="Center"
                                                     Foreground="{DynamicResource TextFaint}"
                                                     CommandParameter="{Binding}"
-                                                    Command="{Binding DataContext.UpdateProfileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                    ToolTip="用当前启停状态覆盖这套配置" />
+                                                    Visibility="{Binding BuiltIn, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}"
+                                                    Command="{Binding DataContext.RenameProfileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" />
 
                                             <Button Grid.Column="2" Style="{StaticResource LinkButton}"
                                                     Content="删除" FontSize="11" Margin="9,0,6,0"
                                                     VerticalAlignment="Center"
                                                     Foreground="{DynamicResource TextFaint}"
                                                     CommandParameter="{Binding}"
+                                                    IsEnabled="{Binding Deletable}"
+                                                    ToolTip="只剩一套配置时不能删"
+                                                    Visibility="{Binding BuiltIn, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}"
                                                     Command="{Binding DataContext.DeleteProfileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" />
                                         </Grid>
                                     </DataTemplate>
@@ -222,9 +241,10 @@
 
                             <Border Style="{StaticResource Divider}" Margin="0,9" />
 
-                            <Button Style="{StaticResource GhostButton}" Content="＋ 保存当前配置…"
+                            <Button Style="{StaticResource GhostButton}" Content="＋ 新建配置…"
                                     HorizontalAlignment="Left" Margin="2,0,0,0"
-                                    Command="{Binding SaveProfileCommand}" />
+                                    Command="{Binding NewProfileCommand}"
+                                    ToolTip="把当前这套复制成一套新配置" />
                         </StackPanel>
                     </Border>
                 </Popup>
@@ -233,9 +253,7 @@
                         Command="{Binding ToggleBatchCommand}" Margin="0,0,6,0"
                         ToolTip="批量选取：开启后单击整行即可选中/取消" />
                 <Button Style="{StaticResource GhostButton}" Content="应用顺序"
-                        Command="{Binding ApplyOrderCommand}" ToolTip="把当前顺序写入 GCMODSETTINGS.MXML" />
-                <Button Style="{StaticResource GhostButton}" Content="{Binding ExternalButtonText}"
-                        Command="{Binding ToggleExternalPanelCommand}" Margin="6,0,0,0" />
+                        Command="{Binding ApplyOrderCommand}" ToolTip="把当前配置的顺序写入 GCMODSETTINGS.MXML" />
             </StackPanel>
         </Grid>
 
@@ -263,59 +281,8 @@
             </Grid>
         </Border>
 
-        <!-- 外部模组 -->
-        <Border Grid.Row="4" Style="{StaticResource CardSoft}" Padding="14,12" Margin="0,0,0,10"
-                Visibility="{Binding ShowExternal, Converter={StaticResource BoolToVisibility}}">
-            <StackPanel>
-                <Grid Margin="0,0,0,7">
-                    <TextBlock Text="MODS 里不由本管理器管理的模组" Style="{StaticResource MutedText}" />
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Style="{StaticResource LinkButton}" Content="全部收编"
-                                Margin="0,0,14,0"
-                                ToolTip="把这些模组一次性登记进列表；失败的会单独提示，不影响其它的"
-                                Command="{Binding AdoptAllExternalCommand}" />
-                        <Button Style="{StaticResource LinkButton}" Content="刷新"
-                                Command="{Binding RefreshExternalCommand}" />
-                    </StackPanel>
-                </Grid>
-
-                <ScrollViewer MaxHeight="190" VerticalScrollBarVisibility="Auto">
-                    <ItemsControl ItemsSource="{Binding External}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Grid Margin="0,3">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-
-                                    <TextBlock Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"
-                                               TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Grid.Column="1" Text="{Binding KindText}" Style="{StaticResource CaptionText}"
-                                               Margin="10,0" VerticalAlignment="Center" />
-                                    <TextBlock Grid.Column="2" Text="{Binding StateText}" Style="{StaticResource CaptionText}"
-                                               Margin="0,0,10,0" VerticalAlignment="Center" />
-                                    <Button Grid.Column="3" Style="{StaticResource GhostButton}" Padding="10,4"
-                                            Content="{Binding ActionText}" Margin="0,0,6,0" FontSize="11.5"
-                                            Command="{Binding DataContext.ToggleExternalItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                            CommandParameter="{Binding}" />
-                                    <Button Grid.Column="4" Style="{StaticResource GhostButton}" Padding="10,4"
-                                            Content="收编" FontSize="11.5"
-                                            Command="{Binding DataContext.AdoptExternalCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                            CommandParameter="{Binding}" />
-                                </Grid>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
-            </StackPanel>
-        </Border>
-
         <!-- 列表 -->
-        <Grid Grid.Row="5">
+        <Grid Grid.Row="4">
             <ListBox x:Name="ModList"
                      Style="{StaticResource PlainListBox}"
                      ItemsSource="{Binding View}"
@@ -327,7 +294,10 @@
                      ScrollViewer.CanContentScroll="True"
                      PreviewMouseLeftButtonDown="ModList_PreviewMouseLeftButtonDown"
                      PreviewMouseMove="ModList_PreviewMouseMove"
+                     PreviewMouseLeftButtonUp="ModList_PreviewMouseLeftButtonUp"
+                     GiveFeedback="ModList_GiveFeedback"
                      DragOver="ModList_DragOver"
+                     DragLeave="ModList_DragLeave"
                      Drop="ModList_Drop"
                      MouseDoubleClick="ModList_MouseDoubleClick">
 
@@ -387,6 +357,12 @@
 
                             <!-- 操作 -->
                             <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Style="{StaticResource LinkButton}" Content="移出配置"
+                                        FontSize="11" Margin="0,0,10,0" VerticalAlignment="Center"
+                                        Foreground="{DynamicResource TextFaint}"
+                                        ToolTip="只是从这套配置里拿掉，文件不动，之后在「模组库」里还能加回来"
+                                        Command="{Binding DataContext.RemoveFromProfileCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}" />
                                 <Button Style="{StaticResource IconButton}"
                                         ToolTip="打开模组文件夹"
                                         Command="{Binding DataContext.OpenFolderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
@@ -394,7 +370,7 @@
                                     <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="13" />
                                 </Button>
                                 <Button Style="{StaticResource IconButton}"
-                                        ToolTip="移除 / 删除此模组"
+                                        ToolTip="从模组库移除 / 删除此模组"
                                         Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                         CommandParameter="{Binding}" Margin="2,0,0,0">
                                     <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="12" />
@@ -405,26 +381,25 @@
                 </ListBox.ItemTemplate>
             </ListBox>
 
-            <!-- 空库 -->
+            <!-- 这套配置还没有模组 -->
             <Border Style="{StaticResource CardSoft}" Padding="36"
                     HorizontalAlignment="Center" VerticalAlignment="Center" MinWidth="460"
                     Visibility="{Binding IsLibraryEmpty, Converter={StaticResource BoolToVisibility}}">
                 <StackPanel HorizontalAlignment="Center">
                     <TextBlock Text="&#xE7B8;" FontFamily="Segoe MDL2 Assets" FontSize="30"
                                Foreground="{DynamicResource TextFaint}" HorizontalAlignment="Center" />
-                    <TextBlock Text="把 zip / 文件夹拖进窗口，或点「导入模组」" FontSize="13"
+                    <TextBlock Text="{Binding EmptyTitle}" FontSize="13"
                                HorizontalAlignment="Center" Margin="0,14,0,0" />
-                    <TextBlock Text="支持 .zip / .rar / .7z / .pak / 模组文件夹"
-                               Style="{StaticResource SmallText}" HorizontalAlignment="Center" Margin="0,6,0,0" />
-                    <TextBlock Text="{Binding ExternalHint}" Style="{StaticResource SmallText}"
-                               Foreground="{DynamicResource Warn}" HorizontalAlignment="Center"
-                               Margin="0,10,0,0" MaxWidth="460" TextWrapping="Wrap" TextAlignment="Center"
-                               Visibility="{Binding ShowExternalHint, Converter={StaticResource BoolToVisibility}}" />
+                    <TextBlock Text="{Binding EmptyHint}"
+                               Style="{StaticResource SmallText}" HorizontalAlignment="Center" Margin="0,6,0,0"
+                               MaxWidth="460" TextWrapping="Wrap" TextAlignment="Center" />
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,16,0,0">
-                        <Button Style="{StaticResource PrimaryButton}" Content="导入模组"
+                        <Button Style="{StaticResource PrimaryButton}" Content="添加模组"
+                                Command="{Binding AddModsCommand}" />
+                        <Button Style="{StaticResource SecondaryButton}" Content="导入模组" Margin="8,0,0,0"
                                 Command="{Binding ImportFilesCommand}" />
-                        <Button Style="{StaticResource SecondaryButton}" Content="添加文件夹" Margin="8,0,0,0"
-                                Command="{Binding ImportFolderCommand}" />
+                        <Button Style="{StaticResource SecondaryButton}" Content="去模组库" Margin="8,0,0,0"
+                                Command="{Binding OpenLibraryCommand}" />
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -450,7 +425,7 @@
         </Grid>
 
         <!-- 配置菜单打开时的点击遮罩：点任意位置关闭菜单 -->
-        <Border Grid.Row="0" Grid.RowSpan="6" Background="Transparent"
+        <Border Grid.Row="0" Grid.RowSpan="5" Background="Transparent"
                 Visibility="{Binding IsProfileMenuOpen, Converter={StaticResource BoolToVisibility}}"
                 MouseDown="ProfileMenuScrim_MouseDown" />
     </Grid>

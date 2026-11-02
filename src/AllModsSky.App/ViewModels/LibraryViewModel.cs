@@ -8,14 +8,18 @@ using AllModsSky.Core;
 
 namespace AllModsSky.App.ViewModels;
 
+/// <summary>
+/// 模组页。列表只显示当前配置里的模组（顺序即加载顺序）；
+/// 不在配置里的模组待在「模组库」页，点「添加模组」挑进来。
+/// </summary>
 public sealed class LibraryViewModel : ObservableObject
 {
     private readonly Workspace _workspace;
     private readonly IShellUi _ui;
+    private readonly Dictionary<string, ModItemViewModel> _cache = new(StringComparer.OrdinalIgnoreCase);
 
     private string _searchText = "";
     private string _filter = "All";
-    private bool _showExternal;
     private bool _batchMode;
     private bool _profileMenuOpen;
 
@@ -25,22 +29,19 @@ public sealed class LibraryViewModel : ObservableObject
         _ui = ui;
 
         Items = new ObservableCollection<ModItemViewModel>();
-        External = new ObservableCollection<ExternalModItemViewModel>();
         View = CollectionViewSource.GetDefaultView(Items);
         View.Filter = FilterItem;
 
         ImportFilesCommand = new RelayCommand(ImportFiles);
         ImportFolderCommand = new RelayCommand(ImportFolder);
+        AddModsCommand = new AsyncRelayCommand(AddModsAsync);
         RefreshCommand = new AsyncRelayCommand(() => _ui.RefreshAllAsync());
         DeployCommand = new AsyncRelayCommand(() => _ui.DeployAsync(false));
         OpenModsFolderCommand = new RelayCommand(() => Launcher.OpenFolder(_workspace.ModsDir));
-        ToggleExternalPanelCommand = new AsyncRelayCommand(ToggleExternalPanelAsync);
-        RefreshExternalCommand = new AsyncRelayCommand(RefreshExternalAsync);
-        AdoptExternalCommand = new AsyncRelayCommand(p => AdoptAsync(p as ExternalModItemViewModel));
-        AdoptAllExternalCommand = new AsyncRelayCommand(AdoptAllAsync);
-        ToggleExternalItemCommand = new AsyncRelayCommand(p => ToggleExternalAsync(p as ExternalModItemViewModel));
+        OpenLibraryCommand = new RelayCommand(() => _ui.Navigate(PageKey.Pool));
         OpenFolderCommand = new RelayCommand(p => OpenFolder(p as ModItemViewModel));
         DeleteCommand = new RelayCommand(p => Delete(p as ModItemViewModel));
+        RemoveFromProfileCommand = new AsyncRelayCommand(p => RemoveFromProfileAsync(p as ModItemViewModel));
         MoveTopCommand = new AsyncRelayCommand(() => MoveSelectedAsync(true));
         MoveBottomCommand = new AsyncRelayCommand(() => MoveSelectedAsync(false));
         BatchEnableCommand = new AsyncRelayCommand(() => SetSelectedEnabledAsync(true));
@@ -55,9 +56,9 @@ public sealed class LibraryViewModel : ObservableObject
             if (!IsProfileMenuOpen) RefreshProfiles();
             IsProfileMenuOpen = !IsProfileMenuOpen;
         });
-        SaveProfileCommand = new RelayCommand(SaveProfile);
-        ApplyProfileCommand = new AsyncRelayCommand(p => ApplyProfileAsync(p as ModProfile));
-        UpdateProfileCommand = new RelayCommand(p => UpdateProfile(p as ModProfile));
+        NewProfileCommand = new RelayCommand(NewProfile);
+        SwitchProfileCommand = new AsyncRelayCommand(p => SwitchProfileAsync(p as ModProfile));
+        RenameProfileCommand = new RelayCommand(p => RenameProfile(p as ModProfile));
         DeleteProfileCommand = new RelayCommand(p => DeleteProfile(p as ModProfile));
 
         _workspace.LibraryChanged += SyncFromLibrary;
@@ -66,20 +67,17 @@ public sealed class LibraryViewModel : ObservableObject
 
     public ObservableCollection<ModItemViewModel> Items { get; }
     public ICollectionView View { get; }
-    public ObservableCollection<ExternalModItemViewModel> External { get; }
 
     public ICommand ImportFilesCommand { get; }
     public ICommand ImportFolderCommand { get; }
+    public ICommand AddModsCommand { get; }
     public ICommand RefreshCommand { get; }
     public ICommand DeployCommand { get; }
     public ICommand OpenModsFolderCommand { get; }
-    public ICommand ToggleExternalPanelCommand { get; }
-    public ICommand RefreshExternalCommand { get; }
-    public ICommand AdoptExternalCommand { get; }
-    public ICommand AdoptAllExternalCommand { get; }
-    public ICommand ToggleExternalItemCommand { get; }
+    public ICommand OpenLibraryCommand { get; }
     public ICommand OpenFolderCommand { get; }
     public ICommand DeleteCommand { get; }
+    public ICommand RemoveFromProfileCommand { get; }
     public ICommand MoveTopCommand { get; }
     public ICommand MoveBottomCommand { get; }
     public ICommand BatchEnableCommand { get; }
@@ -89,20 +87,21 @@ public sealed class LibraryViewModel : ObservableObject
     public ICommand ToggleBatchCommand { get; }
     public ICommand ApplyOrderCommand { get; }
     public ICommand ToggleProfileMenuCommand { get; }
-    public ICommand SaveProfileCommand { get; }
-    public ICommand ApplyProfileCommand { get; }
-    public ICommand UpdateProfileCommand { get; }
+    public ICommand NewProfileCommand { get; }
+    public ICommand SwitchProfileCommand { get; }
+    public ICommand RenameProfileCommand { get; }
     public ICommand DeleteProfileCommand { get; }
 
+    /// <summary>配置菜单里的条目（内置「无模组」永远第一）。</summary>
     public ObservableCollection<ModProfile> Profiles { get; } = new();
-
-    public bool HasProfiles => Profiles.Count > 0;
 
     public bool IsProfileMenuOpen
     {
         get => _profileMenuOpen;
         set => SetProperty(ref _profileMenuOpen, value);
     }
+
+    public string ActiveProfileName => _workspace.Library.ActiveProfile.Name;
 
     public string SearchText
     {
@@ -124,12 +123,6 @@ public sealed class LibraryViewModel : ObservableObject
             View.Refresh();
             Raise(nameof(HasVisibleMods));
         }
-    }
-
-    public bool ShowExternal
-    {
-        get => _showExternal;
-        private set => SetProperty(ref _showExternal, value);
     }
 
     /// <summary>批量选取模式：单击整行（不含按钮/开关）即可选中或取消。</summary>
@@ -154,15 +147,14 @@ public sealed class LibraryViewModel : ObservableObject
     public int EnabledCount => Items.Count(i => i.Enabled);
     public int SelectedCount => Items.Count(i => i.IsSelected);
     public bool HasSelection => SelectedCount > 0;
-    public string CountText => $"{TotalCount} 个模组 · 已启用 {EnabledCount}";
+
+    public string CountText =>
+        $"配置「{ActiveProfileName}」· {TotalCount} 个模组 · 已启用 {EnabledCount}";
+
     public string SelectedText => $"已选 {SelectedCount} 个";
-    public string ExternalButtonText => $"外部模组 ({External.Count})";
 
-    public bool ShowExternalHint => External.Count > 0 && Items.Count == 0;
-
-    public string ExternalHint => ShowExternalHint
-        ? $"MODS 里还有 {External.Count} 个未管理的模组：可在下方「外部模组」里直接停用/启用，或点「收编」加入列表。"
-        : "";
+    public string EmptyTitle => "这套配置里还没有模组";
+    public string EmptyHint => "点「添加模组」从模组库里挑，或者直接导入新的。";
 
     public bool GameValid => _workspace.Game.IsValid;
     public string GamePathText => _workspace.Game.IsValid ? _workspace.Game.GamePath : "未设置游戏目录 — 去「设置」里指定";
@@ -174,59 +166,56 @@ public sealed class LibraryViewModel : ObservableObject
 
     public List<ModItemViewModel> SelectedItems => Items.Where(i => i.IsSelected).ToList();
 
+    // ---- 同步 ----
+
     public void ReloadFromLibrary()
     {
-        foreach (var item in Items) item.PropertyChanged -= Item_PropertyChanged;
+        foreach (var item in _cache.Values) item.PropertyChanged -= Item_PropertyChanged;
+        _cache.Clear();
         Items.Clear();
-
-        foreach (var record in _workspace.Library.Mods)
-        {
-            var item = new ModItemViewModel(record, OnItemToggled);
-            item.PropertyChanged += Item_PropertyChanged;
-            Items.Add(item);
-        }
-
-        Reindex();
-        View.Refresh();
-        RaiseCounts();
+        SyncFromLibrary();
     }
 
     public void SyncFromLibrary()
     {
-        var existing = Items.ToDictionary(i => i.Id, StringComparer.OrdinalIgnoreCase);
-        var ordered = new List<ModItemViewModel>();
+        var active = _workspace.Library.ActiveMods;
 
-        foreach (var record in _workspace.Library.Mods)
+        var alive = new HashSet<string>(active.Select(r => r.Id), StringComparer.OrdinalIgnoreCase);
+        foreach (var id in _cache.Keys.Where(k => !alive.Contains(k)).ToList())
         {
-            if (existing.TryGetValue(record.Id, out var item))
-            {
-                item.SetEnabledSilently(record.Enabled);
-            }
-            else
-            {
-                item = new ModItemViewModel(record, OnItemToggled);
-                item.PropertyChanged += Item_PropertyChanged;
-            }
-            ordered.Add(item);
+            _cache[id].PropertyChanged -= Item_PropertyChanged;
+            _cache.Remove(id);
         }
 
-        foreach (var stale in Items.Except(ordered).ToList())
-        {
-            stale.PropertyChanged -= Item_PropertyChanged;
-            Items.Remove(stale);
-        }
+        var wanted = new List<ModItemViewModel>(active.Count);
+        foreach (var record in active) wanted.Add(Materialize(record));
 
-        for (var i = 0; i < ordered.Count; i++)
+        foreach (var stale in Items.Where(i => !wanted.Contains(i)).ToList()) Items.Remove(stale);
+
+        for (var i = 0; i < wanted.Count; i++)
         {
-            var item = ordered[i];
+            var item = wanted[i];
             var current = Items.IndexOf(item);
             if (current < 0) Items.Insert(i, item);
             else if (current != i) Items.Move(current, i);
         }
 
-        Reindex();
-        View.Refresh();
+        RefreshProfiles();
         RaiseCounts();
+    }
+
+    private ModItemViewModel Materialize(ModRecord record)
+    {
+        if (_cache.TryGetValue(record.Id, out var item))
+        {
+            item.SetEnabledSilently(record.Enabled);
+            return item;
+        }
+
+        item = new ModItemViewModel(record, OnItemToggled);
+        item.PropertyChanged += Item_PropertyChanged;
+        _cache[record.Id] = item;
+        return item;
     }
 
     private void Reindex()
@@ -265,11 +254,13 @@ public sealed class LibraryViewModel : ObservableObject
 
     private void RaiseCounts()
     {
+        Reindex();
         Raise(nameof(TotalCount), nameof(EnabledCount), nameof(SelectedCount), nameof(HasSelection),
-            nameof(CountText), nameof(SelectedText), nameof(IsLibraryEmpty), nameof(ExternalButtonText),
+            nameof(CountText), nameof(SelectedText), nameof(IsLibraryEmpty), nameof(HasVisibleMods),
+            nameof(ShowBatchBar), nameof(BatchButtonText), nameof(ActiveProfileName),
+            nameof(EmptyTitle), nameof(EmptyHint),
             nameof(GameValid), nameof(GamePathText), nameof(GameVersionText), nameof(ModsPath),
-            nameof(ModsWritable), nameof(DisableFlagText), nameof(HasVisibleMods),
-            nameof(ShowBatchBar), nameof(BatchButtonText));
+            nameof(ModsWritable), nameof(DisableFlagText));
     }
 
     private void OnGameChanged()
@@ -277,6 +268,8 @@ public sealed class LibraryViewModel : ObservableObject
         Raise(nameof(GameValid), nameof(GamePathText), nameof(GameVersionText), nameof(ModsPath),
             nameof(ModsWritable), nameof(DisableFlagText));
     }
+
+    // ---- 导入 / 添加 / 打开 / 删除 ----
 
     private void ImportFiles()
     {
@@ -288,6 +281,38 @@ public sealed class LibraryViewModel : ObservableObject
     {
         var folder = _ui.PickFolder("选择模组文件夹（里面可以是任意层级的 EXML/MBIN/pak）");
         if (!string.IsNullOrEmpty(folder)) _ = _ui.ImportAsync(new[] { folder });
+    }
+
+    /// <summary>从模组库里挑几个模组加进当前配置。</summary>
+    private async Task AddModsAsync()
+    {
+        var candidates = _workspace.Library.PoolMods;
+        if (candidates.Count == 0)
+        {
+            _ui.Toast("模组库里没有可加的模组，先去「模组库」导入", false);
+            return;
+        }
+
+        var profile = _workspace.Library.ActiveProfile;
+        var picked = DialogService.PickMods(candidates, profile.Name);
+        if (picked is null || picked.Count == 0) return;
+
+        var (added, target, created) = _workspace.Library.AddToActiveProfile(picked);
+        if (added == 0)
+        {
+            _ui.Toast("这些模组已经在当前配置里了", false);
+            return;
+        }
+
+        _workspace.Library.Save();
+        SyncFromLibrary();
+
+        if (_workspace.Game.IsValid) await _ui.DeployAsync(silent: true);
+
+        var text = created
+            ? $"已新建配置「{target.Name}」，加入 {added} 个模组"
+            : $"已加入 {added} 个模组到「{target.Name}」";
+        _ui.Toast(text, true);
     }
 
     private void OpenFolder(ModItemViewModel? item)
@@ -307,6 +332,7 @@ public sealed class LibraryViewModel : ObservableObject
         try
         {
             AppLog.Info($"切换模组：{item.Name} → {(item.Enabled ? "启用" : "停用")}");
+            _workspace.Library.SetEntriesEnabled(new[] { item.Record }, item.Enabled);
             _workspace.Library.Save();
             RaiseCounts();
 
@@ -331,11 +357,12 @@ public sealed class LibraryViewModel : ObservableObject
     {
         if (item == null) return;
 
-        var message = $"把「{item.Name}」从列表移除？\n\n" +
+        var message = $"把「{item.Name}」从模组库移除？\n\n" +
                       $"文件（{item.SizeText}）会被移到 MODS_disabled，随时可以重新收编，不会删除。\n" +
-                      $"如果确定不再需要，可以点「永久删除…」一并删除磁盘文件。";
+                      $"只是不想让它出现在这套配置里的话，点行尾的「移出配置」就够了。\n\n" +
+                      "如果确定不再需要，可以点「永久删除…」一并删除磁盘文件。";
 
-        var result = _ui.Confirm("移除模组", message, "移出列表", "永久删除…");
+        var result = _ui.Confirm("移除模组", message, "移出模组库", "永久删除…");
         if (result == ConfirmResult.Primary) _ = SoftRemoveAsync(item);
         else if (result == ConfirmResult.Danger) _ = PermanentDeleteAsync(item);
     }
@@ -344,7 +371,8 @@ public sealed class LibraryViewModel : ObservableObject
     {
         try
         {
-            item.SetEnabledSilently(false);
+            // 先从配置里摘掉并停用，部署时才会把文件挪进 MODS_disabled
+            _workspace.Library.RemoveFromActiveProfile(item.Record);
             _workspace.Library.Save();
 
             if (_workspace.Game.IsValid)
@@ -353,8 +381,7 @@ public sealed class LibraryViewModel : ObservableObject
             _workspace.Library.Remove(item.Record);
             _workspace.Library.Save();
             _workspace.NotifyLibraryChanged();
-            await RefreshExternalAsync();
-            _ui.Toast("已移出列表，文件在 MODS_disabled 里", true);
+            _ui.Toast("已移出模组库，文件在 MODS_disabled 里", true);
         }
         catch (Exception ex)
         {
@@ -377,7 +404,6 @@ public sealed class LibraryViewModel : ObservableObject
             _workspace.Library.Remove(item.Record);
             _workspace.Library.Save();
             _workspace.NotifyLibraryChanged();
-            await RefreshExternalAsync();
             _ui.Toast("已永久删除：" + item.Name, true);
         }
         catch (Exception ex)
@@ -395,6 +421,8 @@ public sealed class LibraryViewModel : ObservableObject
             return;
         }
 
+        var records = selected.Select(i => i.Record).ToList();
+        _workspace.Library.SetEntriesEnabled(records, enabled);
         foreach (var item in selected) item.SetEnabledSilently(enabled);
         _workspace.Library.Save();
         RaiseCounts();
@@ -433,7 +461,6 @@ public sealed class LibraryViewModel : ObservableObject
 
         _workspace.Library.Save();
         _workspace.NotifyLibraryChanged();
-        await RefreshExternalAsync();
         _ui.Toast($"已删除 {selected.Count} 个模组", true);
     }
 
@@ -446,7 +473,9 @@ public sealed class LibraryViewModel : ObservableObject
             return Task.CompletedTask;
         }
 
-        _workspace.Library.MoveMany(selected.Select(i => i.Record).ToList(), toTop);
+        var records = selected.Select(i => i.Record).ToList();
+        if (!_workspace.Library.MoveEntriesToEdge(records, toTop)) return Task.CompletedTask;
+
         _workspace.Library.Save();
         SyncFromLibrary();
         _ui.Toast((toTop ? "已移到顶部：" : "已移到底部：") + selected.Count + " 个模组", true);
@@ -474,57 +503,54 @@ public sealed class LibraryViewModel : ObservableObject
     /// <summary>拖拽落位：把 source 放到 target 之前/之后。</summary>
     public void MoveItem(ModItemViewModel source, ModItemViewModel? target, bool after)
     {
-        var list = _workspace.Library.Mods.ToList();
-        var from = list.IndexOf(source.Record);
+        var from = Items.IndexOf(source);
         if (from < 0) return;
 
         int to;
         if (target == null)
         {
-            to = list.Count - 1;
+            to = Items.Count - 1;
         }
         else
         {
-            to = list.IndexOf(target.Record);
+            to = Items.IndexOf(target);
             if (to < 0) return;
             if (after) to++;
             if (from < to) to--;
         }
 
-        to = Math.Clamp(to, 0, list.Count - 1);
+        to = Math.Clamp(to, 0, Items.Count - 1);
         if (from == to) return;
 
-        list.RemoveAt(from);
-        list.Insert(to, source.Record);
-
-        _workspace.Library.ReplaceAll(list);
+        if (!_workspace.Library.MoveEntry(from, to)) return;
         _workspace.Library.Save();
 
         // 只挪这一条，不重建整个视图。走 SyncFromLibrary 会 View.Refresh()，
         // 容器被全部重建，拖拽时就没东西可动了（表现就是「没有动画」）。
-        var current = Items.IndexOf(source);
-        if (current >= 0 && current != to) Items.Move(current, to);
+        Items.Move(from, to);
         Reindex();
-
-        _ui.Toast("顺序已更新", true);
     }
 
     // ---- 配置 ----
 
     private void RefreshProfiles()
     {
+        var menu = _workspace.Library.MenuProfiles.ToList();
+        if (Profiles.Count == menu.Count && Profiles.Zip(menu).All(p => ReferenceEquals(p.First, p.Second)))
+            return;
+
         Profiles.Clear();
-        foreach (var profile in _workspace.Library.Profiles) Profiles.Add(profile);
-        Raise(nameof(HasProfiles));
+        foreach (var profile in menu) Profiles.Add(profile);
     }
 
-    private void SaveProfile()
+    private void NewProfile()
     {
         // 弹层是独立窗口，会浮在模态对话框上面，所以先收起菜单再问名字
         IsProfileMenuOpen = false;
 
-        var suggested = "配置 " + (_workspace.Library.Profiles.Count + 1);
-        var name = DialogService.Prompt("保存配置", "给当前这套启停组合起个名字：", suggested);
+        var name = DialogService.Prompt("新建配置",
+            "把当前这套模组（含顺序和启停状态）复制成一套新配置：",
+            _workspace.Library.NextProfileName());
         if (string.IsNullOrWhiteSpace(name)) return;
 
         if (_workspace.Library.ProfileNameExists(name))
@@ -533,24 +559,23 @@ public sealed class LibraryViewModel : ObservableObject
             return;
         }
 
-        var profile = _workspace.Library.CaptureProfile(name);
-        _workspace.Library.AddProfile(profile);
+        var profile = _workspace.Library.CreateProfile(name, copyActive: true);
+        _workspace.Library.SetActiveProfile(profile.Id);
         _workspace.Library.Save();
 
-        RefreshProfiles();
-        _ui.Toast($"已保存「{name}」，启用 {profile.EnabledIds.Count} 个模组", true);
+        SyncFromLibrary();
+        _ui.Toast($"已新建「{profile.Name}」，复制了 {profile.Entries.Count} 个模组", true);
     }
 
-    private async Task ApplyProfileAsync(ModProfile? profile)
+    private async Task SwitchProfileAsync(ModProfile? profile)
     {
         if (profile == null) return;
 
         var missing = _workspace.Library.MissingProfileEntries(profile);
-        var changed = _workspace.Library.ApplyProfile(profile);
+        var changed = _workspace.Library.SetActiveProfile(profile.Id);
 
         SyncFromLibrary();
         _workspace.Library.Save();
-        RaiseCounts();
         IsProfileMenuOpen = false;
 
         if (_workspace.Game.IsValid) await _ui.DeployAsync(silent: true);
@@ -562,32 +587,58 @@ public sealed class LibraryViewModel : ObservableObject
         _ui.Toast(text, true);
     }
 
-    private void UpdateProfile(ModProfile? profile)
+    private void RenameProfile(ModProfile? profile)
     {
         if (profile == null) return;
+        if (profile.BuiltIn)
+        {
+            _ui.Toast("「无模组」是内置配置，不能改名", false);
+            return;
+        }
 
-        _workspace.Library.RefreshProfile(profile);
+        IsProfileMenuOpen = false;
+
+        var name = DialogService.Prompt($"重命名配置「{profile.Name}」", "新名字：", profile.Name);
+        if (string.IsNullOrWhiteSpace(name) || name == profile.Name) return;
+
+        if (_workspace.Library.ProfileNameExists(name, profile))
+        {
+            _ui.Toast("已经有同名配置了", false);
+            return;
+        }
+
+        _workspace.Library.RenameProfile(profile, name);
         _workspace.Library.Save();
         RefreshProfiles();
-
-        _ui.Toast($"已用当前状态更新「{profile.Name}」", true);
+        Raise(nameof(ActiveProfileName), nameof(CountText));
+        _ui.Toast("已重命名为「" + name + "」", true);
     }
 
     private void DeleteProfile(ModProfile? profile)
     {
         if (profile == null) return;
+        if (profile.BuiltIn)
+        {
+            _ui.Toast("「无模组」是内置配置，删不掉", false);
+            return;
+        }
+
+        if (!profile.Deletable)
+        {
+            _ui.Toast("至少要保留一套配置，先新建一套再删它", false);
+            return;
+        }
 
         IsProfileMenuOpen = false;
 
         var confirm = _ui.Confirm($"删除配置「{profile.Name}」",
-            "只删除这套组合记录，不会动任何模组文件。", "删除");
+            "只删除这套配置，模组本身和文件都不动——它们会回到模组库里。", "删除");
         if (confirm != ConfirmResult.Primary) return;
 
         _workspace.Library.RemoveProfile(profile);
         _workspace.Library.Save();
-        RefreshProfiles();
-
-        _ui.Toast("已删除配置", true);
+        SyncFromLibrary();
+        _ui.Toast($"已删除「{profile.Name}」，当前配置：{ActiveProfileName}", true);
     }
 
     private void ApplyOrder()
@@ -599,13 +650,13 @@ public sealed class LibraryViewModel : ObservableObject
         }
 
         var confirm = _ui.Confirm("应用加载顺序",
-            "将把当前列表顺序写入游戏设置 GCMODSETTINGS.MXML 的 ModPriority。\n" +
+            "将把当前配置里的模组顺序写入游戏设置 GCMODSETTINGS.MXML 的 ModPriority。\n" +
             "列表越靠上，优先级越高（冲突时覆盖靠下的模组）。原文件会自动备份为 .bak。\n\n继续吗？",
             "写入顺序");
 
         if (confirm != ConfirmResult.Primary) return;
 
-        var names = _workspace.Library.Mods
+        var names = _workspace.Library.ActiveMods
             .Select(m => LoadOrderService.ToXmlName(m.EffectiveFolder))
             .ToList();
 
@@ -623,133 +674,28 @@ public sealed class LibraryViewModel : ObservableObject
         _ui.Toast(text, true);
     }
 
-    private async Task ToggleExternalPanelAsync()
+    private async Task RemoveFromProfileAsync(ModItemViewModel? item)
     {
-        ShowExternal = !ShowExternal;
-        Raise(nameof(ShowExternal));
-        if (ShowExternal) await RefreshExternalAsync();
-    }
+        if (item == null) return;
 
-    public async Task RefreshExternalAsync()
-    {
-        var game = _workspace.Game.GamePath;
-        var mods = _workspace.Library.Mods.ToList();
-        var list = await Task.Run(() => _workspace.Deployment.ListExternal(game, mods));
-
-        External.Clear();
-        foreach (var item in list) External.Add(new ExternalModItemViewModel(item));
-
-        Raise(nameof(ExternalButtonText), nameof(External));
-        if (External.Count == 0) ShowExternal = false;
-        else if (Items.Count == 0) ShowExternal = true; // 库为空时自动展开，让用户看到现有模组
-
-        Raise(nameof(ShowExternal), nameof(ExternalHint), nameof(ShowExternalHint));
-    }
-
-    private async Task ToggleExternalAsync(ExternalModItemViewModel? item)
-    {
-        if (item == null || !_workspace.Game.IsValid) return;
-
-        try
+        if (!_workspace.Library.RemoveFromActiveProfile(item.Record))
         {
-            await Task.Run(() => _workspace.Deployment.SetExternal(
-                _workspace.Game.GamePath, item.Model, !item.Model.Enabled));
-            await RefreshExternalAsync();
-            _ui.Toast($"{item.Name}：{(item.Model.Enabled ? "已停用" : "已启用")}", true);
-        }
-        catch (Exception ex)
-        {
-            _ui.Toast("操作失败：" + ex.Message, false);
-        }
-    }
-
-    private async Task AdoptAsync(ExternalModItemViewModel? item)
-    {
-        if (item == null || !_workspace.Game.IsValid) return;
-
-        try
-        {
-            var record = _workspace.Deployment.Adopt(_workspace.Game.GamePath, item.Model, _workspace.Library.NameExists);
-            _workspace.Library.Add(record);
-            _workspace.Library.Save();
-            _workspace.NotifyLibraryChanged();
-            await RefreshExternalAsync();
-            await RefreshHealthAsync();
-            _ui.Toast("已收编：" + record.Name, true);
-        }
-        catch (Exception ex)
-        {
-            _ui.Toast("收编失败：" + ex.Message, false);
-        }
-    }
-
-    /// <summary>一次性把外部模组全收编。逐个来，坏的跳过并汇报，不因为一个失败就整批中断。</summary>
-    private async Task AdoptAllAsync()
-    {
-        if (!_workspace.Game.IsValid)
-        {
-            _ui.Toast("先设置游戏目录", false);
+            _ui.Toast("这个模组不在当前配置里", false);
             return;
         }
 
-        var pending = External.ToList();
-        if (pending.Count == 0)
-        {
-            _ui.Toast("没有可收编的外部模组", false);
-            return;
-        }
+        _workspace.Library.Save();
+        SyncFromLibrary();
 
-        var confirm = _ui.Confirm($"全部收编（{pending.Count} 个）",
-            "把它们都登记进模组列表，之后就能在这里统一启停。\n\n" +
-            "文件不会被删除；MODS 根目录里散放的 pak 会收进同名文件夹，方便启停。",
-            "全部收编");
-        if (confirm != ConfirmResult.Primary) return;
+        if (_workspace.Game.IsValid) await _ui.DeployAsync(silent: true);
 
-        var adopted = new List<string>();
-        var failed = new List<string>();
-
-        foreach (var item in pending)
-        {
-            try
-            {
-                var record = _workspace.Deployment.Adopt(
-                    _workspace.Game.GamePath, item.Model, _workspace.Library.NameExists);
-                _workspace.Library.Add(record);
-                adopted.Add(record.Name);
-            }
-            catch (Exception ex)
-            {
-                failed.Add(item.Name);
-                AppLog.Warn($"收编失败 {item.Name}：{ex.Message}");
-            }
-        }
-
-        if (adopted.Count > 0)
-        {
-            _workspace.Library.Save();
-            _workspace.NotifyLibraryChanged();
-        }
-
-        await RefreshExternalAsync();
-        await RefreshHealthAsync();
-
-        if (failed.Count == 0)
-        {
-            _ui.Toast($"已收编 {adopted.Count} 个模组", true);
-            return;
-        }
-
-        var sample = string.Join("、", failed.Take(3));
-        if (failed.Count > 3) sample += "…";
-        _ui.Toast(adopted.Count > 0
-            ? $"已收编 {adopted.Count} 个，{failed.Count} 个失败（{sample}）"
-            : $"收编失败：{sample}", false);
+        _ui.Toast($"{item.Name}：已移出配置，回到模组库", true);
     }
 
     public async Task RefreshHealthAsync()
     {
         var gameVersion = _workspace.Settings.GameVersion;
-        var items = Items.ToList();
+        var items = _cache.Values.ToList();
 
         var results = await Task.Run(() => items
             .Select(item => (Item: item, Health: ModInspector.Evaluate(

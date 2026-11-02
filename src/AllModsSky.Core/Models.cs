@@ -101,34 +101,68 @@ public sealed class AppSettings
     };
 }
 
-/// <summary>一套启停组合，用于在「画质档 / 纯净档 / 联机档」之间快速切换。</summary>
+/// <summary>配置里的一条模组：引用 + 在这套配置里的启停状态。顺序即加载顺序。</summary>
+public sealed class ConfigEntry
+{
+    public string ModId { get; set; } = "";
+    public bool Enabled { get; set; } = true;
+}
+
+/// <summary>
+/// 一套配置：一组模组，以及它们各自的启停状态。
+/// 配置是独立集合——切到某套配置后，列表只显示它包含的模组，其余的进「模组库」。
+/// </summary>
 public sealed class ModProfile
 {
+    /// <summary>内置「无模组」的固定 Id。</summary>
+    public const string NoneId = "builtin-none";
+
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string Name { get; set; } = "";
-
-    /// <summary>这套组合里处于启用状态的模组 Id。模组被删掉后残留的 Id 会被忽略。</summary>
-    public List<string> EnabledIds { get; set; } = new();
-
+    public List<ConfigEntry> Entries { get; set; } = new();
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.Now;
+
+    /// <summary>旧版字段：只记启用的模组 Id。读取时迁移进 Entries，写盘时保持 null 不再输出。</summary>
+    [JsonPropertyName("EnabledIds")]
+    public List<string>? LegacyEnabledIds { get; set; }
+
+    /// <summary>内置配置：不可改名、不可删除，也不写进 library.json。</summary>
+    [JsonIgnore]
+    public bool BuiltIn => Id == NoneId;
+
+    /// <summary>
+    /// 能不能删。库里只剩这一套时不能删——总得留一套配置干活，否则「添加模组」没有地方放。
+    /// 由 <see cref="ModLibrary"/> 在配置增删时维护，不落盘。
+    /// </summary>
+    [JsonIgnore]
+    public bool Deletable { get; set; } = true;
+
+    [JsonIgnore]
+    public int EnabledCount => Entries.Count(e => e.Enabled);
 
     [JsonIgnore]
     public string UpdatedText => Humanize.DateTime(UpdatedAt);
 
-    /// <summary>菜单里一行显示的信息：启用数量 + 更新时间。</summary>
+    /// <summary>菜单里一行显示的信息。</summary>
     [JsonIgnore]
-    public string SummaryText => $"启用 {EnabledIds.Count} 个 · {UpdatedText}";
+    public string SummaryText => BuiltIn
+        ? "全部停用 · 直接启动原版"
+        : $"{EnabledCount} / {Entries.Count} 个启用 · {UpdatedText}";
 }
 
 /// <summary>library.json 的根对象。</summary>
 public sealed class LibraryState
 {
-    public int SchemaVersion { get; set; } = 2;
+    public int SchemaVersion { get; set; } = 3;
+
+    /// <summary>模组库：全局池子，顺序只影响池子里的展示。</summary>
     public List<ModRecord> Mods { get; set; } = new();
+
+    /// <summary>用户配置（不含内置「无模组」，它永远存在、不写盘）。</summary>
     public List<ModProfile> Profiles { get; set; } = new();
 
-    /// <summary>已经给过默认配置（「无模组」）。用户删掉之后不要再塞回来。</summary>
-    public bool DefaultProfilesSeeded { get; set; }
+    /// <summary>当前生效的配置 Id；为空或找不到时回退到第一套配置，再回退到「无模组」。</summary>
+    public string ActiveProfileId { get; set; } = "";
 }
 
 /// <summary>游戏目录与版本信息快照，供界面展示。</summary>

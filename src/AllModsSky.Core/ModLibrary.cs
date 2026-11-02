@@ -1,11 +1,19 @@
 namespace AllModsSky.Core;
 
-/// <summary>library.json 的内存模型：顺序即加载顺序。</summary>
+/// <summary>
+/// library.json 的内存模型。
+/// 模组库是全局池子（<see cref="Mods"/>），配置是池子的有序子集（<see cref="ModProfile.Entries"/>）。
+/// 只有当前配置里的模组会出现在主列表、参与部署；其余的留在模组库里，文件停在 MODS_disabled。
+/// </summary>
 public sealed class ModLibrary
 {
     private readonly List<ModRecord> _mods = new();
     private readonly List<ModProfile> _profiles = new();
-    private bool _defaultProfilesSeeded;
+
+    /// <summary>内置「无模组」：空配置，永远在菜单最上面，不可改名/删除，也不写进 library.json。</summary>
+    private readonly ModProfile _none = new() { Id = ModProfile.NoneId, Name = "无模组" };
+
+    private string _activeId = ModProfile.NoneId;
 
     public IReadOnlyList<ModRecord> Mods => _mods;
     public IReadOnlyList<ModProfile> Profiles => _profiles;
@@ -24,6 +32,7 @@ public sealed class ModLibrary
     {
         _mods.Clear();
         _profiles.Clear();
+        _activeId = ModProfile.NoneId;
         _corrupt = false;
         LoadMessage = null;
 
@@ -74,27 +83,81 @@ public sealed class ModLibrary
             foreach (var profile in state.Profiles)
             {
                 if (profile == null || string.IsNullOrWhiteSpace(profile.Name)) continue;
+                if (profile.BuiltIn) continue; // 内置项不落盘，读到说明是脏数据
                 if (string.IsNullOrWhiteSpace(profile.Id)) profile.Id = Guid.NewGuid().ToString("N");
-                profile.EnabledIds ??= new List<string>();
+                if (MigrateProfile(profile)) migrated = true;
                 _profiles.Add(profile);
             }
         }
 
-        // 第一次升级到带配置的版本时送一份「无模组」：切过去就是全停用，
-        // 直接点「启动游戏」即原版。删掉之后不再塞回来（有 DefaultProfilesSeeded 记着）。
+        // 第一次升级到「配置」模型：老库里只有一份启停状态，把它收成一套「默认」配置，
+        // 免得升级后所有模组都掉进模组库、部署时被整体停用。
         var seeded = false;
-        _defaultProfilesSeeded = state?.DefaultProfilesSeeded ?? false;
-        if (!_defaultProfilesSeeded)
+        if (_profiles.Count == 0 && _mods.Any(m => m.Enabled))
         {
-            _defaultProfilesSeeded = true;
+            var profile = new ModProfile { Name = "默认" };
+            foreach (var record in _mods)
+                profile.Entries.Add(new ConfigEntry { ModId = record.Id, Enabled = record.Enabled });
+            _profiles.Add(profile);
             seeded = true;
-            if (_profiles.Count == 0) _profiles.Add(new ModProfile { Name = "无模组" });
         }
 
+        _activeId = state?.ActiveProfileId ?? "";
+        if (!IsKnownProfile(_activeId))
+            _activeId = _profiles.Count > 0 ? _profiles[0].Id : ModProfile.NoneId;
+
+        RefreshDeletable();
         var normalized = Normalize();
-        if (migrated || seeded || normalized > 0) Save();
+
+        // 配置是唯一真相：启动时把启停状态对齐到当前配置，避免「配置里没有、磁盘上却开着」的模组。
+        var changed = Project();
+        if (changed > 0)
+        {
+            AppLog.Info($"按配置「{ActiveProfile.Name}」对齐启停状态：{changed} 个模组改变");
+            if (LoadMessage == null)
+                LoadMessage = $"已按配置「{ActiveProfile.Name}」对齐启停状态（{changed} 个模组）";
+        }
+
+        if (migrated || seeded || normalized > 0 || changed > 0) Save();
 
         if (state == null) LoadMessage ??= "这是第一次运行，模组库为空";
+    }
+
+    /// <summary>把旧版的 EnabledIds 迁进 Entries，并丢掉指向已不存在模组的条目。</summary>
+    private bool MigrateProfile(ModProfile profile)
+    {
+        var changed = false;
+        profile.Entries ??= new List<ConfigEntry>();
+
+        if (profile.Entries.Count == 0 && profile.LegacyEnabledIds is { Count: > 0 } legacy)
+        {
+            var enabled = new HashSet<string>(legacy, StringComparer.OrdinalIgnoreCase);
+            foreach (var record in _mods.Where(m => enabled.Contains(m.Id)))
+                profile.Entries.Add(new ConfigEntry { ModId = record.Id, Enabled = true });
+            changed = true;
+        }
+
+        if (profile.LegacyEnabledIds != null)
+        {
+            profile.LegacyEnabledIds = null;
+            changed = true;
+        }
+
+        var known = new HashSet<string>(_mods.Select(m => m.Id), StringComparer.OrdinalIgnoreCase);
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        var kept = profile.Entries
+            .Where(e => e != null && !string.IsNullOrEmpty(e.ModId))
+            .Where(e => known.Contains(e.ModId) && seen.Add(e.ModId))
+            .ToList();
+
+        if (kept.Count != profile.Entries.Count)
+        {
+            profile.Entries = kept;
+            changed = true;
+        }
+
+        return changed;
     }
 
     /// <summary>损坏备份名：backup_library_20261102125300.json.bak，与 library.json 同目录。</summary>
@@ -125,7 +188,7 @@ public sealed class ModLibrary
             {
                 Mods = _mods.ToList(),
                 Profiles = _profiles.ToList(),
-                DefaultProfilesSeeded = _defaultProfilesSeeded
+                ActiveProfileId = _activeId
             });
             LastSaveError = null;
             return true;
@@ -193,7 +256,16 @@ public sealed class ModLibrary
         _mods.Add(record);
     }
 
-    public bool Remove(ModRecord record) => _mods.Remove(record);
+    /// <summary>从模组库彻底移除记录，并把它从所有配置里摘掉。</summary>
+    public bool Remove(ModRecord record)
+    {
+        if (!_mods.Remove(record)) return false;
+
+        foreach (var profile in _profiles)
+            profile.Entries.RemoveAll(e => string.Equals(e.ModId, record.Id, StringComparison.OrdinalIgnoreCase));
+
+        return true;
+    }
 
     public ModRecord? ById(string? id) =>
         string.IsNullOrEmpty(id) ? null : _mods.FirstOrDefault(m => m.Id == id);
@@ -204,67 +276,75 @@ public sealed class ModLibrary
     public bool FolderExists(string folderName) =>
         _mods.Any(m => string.Equals(m.EffectiveFolder, folderName, StringComparison.OrdinalIgnoreCase));
 
-    public int IndexOf(ModRecord record) => _mods.IndexOf(record);
-
-    public void Move(int from, int to)
-    {
-        if (from < 0 || from >= _mods.Count) return;
-        to = Math.Clamp(to, 0, _mods.Count - 1);
-        if (from == to) return;
-
-        var item = _mods[from];
-        _mods.RemoveAt(from);
-        _mods.Insert(to, item);
-    }
-
-    public void MoveMany(IReadOnlyList<ModRecord> items, bool toTop)
-    {
-        if (items.Count == 0) return;
-
-        var set = new HashSet<ModRecord>(items);
-        var ordered = _mods.Where(m => set.Contains(m)).ToList();
-        _mods.RemoveAll(m => set.Contains(m));
-
-        if (toTop) _mods.InsertRange(0, ordered);
-        else _mods.AddRange(ordered);
-    }
-
-    public void Reverse() => _mods.Reverse();
-
     // ---- 配置 ----
 
-    /// <summary>用当前启停状态生成一个配置（不加入集合）。</summary>
-    public ModProfile CaptureProfile(string name) => new()
+    /// <summary>菜单里要显示的配置：内置「无模组」永远排第一。</summary>
+    public IEnumerable<ModProfile> MenuProfiles => new[] { _none }.Concat(_profiles);
+
+    public ModProfile ActiveProfile => FindProfile(_activeId) ?? _none;
+
+    public string ActiveProfileId => ActiveProfile.Id;
+
+    /// <summary>当前配置里的模组，顺序即加载顺序。</summary>
+    public IReadOnlyList<ModRecord> ActiveMods => Resolve(ActiveProfile);
+
+    /// <summary>模组库里不在当前配置中的模组（顺序按池子）。</summary>
+    public IReadOnlyList<ModRecord> PoolMods
     {
-        Name = name,
-        EnabledIds = _mods.Where(m => m.Enabled).Select(m => m.Id).ToList(),
-        UpdatedAt = DateTimeOffset.Now
-    };
-
-    public void AddProfile(ModProfile profile) => _profiles.Add(profile);
-
-    public bool RemoveProfile(ModProfile profile) => _profiles.Remove(profile);
-
-    public bool ProfileNameExists(string name, ModProfile? except = null) =>
-        _profiles.Any(p => !ReferenceEquals(p, except)
-                           && string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
-
-    /// <summary>用当前启停状态覆盖已有配置。</summary>
-    public void RefreshProfile(ModProfile profile)
-    {
-        profile.EnabledIds = _mods.Where(m => m.Enabled).Select(m => m.Id).ToList();
-        profile.UpdatedAt = DateTimeOffset.Now;
+        get
+        {
+            var inProfile = new HashSet<string>(
+                ActiveProfile.Entries.Select(e => e.ModId), StringComparer.OrdinalIgnoreCase);
+            return _mods.Where(m => !inProfile.Contains(m.Id)).ToList();
+        }
     }
 
-    /// <summary>按配置设置启停状态。配置里已不存在的模组 Id 会被忽略，返回实际改变的条数。</summary>
-    public int ApplyProfile(ModProfile profile)
-    {
-        var enabled = new HashSet<string>(profile.EnabledIds, StringComparer.OrdinalIgnoreCase);
-        var changed = 0;
+    public bool IsKnownProfile(string? id) => FindProfile(id) != null;
 
+    private ModProfile? FindProfile(string? id)
+    {
+        if (string.IsNullOrEmpty(id)) return null;
+        if (id == ModProfile.NoneId) return _none;
+        return _profiles.FirstOrDefault(p => string.Equals(p.Id, id, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>把配置里的引用解析成记录，顺序保持配置里的顺序；已删除的引用直接跳过。</summary>
+    private List<ModRecord> Resolve(ModProfile profile)
+    {
+        if (profile.BuiltIn || profile.Entries.Count == 0) return new List<ModRecord>();
+
+        var map = new Dictionary<string, ModRecord>(StringComparer.OrdinalIgnoreCase);
+        foreach (var record in _mods) map[record.Id] = record;
+
+        var list = new List<ModRecord>(profile.Entries.Count);
+        foreach (var entry in profile.Entries)
+            if (map.TryGetValue(entry.ModId, out var record)) list.Add(record);
+
+        return list;
+    }
+
+    /// <summary>
+    /// 切换当前配置：把它记下的启停状态铺到模组记录上（不在配置里的模组一律停用）。
+    /// 返回实际改变的模组数量。
+    /// </summary>
+    public int SetActiveProfile(string id)
+    {
+        if (!IsKnownProfile(id)) return 0;
+        _activeId = id;
+        return Project();
+    }
+
+    /// <summary>把当前配置的启停状态铺到模组记录上，返回改变数量。</summary>
+    private int Project()
+    {
+        var wanted = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        if (!ActiveProfile.BuiltIn)
+            foreach (var entry in ActiveProfile.Entries) wanted[entry.ModId] = entry.Enabled;
+
+        var changed = 0;
         foreach (var record in _mods)
         {
-            var want = enabled.Contains(record.Id);
+            var want = wanted.TryGetValue(record.Id, out var enabled) && enabled;
             if (record.Enabled == want) continue;
             record.Enabled = want;
             changed++;
@@ -273,18 +353,174 @@ public sealed class ModLibrary
         return changed;
     }
 
+    /// <summary>
+    /// 新建一套配置。copyActive 为真时把当前配置整份复制过来（含顺序与启停状态）。
+    /// </summary>
+    public ModProfile CreateProfile(string name, bool copyActive = true)
+    {
+        var profile = new ModProfile { Name = name, UpdatedAt = DateTimeOffset.Now };
+
+        if (copyActive)
+            foreach (var entry in ActiveProfile.Entries)
+                profile.Entries.Add(new ConfigEntry { ModId = entry.ModId, Enabled = entry.Enabled });
+
+        _profiles.Add(profile);
+        RefreshDeletable();
+        return profile;
+    }
+
+    /// <summary>库里只剩一套配置时，那一套不能删——总得留个地方放模组。</summary>
+    private void RefreshDeletable()
+    {
+        var only = _profiles.Count <= 1;
+        foreach (var profile in _profiles) profile.Deletable = !only;
+    }
+
+    /// <summary>删除配置。删掉的正好是当前配置时，切到剩下的第一套（没有就切「无模组」）。</summary>
+    public bool RemoveProfile(ModProfile profile)
+    {
+        if (profile.BuiltIn || !profile.Deletable) return false;
+        if (!_profiles.Remove(profile)) return false;
+
+        if (string.Equals(_activeId, profile.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            _activeId = _profiles.Count > 0 ? _profiles[0].Id : ModProfile.NoneId;
+            Project();
+        }
+
+        RefreshDeletable();
+        return true;
+    }
+
+    public bool RenameProfile(ModProfile profile, string name)
+    {
+        if (profile.BuiltIn || string.IsNullOrWhiteSpace(name)) return false;
+        profile.Name = name.Trim();
+        profile.UpdatedAt = DateTimeOffset.Now;
+        return true;
+    }
+
+    public bool ProfileNameExists(string name, ModProfile? except = null) =>
+        MenuProfiles.Any(p => !ReferenceEquals(p, except)
+                              && string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// 把模组加进当前配置。当前是内置「无模组」时自动新建一套配置来接（返回的那套就是新配置）。
+    /// </summary>
+    public (int Added, ModProfile Profile, bool CreatedProfile) AddToActiveProfile(IEnumerable<ModRecord> records)
+    {
+        var created = false;
+        var profile = ActiveProfile;
+
+        if (profile.BuiltIn)
+        {
+            profile = CreateProfile(NextProfileName(), copyActive: false);
+            _activeId = profile.Id;
+            created = true;
+        }
+
+        var existing = new HashSet<string>(profile.Entries.Select(e => e.ModId), StringComparer.OrdinalIgnoreCase);
+        var added = 0;
+
+        foreach (var record in records)
+        {
+            if (!existing.Add(record.Id)) continue;
+            profile.Entries.Add(new ConfigEntry { ModId = record.Id, Enabled = true });
+            record.Enabled = true;
+            added++;
+        }
+
+        if (added > 0) profile.UpdatedAt = DateTimeOffset.Now;
+        return (added, profile, created);
+    }
+
+    /// <summary>同步某几个模组在当前配置里的启停状态（记录与配置条目一起改）。</summary>
+    public int SetEntriesEnabled(IEnumerable<ModRecord> records, bool enabled)
+    {
+        var profile = ActiveProfile;
+        var wanted = new HashSet<string>(records.Select(r => r.Id), StringComparer.OrdinalIgnoreCase);
+        var changed = 0;
+
+        foreach (var record in _mods)
+        {
+            if (!wanted.Contains(record.Id)) continue;
+            if (record.Enabled != enabled) changed++;
+            record.Enabled = enabled;
+        }
+
+        foreach (var entry in profile.Entries)
+        {
+            if (!wanted.Contains(entry.ModId)) continue;
+            entry.Enabled = enabled;
+        }
+
+        if (changed > 0) profile.UpdatedAt = DateTimeOffset.Now;
+        return changed;
+    }
+
+    /// <summary>把模组移出当前配置（放回模组库），并停用。不动任何文件。</summary>
+    public bool RemoveFromActiveProfile(ModRecord record)
+    {
+        var profile = ActiveProfile;
+        if (profile.BuiltIn) return false;
+
+        var removed = profile.Entries.RemoveAll(e => string.Equals(e.ModId, record.Id, StringComparison.OrdinalIgnoreCase)) > 0;
+        if (!removed) return false;
+
+        record.Enabled = false;
+        profile.UpdatedAt = DateTimeOffset.Now;
+        return true;
+    }
+
+    /// <summary>配置内的重排：把 from 位置的条目挪到 to。</summary>
+    public bool MoveEntry(int from, int to)
+    {
+        var entries = ActiveProfile.Entries;
+        if (from < 0 || from >= entries.Count) return false;
+
+        to = Math.Clamp(to, 0, entries.Count - 1);
+        if (from == to) return false;
+
+        var entry = entries[from];
+        entries.RemoveAt(from);
+        entries.Insert(to, entry);
+        ActiveProfile.UpdatedAt = DateTimeOffset.Now;
+        return true;
+    }
+
+    /// <summary>配置内的批量重排：选中的条目整体挪到最前或最后。</summary>
+    public bool MoveEntriesToEdge(IReadOnlyList<ModRecord> records, bool toTop)
+    {
+        var profile = ActiveProfile;
+        if (profile.BuiltIn || records.Count == 0) return false;
+
+        var ids = new HashSet<string>(records.Select(r => r.Id), StringComparer.OrdinalIgnoreCase);
+        var picked = profile.Entries.Where(e => ids.Contains(e.ModId)).ToList();
+        if (picked.Count == 0) return false;
+
+        profile.Entries.RemoveAll(e => ids.Contains(e.ModId));
+        if (toTop) profile.Entries.InsertRange(0, picked);
+        else profile.Entries.AddRange(picked);
+
+        profile.UpdatedAt = DateTimeOffset.Now;
+        return true;
+    }
+
     /// <summary>配置引用了、但库里已不存在的模组数量。</summary>
     public int MissingProfileEntries(ModProfile profile)
     {
         var ids = new HashSet<string>(_mods.Select(m => m.Id), StringComparer.OrdinalIgnoreCase);
-        return profile.EnabledIds.Count(id => !ids.Contains(id));
+        return profile.Entries.Count(e => !ids.Contains(e.ModId));
     }
 
-    public void ReplaceAll(IEnumerable<ModRecord> records)
+    /// <summary>「配置 2」这种不重名的默认名字。</summary>
+    public string NextProfileName()
     {
-        _mods.Clear();
-        _mods.AddRange(records);
-        Normalize();
+        for (var n = _profiles.Count + 1; ; n++)
+        {
+            var name = "配置 " + n;
+            if (!ProfileNameExists(name)) return name;
+        }
     }
 
     public IEnumerable<ModRecord> Where(Func<ModRecord, bool> predicate) => _mods.Where(predicate);

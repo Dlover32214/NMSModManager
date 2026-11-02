@@ -172,18 +172,22 @@ public partial class MainWindow : Window
                     e.Handled = true;
                     return;
                 case Key.D2:
-                    _viewModel.Navigate(PageKey.Discover);
+                    _viewModel.Navigate(PageKey.Pool);
                     e.Handled = true;
                     return;
                 case Key.D3:
-                    _viewModel.Navigate(PageKey.Tools);
+                    _viewModel.Navigate(PageKey.Discover);
                     e.Handled = true;
                     return;
                 case Key.D4:
-                    _viewModel.Navigate(PageKey.Settings);
+                    _viewModel.Navigate(PageKey.Tools);
                     e.Handled = true;
                     return;
                 case Key.D5:
+                    _viewModel.Navigate(PageKey.Settings);
+                    e.Handled = true;
+                    return;
+                case Key.D6:
                     _viewModel.Navigate(PageKey.About);
                     e.Handled = true;
                     return;
