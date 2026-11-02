@@ -90,10 +90,33 @@ dotnet publish src/AllModsSky.App/AllModsSky.App.csproj \
 | 项 | 值 |
 |---|---|
 | 触发 | `push` / `pull_request` 到 `main` |
-| 运行环境 | `windows-latest` |
+| 并发 | 同分支新提交自动取消上一次运行（`cancel-in-progress`） |
+| 权限 | `contents: read`，只读 |
+| 运行环境 | `windows-latest`，`timeout-minutes: 20` |
 | SDK | `10.0.x` |
-| 步骤 | checkout → setup-dotnet → `dotnet build` → `dotnet publish` → upload-artifact |
-| 产物名 | `AllModsSky-win-x64`，路径 `release/publish/AllModsSky.exe` |
+| 步骤 | checkout → setup-dotnet → prepare（`dotnet --info`）→ 缓存 NuGet → `dotnet build` → `dotnet publish` → summarize → upload-artifact |
+| 产物名 | `AllModsSky-win-x64`，路径 `release/publish/AllModsSky.exe`，保留 14 天 |
+
+### 缓存
+
+缓存的是 NuGet 全局包目录 `~/.nuget/packages`，key 由 `**/*.csproj` 和 `AllModsSky.slnx` 的哈希决定。
+
+**项目本身零 `PackageReference`，但缓存仍然有用**：`dotnet publish -r win-x64` 要拉 RID 运行时包（`Microsoft.NETCore.App.Host.win-x64` 之类），命中缓存能省掉这部分下载。将来加依赖时同样受益。
+
+`dotnet --info` 放在 `Prepare` 步骤里，出问题时能直接看到 SDK 版本和运行时列表，不用翻构建日志。
+
+### 运行摘要
+
+`Summarize` 步骤把体积、目标框架、SDK 版本、短提交号写进 `GITHUB_STEP_SUMMARY`，在 Actions 运行页面直接可见，不必点开日志找。
+
+### 没加的东西
+
+| 没加 | 原因 |
+|---|---|
+| `-warnaserror` | 目前 0 警告，但加上等于改变策略：以后任何新警告都会让 CI 红。要不要加是产品决定，不是构建优化 |
+| `ContinuousIntegrationBuild=true` | 需要配合 SourceLink 或 `SourceRoot` 才生效，本项目两者都没有，加了可能报错 |
+| `paths-ignore` 跳过纯文档提交 | 如果这个 workflow 是分支保护的必需检查，跳过会让 PR 永远等一个不会出现的检查 |
+| `packages.lock.json` + `setup-dotnet` 的 `cache: true` | 需要提交锁文件；零依赖项目没必要为缓存引入锁文件维护成本 |
 
 CI 只做构建和上传，**不跑测试**——因为仓库里没有测试项目。
 
