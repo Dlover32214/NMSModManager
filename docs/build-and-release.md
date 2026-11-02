@@ -94,7 +94,7 @@ dotnet publish src/AllModsSky.App/AllModsSky.App.csproj \
 | 权限 | `contents: read`，只读 |
 | 运行环境 | `windows-latest`，`timeout-minutes: 20` |
 | SDK | `10.0.x` |
-| 步骤 | checkout → setup-dotnet → prepare（`dotnet --info`）→ 缓存 NuGet → `dotnet build` → `dotnet publish` → summarize → upload-artifact |
+| 步骤 | checkout → setup-dotnet → prepare（`dotnet --info`）→ 缓存 NuGet → `dotnet build` →（仅 push）`dotnet publish` → summarize → upload-artifact |
 | 产物名 | `AllModsSky-win-x64`，路径 `release/publish/AllModsSky.exe`，保留 14 天 |
 
 ### 缓存
@@ -105,9 +105,20 @@ dotnet publish src/AllModsSky.App/AllModsSky.App.csproj \
 
 `dotnet --info` 放在 `Prepare` 步骤里，出问题时能直接看到 SDK 版本和运行时列表，不用翻构建日志。
 
+### PR 与 push 的差别
+
+| 事件 | 跑到哪一步 |
+|---|---|
+| `pull_request` | 只到 `dotnet build`——验证能不能编译就够了 |
+| `push` 到 `main` | 再加 publish、摘要、上传 artifact |
+
+PR 不产出 exe：publish 加传 artifact 每次白花几十秒和存储。要下载 PR 的产物，临时把对应步骤的 `if` 去掉。
+
 ### 运行摘要
 
-`Summarize` 步骤把体积、目标框架、SDK 版本、短提交号写进 `GITHUB_STEP_SUMMARY`，在 Actions 运行页面直接可见，不必点开日志找。
+`Summarize` 步骤把体积、SHA256、目标框架、SDK 版本、短提交号写进 `GITHUB_STEP_SUMMARY`，在 Actions 运行页面直接可见，不必点开日志找。
+
+SHA256 用 `Get-FileHash -Algorithm SHA256` 算，和 `UpdateService` 校验更新包用的是同一个算法——下载下来可以自己比一遍。
 
 ### 没加的东西
 

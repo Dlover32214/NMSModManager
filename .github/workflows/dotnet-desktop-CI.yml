@@ -54,7 +54,9 @@ jobs:
     - name: Build
       run: dotnet build AllModsSky.slnx -c Release --nologo -v minimal -tl:off
 
+    # PR 只验证能不能编译，不产出 exe：publish 加传 artifact 每次白花几十秒和存储。
     - name: Publish single file
+      if: github.event_name == 'push'
       run: >
         dotnet publish src/AllModsSky.App/AllModsSky.App.csproj
         -c Release -r win-x64 --no-self-contained
@@ -65,12 +67,15 @@ jobs:
         -o release/publish
         --nologo -v minimal -tl:off
 
-    # 把体积和 SDK 版本写进运行摘要，省得每次点开日志翻。
+    # 把体积、哈希、SDK 版本写进运行摘要，省得每次点开日志翻。
+    # SHA256 和程序自己的更新校验用的是同一个算法，方便下载后人工比对。
     - name: Summarize
+      if: github.event_name == 'push'
       shell: pwsh
       run: |
         $exe = Get-Item -LiteralPath 'release/publish/AllModsSky.exe'
         $mb = '{0:N2}' -f ($exe.Length / 1MB)
+        $sha = (Get-FileHash -LiteralPath $exe.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
         $sdk = (dotnet --version).Trim()
         $short = $env:GITHUB_SHA.Substring(0, 7)
         @(
@@ -78,12 +83,14 @@ jobs:
           ''
           '- 文件：release/publish/AllModsSky.exe'
           "- 体积：$mb MB"
+          "- SHA256：$sha"
           '- 目标框架：net8.0-windows'
           "- SDK：$sdk"
           "- 提交：$short"
         ) | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
 
     - name: Upload artifact
+      if: github.event_name == 'push'
       uses: actions/upload-artifact@v7
       with:
         name: AllModsSky-win-x64
