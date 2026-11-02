@@ -158,8 +158,14 @@ public sealed class LibraryViewModel : ObservableObject
         : "这套配置里还没有模组";
 
     public string EmptyHint => _workspace.Library.ActiveProfile.BuiltIn
-        ? "这套内置配置就是全部停用、直接启动原版。要玩模组，先新建一套配置。"
+        ? "这套内置配置就是全部停用、直接启动原版。想玩模组，点上面的「配置」换一套。"
         : "点「添加模组」从模组库里挑，或者直接导入新的。";
+
+    /// <summary>
+    /// 空状态里的三个按钮。内置「无模组」下它们都没意义（工具栏上本来也有同样的入口），
+    /// 这时只留一句「去换个配置」。
+    /// </summary>
+    public bool ShowEmptyActions => !_workspace.Library.ActiveProfile.BuiltIn;
 
     public bool GameValid => _workspace.Game.IsValid;
     public string GamePathText => _workspace.Game.IsValid ? _workspace.Game.GamePath : "未设置游戏目录 — 去「设置」里指定";
@@ -263,7 +269,7 @@ public sealed class LibraryViewModel : ObservableObject
         Raise(nameof(TotalCount), nameof(EnabledCount), nameof(SelectedCount), nameof(HasSelection),
             nameof(CountText), nameof(SelectedText), nameof(IsLibraryEmpty), nameof(HasVisibleMods),
             nameof(ShowBatchBar), nameof(BatchButtonText), nameof(ActiveProfileName),
-            nameof(EmptyTitle), nameof(EmptyHint),
+            nameof(EmptyTitle), nameof(EmptyHint), nameof(ShowEmptyActions),
             nameof(GameValid), nameof(GamePathText), nameof(GameVersionText), nameof(ModsPath),
             nameof(ModsWritable), nameof(DisableFlagText));
     }

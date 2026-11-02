@@ -393,7 +393,8 @@
                     <TextBlock Text="{Binding EmptyHint}"
                                Style="{StaticResource SmallText}" HorizontalAlignment="Center" Margin="0,6,0,0"
                                MaxWidth="460" TextWrapping="Wrap" TextAlignment="Center" />
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,16,0,0">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,16,0,0"
+                                Visibility="{Binding ShowEmptyActions, Converter={StaticResource BoolToVisibility}}">
                         <Button Style="{StaticResource PrimaryButton}" Content="添加模组"
                                 Command="{Binding AddModsCommand}" />
                         <Button Style="{StaticResource SecondaryButton}" Content="导入模组" Margin="8,0,0,0"
