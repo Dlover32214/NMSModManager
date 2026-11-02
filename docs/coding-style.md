@@ -20,6 +20,8 @@
 
 **为什么 Core 也是 `-windows`**：Core 不含任何 WPF 类型，但 `GameLocator` 要读注册表（`Microsoft.Win32`），所以不能降到 `net8.0`。
 
+**将来迁 .NET 10**：`TargetFramework` 在两个 csproj 各写一份，迁移时两处一起改。完整清单见 [build-and-release.md](build-and-release.md) 第 10 节。
+
 **没有的东西**：无 `.editorconfig`、无 `Directory.Build.props`、无 `global.json`、无任何分析器或 `TreatWarningsAsErrors`。风格全靠模仿现有代码，编译器的容忍度是默认值。
 
 ---

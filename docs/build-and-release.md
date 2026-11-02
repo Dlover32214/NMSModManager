@@ -215,3 +215,34 @@ dotnet run --project .tmp/nsprobe/probe/NsProbe.csproj -c Release
 | 4 | 目标 exe 是否已关闭（否则脚本会拒绝构建） |
 | 5 | 打 tag 时用 `vMAJOR.MINOR.PATCH` 形式，与 csproj 的 `Version` 对齐 |
 | 6 | 启动一次，确认 `logs/latest.log` 有本次会话头、无 `crash.log` |
+
+---
+
+## 10. 未来迁移 .NET 10 的入口
+
+**现在不迁。** 这一节只是把要动的地方先记下来，免得将来改一半漏一半。
+
+### 要改的位置
+
+| # | 位置 | 现在 | 迁移后 |
+|---|---|---|---|
+| 1 | `src/AllModsSky.App/AllModsSky.App.csproj` 的 `TargetFramework` | `net8.0-windows` | `net10.0-windows` |
+| 2 | `src/AllModsSky.Core/AllModsSky.Core.csproj` 的 `TargetFramework` | `net8.0-windows` | `net10.0-windows` |
+| 3 | `build.ps1` 的收尾提示文案 | 「目标机器需要 .NET 8 Desktop Runtime」 | 改成 10 |
+| 4 | `build.ps1` 的 `$sdkMajor -ge 9` 判断 | 为兼容旧 SDK 保留的分支 | 可简化成直接编 `.slnx` |
+| 5 | `README.md` 第 5 章系统要求、第 7 章环境 | 「.NET 8」 | 改成 10 |
+| 6 | `.github/workflows/dotnet-desktop-CI.yml` | `dotnet-version: '10.0.x'` | 不用改，已经是 10 |
+
+### 两个坑
+
+**`TargetFramework` 写了两遍。** 项目没有 `Directory.Build.props`，两个 csproj 各写一份。只改一处会出现 App 编 net10、Core 编 net8 的混合状态——能编过，但运行时会加载错版本的程序集。改的时候两个一起改，改完 `dotnet build` 看两行输出确认。
+
+**CI 的 SDK 版本和目标框架是两件事。** CI 现在用 .NET 10 SDK 编 `net8.0-windows`，这完全可行，不代表已经迁到 net10。判断有没有迁，看 `TargetFramework`，不看 CI 里的 `dotnet-version`。
+
+### 不用碰的东西
+
+版本号那 6 个文件 9 行、两个 csproj 的 `<Using>` 注入清单、目录结构、`.tmp` 探针约定——都与 TFM 无关，迁移时一行都不用改。
+
+### 迁移后的验证
+
+现有探针可以继续用（`ProjectReference` 跟着 TFM 走）。需要额外确认的只有一件事：`PathGuard` 和 `FileOps` 里那些 Windows 路径 API 在 net10 上的行为有没有变。跑一遍 `.tmp/nsprobe` 加一次手工冒烟就够。
