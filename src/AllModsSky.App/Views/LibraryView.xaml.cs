@@ -5,6 +5,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
+using System.Windows.Threading;
 using AllModsSky.App.ViewModels;
 
 namespace AllModsSky.App.Views;
@@ -109,7 +110,9 @@ public partial class LibraryView : UserControl
         e.Handled = true;
 
         ModList.UpdateLayout();
-        AnimatePositions(before);
+
+        // 等这一帧的布局跑完再量位置，容器刚重建时拿到的坐标可能还是旧的
+        Dispatcher.BeginInvoke(new Action(() => AnimatePositions(before)), DispatcherPriority.Loaded);
     }
 
     private void ModList_MouseDoubleClick(object sender, MouseButtonEventArgs e)

@@ -499,7 +499,13 @@ public sealed class LibraryViewModel : ObservableObject
 
         _workspace.Library.ReplaceAll(list);
         _workspace.Library.Save();
-        SyncFromLibrary();
+
+        // 只挪这一条，不重建整个视图。走 SyncFromLibrary 会 View.Refresh()，
+        // 容器被全部重建，拖拽时就没东西可动了（表现就是「没有动画」）。
+        var current = Items.IndexOf(source);
+        if (current >= 0 && current != to) Items.Move(current, to);
+        Reindex();
+
         _ui.Toast("顺序已更新", true);
     }
 

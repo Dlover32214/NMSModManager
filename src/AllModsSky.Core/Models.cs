@@ -126,6 +126,9 @@ public sealed class LibraryState
     public int SchemaVersion { get; set; } = 2;
     public List<ModRecord> Mods { get; set; } = new();
     public List<ModProfile> Profiles { get; set; } = new();
+
+    /// <summary>已经给过默认配置（「无模组」）。用户删掉之后不要再塞回来。</summary>
+    public bool DefaultProfilesSeeded { get; set; }
 }
 
 /// <summary>游戏目录与版本信息快照，供界面展示。</summary>

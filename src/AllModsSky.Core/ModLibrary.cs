@@ -5,6 +5,7 @@ public sealed class ModLibrary
 {
     private readonly List<ModRecord> _mods = new();
     private readonly List<ModProfile> _profiles = new();
+    private bool _defaultProfilesSeeded;
 
     public IReadOnlyList<ModRecord> Mods => _mods;
     public IReadOnlyList<ModProfile> Profiles => _profiles;
@@ -79,9 +80,19 @@ public sealed class ModLibrary
             }
         }
 
+        // 第一次升级到带配置的版本时送一份「无模组」：切过去就是全停用，
+        // 直接点「启动游戏」即原版。删掉之后不再塞回来（有 DefaultProfilesSeeded 记着）。
+        var seeded = false;
+        _defaultProfilesSeeded = state?.DefaultProfilesSeeded ?? false;
+        if (!_defaultProfilesSeeded)
+        {
+            _defaultProfilesSeeded = true;
+            seeded = true;
+            if (_profiles.Count == 0) _profiles.Add(new ModProfile { Name = "无模组" });
+        }
+
         var normalized = Normalize();
-        if (migrated) Save();
-        else if (normalized > 0) Save();
+        if (migrated || seeded || normalized > 0) Save();
 
         if (state == null) LoadMessage ??= "这是第一次运行，模组库为空";
     }
@@ -113,7 +124,8 @@ public sealed class ModLibrary
             JsonStore.Save(AppPaths.DataFile, new LibraryState
             {
                 Mods = _mods.ToList(),
-                Profiles = _profiles.ToList()
+                Profiles = _profiles.ToList(),
+                DefaultProfilesSeeded = _defaultProfilesSeeded
             });
             LastSaveError = null;
             return true;
