@@ -749,26 +749,33 @@ NMSModManager\
 ├─ build.ps1                       one-command build (PowerShell 7)
 ├─ README.md                       Chinese README (default)
 ├─ README.en.md                    English README
+├─ CONTRIBUTING.md                 development conventions index
+├─ docs\                           conventions (style / architecture / build / commits / security / deviations)
 ├─ src\
 │  ├─ AllModsSky.Core\             UI-independent core logic
-│  │  ├─ Models.cs                 mod/profile/settings/game-info models
-│  │  ├─ Infrastructure.cs         AppPaths / JsonStore / FileOps / logging
-│  │  ├─ PathGuard.cs              locate entries by directory enumeration
-│  │  ├─ ModLibrary.cs             library.json load/save, profiles, normalize
-│  │  ├─ ModInspector.cs           mod folder detection (pak / loose / version)
-│  │  ├─ Importer.cs               zip/rar/7z/tar/gz/bz2/xz/zst/cab/pak import
-│  │  ├─ DeploymentService.cs      MODS / MODS_disabled synchronization
-│  │  ├─ ConflictAnalyzer.cs       EXML/MBIN conflict scan
-│  │  ├─ LoadOrderService.cs       GCMODSETTINGS.MXML
-│  │  ├─ LogDiagnostics.cs         game log diagnostics
-│  │  ├─ GameLocator.cs            game install location detection
-│  │  ├─ VersionParser.cs          game version parsing
-│  │  ├─ AmumssService.cs          AMUMSS detect/analyze/rebuild/collect
-│  │  ├─ NexusClient.cs            Nexus API
-│  │  ├─ OogcClient.cs             oogc.cc
-│  │  ├─ SaveGameReader.cs         .hg save reader (LZ4 blocks)
-│  │  ├─ UpdateService.cs          GitHub Release check/download/self-update
-│  │  ├─ LegacyDataMigrator.cs     legacy NMSModManager compatibility
+│  │  ├─ Models\                   domain models
+│  │  │  └─ Models.cs              mod/profile/settings/game-info models
+│  │  ├─ Infrastructure\           business-agnostic foundation
+│  │  │  ├─ Infrastructure.cs      AppPaths / JsonStore / FileOps / logging
+│  │  │  ├─ PathGuard.cs           locate entries by directory enumeration
+│  │  │  ├─ TextLimit.cs           truncate by text elements
+│  │  │  ├─ VersionParser.cs       game version parsing
+│  │  │  └─ LegacyDataMigrator.cs  legacy NMSModManager compatibility
+│  │  ├─ Integrations\             adapters to the outside world
+│  │  │  ├─ GameLocator.cs         game install location detection (incl. SettingsStore)
+│  │  │  ├─ SaveGameReader.cs      .hg save reader (LZ4 blocks)
+│  │  │  ├─ LogDiagnostics.cs      game log diagnostics
+│  │  │  ├─ NexusClient.cs         Nexus API
+│  │  │  ├─ OogcClient.cs          oogc.cc
+│  │  │  └─ UpdateService.cs       GitHub Release check/download/self-update
+│  │  ├─ Services\                 own business operations
+│  │  │  ├─ ModLibrary.cs          library.json load/save, profiles, normalize
+│  │  │  ├─ ModInspector.cs        mod folder detection (pak / loose / version)
+│  │  │  ├─ Importer.cs            zip/rar/7z/tar/gz/bz2/xz/zst/cab/pak import
+│  │  │  ├─ DeploymentService.cs   MODS / MODS_disabled synchronization
+│  │  │  ├─ ConflictAnalyzer.cs    EXML/MBIN conflict scan
+│  │  │  ├─ LoadOrderService.cs    GCMODSETTINGS.MXML
+│  │  │  └─ AmumssService.cs       AMUMSS detect/analyze/rebuild/collect
 │  │  └─ Resources\mapping.json    embedded mapping data
 │  └─ AllModsSky.App\              WPF UI
 │     ├─ MainWindow.xaml(.cs)      shell, sidebar, toast, animated logo
@@ -778,10 +785,8 @@ NMSModManager\
 │     ├─ Services\                 dialog / shell UI / theme services
 │     ├─ Controls\                 control helpers
 │     └─ app.ico / app.manifest
-├─ tools\                          helper scripts (not required at runtime)
 ├─ release\                        final release artifacts (publish\ holds the exe)
-├─ dist\                           historical builds/temporary publish output
-└─ .tmp\                           local temporary directory
+└─ .tmp\                           local temporary directory (not tracked)
 ```
 
 ---

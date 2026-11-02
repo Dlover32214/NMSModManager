@@ -748,26 +748,33 @@ NMSModManager\
 ├─ build.ps1                       一键构建（PowerShell 7）
 ├─ README.md                       中文说明（默认）
 ├─ README.en.md                    English README
+├─ CONTRIBUTING.md                 开发规范索引
+├─ docs\                           项目规范（编码风格 / 架构 / 构建 / 提交 / 安全 / 现状偏差）
 ├─ src\
 │  ├─ AllModsSky.Core\             UI 无关的核心逻辑
-│  │  ├─ Models.cs                 模组/配置/设置/游戏信息模型
-│  │  ├─ Infrastructure.cs         AppPaths / JsonStore / FileOps / 日志
-│  │  ├─ PathGuard.cs              按磁盘枚举定位条目（不拼路径）
-│  │  ├─ ModLibrary.cs             library.json 读写、配置与规范化
-│  │  ├─ ModInspector.cs           模组目录识别（pak / 散装 / 版本）
-│  │  ├─ Importer.cs               zip/rar/7z/tar/gz/bz2/xz/zst/cab/pak 导入
-│  │  ├─ DeploymentService.cs      MODS / MODS_disabled 同步
-│  │  ├─ ConflictAnalyzer.cs       EXML/MBIN 冲突扫描
-│  │  ├─ LoadOrderService.cs       GCMODSETTINGS.MXML
-│  │  ├─ LogDiagnostics.cs         游戏日志诊断
-│  │  ├─ GameLocator.cs            游戏安装目录探测
-│  │  ├─ VersionParser.cs          游戏版本号解析
-│  │  ├─ AmumssService.cs          AMUMSS 检测/分析/重建/收集
-│  │  ├─ NexusClient.cs            Nexus API
-│  │  ├─ OogcClient.cs             oogc.cc
-│  │  ├─ SaveGameReader.cs         .hg 存档读取（LZ4 块）
-│  │  ├─ UpdateService.cs          GitHub Release 检查、下载与自替换更新
-│  │  ├─ LegacyDataMigrator.cs     旧版 NMSModManager 数据兼容
+│  │  ├─ Models\                   领域模型
+│  │  │  └─ Models.cs              模组/配置/设置/游戏信息模型
+│  │  ├─ Infrastructure\           与业务无关的底座
+│  │  │  ├─ Infrastructure.cs      AppPaths / JsonStore / FileOps / 日志
+│  │  │  ├─ PathGuard.cs           按磁盘枚举定位条目（不拼路径）
+│  │  │  ├─ TextLimit.cs           按「字」截断文本
+│  │  │  ├─ VersionParser.cs       游戏版本号解析
+│  │  │  └─ LegacyDataMigrator.cs  旧版 NMSModManager 数据兼容
+│  │  ├─ Integrations\             与外部世界打交道
+│  │  │  ├─ GameLocator.cs         游戏安装目录探测（含 SettingsStore）
+│  │  │  ├─ SaveGameReader.cs      .hg 存档读取（LZ4 块）
+│  │  │  ├─ LogDiagnostics.cs      游戏日志诊断
+│  │  │  ├─ NexusClient.cs         Nexus API
+│  │  │  ├─ OogcClient.cs          oogc.cc
+│  │  │  └─ UpdateService.cs       GitHub Release 检查、下载与自替换更新
+│  │  ├─ Services\                 自己的业务动作
+│  │  │  ├─ ModLibrary.cs          library.json 读写、配置与规范化
+│  │  │  ├─ ModInspector.cs        模组目录识别（pak / 散装 / 版本）
+│  │  │  ├─ Importer.cs            zip/rar/7z/tar/gz/bz2/xz/zst/cab/pak 导入
+│  │  │  ├─ DeploymentService.cs   MODS / MODS_disabled 同步
+│  │  │  ├─ ConflictAnalyzer.cs    EXML/MBIN 冲突扫描
+│  │  │  ├─ LoadOrderService.cs    GCMODSETTINGS.MXML
+│  │  │  └─ AmumssService.cs       AMUMSS 检测/分析/重建/收集
 │  │  └─ Resources\mapping.json    内置映射数据
 │  └─ AllModsSky.App\              WPF 界面
 │     ├─ MainWindow.xaml(.cs)      主窗口、侧栏、Toast、动态 Logo
@@ -777,10 +784,8 @@ NMSModManager\
 │     ├─ Services\                 Dialog / Shell UI / 主题等
 │     ├─ Controls\                 控件辅助
 │     └─ app.ico / app.manifest
-├─ tools\                          辅助脚本（非程序运行必需）
 ├─ release\                        最终发布产物（publish\ 为单文件 exe）
-├─ dist\                           历史构建/临时发布目录
-└─ .tmp\                           本地临时目录
+└─ .tmp\                           本地临时目录（不入库）
 ```
 
 ---
