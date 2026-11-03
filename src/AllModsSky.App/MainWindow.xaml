@@ -4,6 +4,7 @@
              xmlns:loc="clr-namespace:AllModsSky.App.Localization"
         xmlns:vm="clr-namespace:AllModsSky.App.ViewModels"
         xmlns:views="clr-namespace:AllModsSky.App.Views"
+        xmlns:controls="clr-namespace:AllModsSky.App.Controls"
         Title="All Mod's Sky"
         Height="900" Width="1380" MinHeight="740" MinWidth="1160"
         WindowStartupLocation="CenterScreen"
@@ -65,157 +66,7 @@
 
                 <!-- 品牌：放大的全息行星 + 可越出球体的拖尾光点卫星（无底板，直接浮在侧栏上） -->
                 <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="4,0,0,26">
-                    <Grid Width="64" Height="64">
-                        <!-- 轨道 Canvas 比球体大，卫星可以飞到球体外 -->
-                        <Canvas Width="64" Height="64" ClipToBounds="False">
-                            <Canvas.Triggers>
-                                <EventTrigger RoutedEvent="FrameworkElement.Loaded">
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetName="MoonOrbit"
-                                                             Storyboard.TargetProperty="Angle"
-                                                             From="0" To="360"
-                                                             Duration="0:0:20"
-                                                             RepeatBehavior="Forever" />
-                                            <DoubleAnimation Storyboard.TargetName="HoloRing"
-                                                             Storyboard.TargetProperty="StrokeDashOffset"
-                                                             From="0" To="-10"
-                                                             Duration="0:0:6"
-                                                             RepeatBehavior="Forever" />
-                                            <DoubleAnimation Storyboard.TargetName="HoloGlow"
-                                                             Storyboard.TargetProperty="Opacity"
-                                                             From="0.45" To="0.82"
-                                                             Duration="0:0:3"
-                                                             AutoReverse="True"
-                                                             RepeatBehavior="Forever" />
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </EventTrigger>
-                            </Canvas.Triggers>
-
-                            <!-- 行星外层全息辉光 -->
-                            <Ellipse x:Name="HoloGlow" Width="38" Height="38"
-                                     Canvas.Left="13" Canvas.Top="13" Opacity="0.55">
-                                <Ellipse.Fill>
-                                    <RadialGradientBrush>
-                                        <GradientStop Color="#0038BDF8" Offset="0.32" />
-                                        <GradientStop Color="#6638BDF8" Offset="0.66" />
-                                        <GradientStop Color="#0038BDF8" Offset="1" />
-                                    </RadialGradientBrush>
-                                </Ellipse.Fill>
-                            </Ellipse>
-
-                            <!-- 卫星 + 拖尾：旋转后压扁，形成伪 3D 椭圆轨道 -->
-                            <Grid Width="64" Height="64">
-                                <Grid.RenderTransform>
-                                    <TransformGroup>
-                                        <RotateTransform x:Name="MoonOrbit" CenterX="32" CenterY="32" />
-                                        <ScaleTransform ScaleY="0.48" CenterX="32" CenterY="32" />
-                                    </TransformGroup>
-                                </Grid.RenderTransform>
-
-                                <!-- 拖尾外层柔光 -->
-                                <Path Data="M 13.36,9.78 A 29,29 0 0 1 32,6"
-                                      Stroke="#5538BDF8" StrokeThickness="4.2"
-                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
-
-                                <!-- 拖尾主体：由透明渐变到亮青 -->
-                                <Path Data="M 13.36,9.78 A 29,29 0 0 1 32,6"
-                                      StrokeThickness="2.1"
-                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round">
-                                    <Path.Stroke>
-                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                            <GradientStop Color="#0038BDF8" Offset="0" />
-                                            <GradientStop Color="#8838BDF8" Offset="0.55" />
-                                            <GradientStop Color="#EE7DEBFF" Offset="1" />
-                                        </LinearGradientBrush>
-                                    </Path.Stroke>
-                                </Path>
-
-                                <!-- 拖尾粒子 -->
-                                <Canvas Width="64" Height="64">
-                                    <Ellipse Width="3" Height="3" Canvas.Left="19.5" Canvas.Top="7.9"
-                                             Fill="#887DEBFF" />
-                                    <Ellipse Width="2" Height="2" Canvas.Left="16.8" Canvas.Top="9.3"
-                                             Fill="#557DEBFF" />
-                                </Canvas>
-
-                                <!-- 卫星：发光核心 -->
-                                <Grid Width="12" Height="12" HorizontalAlignment="Center"
-                                      VerticalAlignment="Top">
-                                    <Ellipse Width="12" Height="12">
-                                        <Ellipse.Fill>
-                                            <RadialGradientBrush>
-                                                <GradientStop Color="#007DEBFF" Offset="0.2" />
-                                                <GradientStop Color="#AA7DEBFF" Offset="0.55" />
-                                                <GradientStop Color="#007DEBFF" Offset="1" />
-                                            </RadialGradientBrush>
-                                        </Ellipse.Fill>
-                                    </Ellipse>
-                                    <Ellipse Width="4.8" Height="4.8" Fill="#F5FFFF"
-                                             HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <Ellipse.Effect>
-                                            <DropShadowEffect BlurRadius="7" ShadowDepth="0"
-                                                              Color="#FF7DEBFF" Opacity="0.95" />
-                                        </Ellipse.Effect>
-                                    </Ellipse>
-                                </Grid>
-                            </Grid>
-
-                            <!-- 越出球体的透视轨道 -->
-                            <Ellipse Width="58" Height="28" Canvas.Left="3" Canvas.Top="18"
-                                     Stroke="#5538BDF8" StrokeThickness="1" StrokeDashArray="1.5 2.5" />
-
-                            <!-- 全息行星本体 -->
-                            <Ellipse Width="22" Height="22" Canvas.Left="21" Canvas.Top="21"
-                                     Opacity="0.96">
-                                <Ellipse.Fill>
-                                    <RadialGradientBrush GradientOrigin="0.3,0.24" Center="0.4,0.34"
-                                                         RadiusX="0.78" RadiusY="0.78">
-                                        <GradientStop Color="#E6F8FFFF" Offset="0" />
-                                        <GradientStop Color="#CC59D8FF" Offset="0.3" />
-                                        <GradientStop Color="#B32D8FD6" Offset="0.7" />
-                                        <GradientStop Color="#99204A8F" Offset="1" />
-                                    </RadialGradientBrush>
-                                </Ellipse.Fill>
-                                <Ellipse.Effect>
-                                    <DropShadowEffect BlurRadius="11" ShadowDepth="0"
-                                                      Color="#FF38BDF8" Opacity="0.8" />
-                                </Ellipse.Effect>
-                            </Ellipse>
-
-                            <!-- 全息扫描线（裁剪在球体内部） -->
-                            <Grid Width="22" Height="22" Canvas.Left="21" Canvas.Top="21"
-                                  IsHitTestVisible="False">
-                                <Grid.Clip>
-                                    <EllipseGeometry Center="11,11" RadiusX="11" RadiusY="11" />
-                                </Grid.Clip>
-                                <Rectangle Height="0.8" Width="22" Fill="#99D9FFFF"
-                                           VerticalAlignment="Top" Margin="0,4,0,0" />
-                                <Rectangle Height="0.8" Width="22" Fill="#77D9FFFF"
-                                           VerticalAlignment="Top" Margin="0,8,0,0" />
-                                <Rectangle Height="0.8" Width="22" Fill="#88D9FFFF"
-                                           VerticalAlignment="Top" Margin="0,12,0,0" />
-                                <Rectangle Height="0.8" Width="22" Fill="#55D9FFFF"
-                                           VerticalAlignment="Top" Margin="0,16,0,0" />
-                            </Grid>
-
-                            <!-- 全息行星环，虚线缓慢流动 -->
-                            <Ellipse x:Name="HoloRing" Width="37" Height="11"
-                                     Canvas.Left="13.5" Canvas.Top="26.5"
-                                     Stroke="#BB7DEBFF" StrokeThickness="1.2"
-                                     StrokeDashArray="2 2"
-                                     RenderTransformOrigin="0.5,0.5">
-                                <Ellipse.RenderTransform>
-                                    <RotateTransform Angle="-18" />
-                                </Ellipse.RenderTransform>
-                            </Ellipse>
-
-                            <!-- 球体经线，增强全息立体感 -->
-                            <Ellipse Width="10" Height="22" Canvas.Left="27" Canvas.Top="21"
-                                     Stroke="#5548D7FF" StrokeThickness="0.8" />
-                        </Canvas>
-                    </Grid>
+                    <controls:HoloLogo Width="64" Height="64" />
                     <StackPanel Margin="6,0,0,0" VerticalAlignment="Center">
                         <TextBlock Text="All Mod's Sky" FontSize="15" FontWeight="SemiBold" />
                         <TextBlock Text="A NMS MOD MANAGER" FontSize="9.5" Foreground="{DynamicResource TextFaint}"
@@ -229,7 +80,8 @@
                                  Command="{Binding NavigateCommand}" CommandParameter="Library"
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource EnumEquals}, ConverterParameter=Library, Mode=OneWay}">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE8F1;" Style="{StaticResource Glyph}" Margin="0,0,12,0" />
+                            <Path Style="{StaticResource NavIcon}" Margin="0,0,12,0"
+                                  Data="M12 2 2 7l10 5 10-5-10-5z M2 17l10 5 10-5 M2 12l10 5 10-5" />
                             <TextBlock Text="{loc:T 模组}" VerticalAlignment="Center" />
                         </StackPanel>
                     </RadioButton>
@@ -238,7 +90,8 @@
                                  Command="{Binding NavigateCommand}" CommandParameter="Pool"
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource EnumEquals}, ConverterParameter=Pool, Mode=OneWay}">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE8B7;" Style="{StaticResource Glyph}" Margin="0,0,12,0" />
+                            <Path Style="{StaticResource NavIcon}" Margin="0,0,12,0"
+                                  Data="M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z" />
                             <TextBlock Text="{loc:T 模组库}" VerticalAlignment="Center" />
                         </StackPanel>
                     </RadioButton>
@@ -247,7 +100,8 @@
                                  Command="{Binding NavigateCommand}" CommandParameter="Discover"
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource EnumEquals}, ConverterParameter=Discover, Mode=OneWay}">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE774;" Style="{StaticResource Glyph}" Margin="0,0,12,0" />
+                            <Path Style="{StaticResource NavIcon}" Margin="0,0,12,0"
+                                  Data="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z" />
                             <TextBlock Text="{loc:T 发现模组}" VerticalAlignment="Center" />
                         </StackPanel>
                     </RadioButton>
@@ -256,7 +110,8 @@
                                  Command="{Binding NavigateCommand}" CommandParameter="Tools"
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource EnumEquals}, ConverterParameter=Tools, Mode=OneWay}">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE90F;" Style="{StaticResource Glyph}" Margin="0,0,12,0" />
+                            <Path Style="{StaticResource NavIcon}" Margin="0,0,12,0"
+                                  Data="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
                             <TextBlock Text="{loc:T 工具}" VerticalAlignment="Center" />
                         </StackPanel>
                     </RadioButton>
@@ -265,7 +120,8 @@
                                  Command="{Binding NavigateCommand}" CommandParameter="Settings"
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource EnumEquals}, ConverterParameter=Settings, Mode=OneWay}">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE713;" Style="{StaticResource Glyph}" Margin="0,0,12,0" />
+                            <Path Style="{StaticResource NavIcon}" Margin="0,0,12,0"
+                                  Data="M21 4h-7 M10 4H3 M21 12h-9 M8 12H3 M21 20h-5 M12 20H3 M14 2v4 M8 10v4 M16 18v4" />
                             <TextBlock Text="{loc:T 设置}" VerticalAlignment="Center" />
                         </StackPanel>
                     </RadioButton>
@@ -274,18 +130,19 @@
                                  Command="{Binding NavigateCommand}" CommandParameter="About"
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource EnumEquals}, ConverterParameter=About, Mode=OneWay}">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE946;" Style="{StaticResource Glyph}" Margin="0,0,12,0" />
+                            <Path Style="{StaticResource NavIcon}" Margin="0,0,12,0"
+                                  Data="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M12 16v-4 M12 8v.01" />
                             <TextBlock Text="{loc:T 关于}" VerticalAlignment="Center" />
                         </StackPanel>
                     </RadioButton>
                 </StackPanel>
 
-                <!-- 启动游戏 + 游戏状态卡 -->
+                <!-- 启动游戏 -->
                 <StackPanel Grid.Row="3">
                     <Button Style="{StaticResource PrimaryButton}"
                             Command="{Binding LaunchCommand}"
                             AutomationProperties.Name="{loc:T 启动游戏}"
-                            HorizontalAlignment="Stretch" Padding="7,10" Margin="0,0,0,10"
+                            HorizontalAlignment="Stretch" Padding="7,10"
                             ToolTip="{loc:T 同步当前启停状态后启动游戏；想玩原版就先切到「无模组」配置}">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                             <TextBlock Text="▶" FontSize="10" Margin="0,0,6,0" VerticalAlignment="Center" />
@@ -293,29 +150,6 @@
                         </StackPanel>
                     </Button>
 
-                    <Button Style="{StaticResource ButtonBase}"
-                            Padding="0" Background="Transparent" BorderThickness="0"
-                            HorizontalContentAlignment="Stretch"
-                            Command="{Binding NavigateCommand}" CommandParameter="Settings"
-                            ToolTip="{loc:T 打开设置}">
-                        <Border Style="{StaticResource CardSoft}" Padding="12,10" Background="{DynamicResource Surface2}">
-                            <StackPanel>
-                                <Grid>
-                                    <TextBlock Text="{loc:T 游戏}" FontSize="10.5" Foreground="{DynamicResource TextFaint}" />
-                                    <Ellipse Width="7" Height="7" Fill="{DynamicResource Ok}" HorizontalAlignment="Right"
-                                             VerticalAlignment="Center" Visibility="{Binding HasGame, Converter={StaticResource BoolToVisibility}}" />
-                                    <Ellipse Width="7" Height="7" Fill="{DynamicResource Danger}" HorizontalAlignment="Right"
-                                             VerticalAlignment="Center" Visibility="{Binding HasGame, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}" />
-                                </Grid>
-                                <TextBlock Text="{Binding GamePath}" FontSize="11.5" Margin="0,5,0,0"
-                                           TextTrimming="CharacterEllipsis"
-                                           ToolTip="{Binding GamePath}" />
-                                <TextBlock Text="{Binding GameVersionLine}" FontSize="10.5"
-                                           Foreground="{DynamicResource TextMuted}" Margin="0,3,0,0"
-                                           TextTrimming="CharacterEllipsis" />
-                            </StackPanel>
-                        </Border>
-                    </Button>
                 </StackPanel>
 
                 <!-- 主题 -->
@@ -350,27 +184,25 @@
         <Grid Grid.Column="1">
             <Grid.RowDefinitions>
                 <RowDefinition Height="*" />
-                <RowDefinition Height="36" />
+                <RowDefinition Height="40" />
             </Grid.RowDefinitions>
 
             <ContentControl Grid.Row="0" Content="{Binding CurrentPageViewModel}" Margin="28,22,28,10"
                             HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
 
-            <Border Grid.Row="1" Background="{DynamicResource BgElev}"
-                    BorderBrush="{DynamicResource BorderSoft}" BorderThickness="0,1,0,0">
+            <!-- 状态栏：无边框无阴影，只靠背景色差与内容区分隔 -->
+            <Border Grid.Row="1" Background="{DynamicResource BgElev}" BorderThickness="0">
                 <Grid Margin="26,0">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <Ellipse Width="6" Height="6" Fill="{DynamicResource Ok}" Margin="0,0,9,0" />
-                        <TextBlock Text="{Binding StatusLeft}" FontSize="11"
+                        <TextBlock Text="{Binding StatusLeft}" FontSize="12"
                                    Foreground="{DynamicResource TextMuted}"
                                    TextTrimming="CharacterEllipsis" MaxWidth="640" />
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding StatusRight}" FontSize="11"
+                        <TextBlock Text="{Binding StatusRight}" FontSize="12"
                                    Foreground="{DynamicResource TextMuted}" />
-                        <Border Width="1" Height="12" Background="{DynamicResource Border}" Margin="14,0" />
-                        <TextBlock Text="{Binding AppVersion}" FontSize="11" Foreground="{DynamicResource TextFaint}" />
                     </StackPanel>
                 </Grid>
             </Border>
