@@ -1,6 +1,3 @@
-# AI
-/.workbuddy-ai
-
 # IDE / 本地配置
 /.vs/
 /.idea/
@@ -13,17 +10,17 @@
 /tests
 /tools
 
-# 中间构建产物（保留在本地，不提交）
+# 中间构建产物
 /src/**/bin/
 /src/**/obj/
 /tests/**/bin/
 /tests/**/obj/
 
-# 最终发布产物（本地保留，不提交）
+# 最终发布产物
 /release/
 
 # 旧版便携包
 /dist/
 
-# Remotion 视频工程（本地保留，不提交）
+# Remotion 视频工程
 /video/
