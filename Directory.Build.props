@@ -9,7 +9,7 @@
     都由这里派生，业务代码不要再写版本字面量。
   -->
   <PropertyGroup>
-    <AppVersion>2.1.2</AppVersion>
+    <AppVersion>2.1.5</AppVersion>
     <Version>$(AppVersion)</Version>
     <AssemblyVersion>$(AppVersion).0</AssemblyVersion>
     <FileVersion>$(AppVersion).0</FileVersion>

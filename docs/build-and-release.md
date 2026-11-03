@@ -74,7 +74,7 @@ pwsh -File ./build.ps1
 -p:PublishReadyToRun=false
 ```
 
-框架依赖产物约 **1.30 MB**。
+框架依赖产物约 **0.91 MB**。
 
 > 脚本的输出标记是 `[1/3]` `[2/3]`，但收尾段没有 `[3/3]` 标题（源码注释里写的是 `# ---- 3. 收尾 ----`）。只是标记不齐，不影响构建。
 
@@ -159,7 +159,7 @@ CI 只做构建和上传，**不跑测试**——因为仓库里没有测试项�
 | 路径 | `release/publish/AllModsSky.exe` |
 | 形态 | 单文件（`PublishSingleFile=true`） |
 | 默认模式 | 框架依赖，目标机器需 .NET 10 Desktop Runtime |
-| 体积 | 约 1.30 MB（`-SelfContained` 时约 150 MB） |
+| 体积 | 约 0.91 MB（`-SelfContained` 时约 150 MB） |
 | 是否入库 | 否，`/release` 在 `.gitignore` 里 |
 
 ---
@@ -169,7 +169,7 @@ CI 只做构建和上传，**不跑测试**——因为仓库里没有测试项�
 **唯一入口：根目录 `Directory.Build.props` 的 `<AppVersion>`。**
 
 ```xml
-<AppVersion>2.1.2</AppVersion>
+<AppVersion>2.1.5</AppVersion>
 ```
 
 改版本只改这一行，然后正常构建。其余位置全部自动派生：
@@ -183,7 +183,7 @@ CI 只做构建和上传，**不跑测试**——因为仓库里没有测试项�
 
 `app.manifest` 里保留的是 `__APP_VERSION__` 占位符，不要手动改成数字；构建时会在 `obj\<Configuration>\<TargetFramework>\app.manifest` 生成真实清单。
 
-`AppInfo` 从当前程序集元数据读取版本，不保存版本字符串；因此代码里不应再出现 `2.1.2` 这类字面量。
+`AppInfo` 从当前程序集元数据读取版本，不保存版本字符串；因此代码里不应再出现 `2.1.5` 这类字面量。
 
 ---
 

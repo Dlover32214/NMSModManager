@@ -24,6 +24,7 @@ public partial class LibraryView : UserControl
     private bool _armed;
     private bool _dragging;
     private bool _lifted;
+
     private DragGhostAdorner? _ghost;
 
     /// <summary>
@@ -71,6 +72,14 @@ public partial class LibraryView : UserControl
 
     private void ModList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        // 批量模式下按下是为了刷选（由 ListBoxBehaviors 处理），不要顺手把拖拽也武装起来。
+        if (ViewModel is { BatchMode: true })
+        {
+            _armed = false;
+            _dragItem = null;
+            return;
+        }
+
         _dragStart = e.GetPosition(ModList);
         _dragItem = ItemAt(_dragStart);
         _armed = _dragItem != null && !IsInteractiveSource(e.OriginalSource);
@@ -89,19 +98,6 @@ public partial class LibraryView : UserControl
 
         if (!_dragging && _lifted && _dragItem != null) ResetLift(_dragItem);
         _lifted = false;
-    }
-
-    /// <summary>批量模式下由行本身处理点击，避免 ListBox 的 Extended 选择规则要求 Ctrl。</summary>
-    private void ModRow_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        if (ViewModel is not { BatchMode: true }) return;
-        if (sender is not ListBoxItem { DataContext: ModItemViewModel item }) return;
-        if (IsInteractiveSource(e.OriginalSource)) return;
-
-        item.IsSelected = !item.IsSelected;
-        _armed = false;   // 批量点选之后不要接着触发拖拽
-        _dragItem = null;
-        e.Handled = true;
     }
 
     private void ModList_PreviewMouseMove(object sender, MouseEventArgs e)

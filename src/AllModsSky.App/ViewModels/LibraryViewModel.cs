@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows.Data;
 using System.Windows.Input;
+using AllModsSky.App.Behaviors;
 using AllModsSky.App.Mvvm;
 using AllModsSky.App.Services;
 
@@ -11,7 +12,7 @@ namespace AllModsSky.App.ViewModels;
 /// 模组页。列表只显示当前配置里的模组（顺序即加载顺序）；
 /// 不在配置里的模组待在「模组库」页，点「添加模组」挑进来。
 /// </summary>
-public sealed class LibraryViewModel : ObservableObject
+public sealed class LibraryViewModel : ObservableObject, IBulkSelectionSink
 {
     private readonly Workspace _workspace;
     private readonly IShellUi _ui;
@@ -46,6 +47,7 @@ public sealed class LibraryViewModel : ObservableObject
         MoveBottomCommand = new AsyncRelayCommand(() => MoveSelectedAsync(false));
         BatchEnableCommand = new AsyncRelayCommand(() => SetSelectedEnabledAsync(true));
         BatchDisableCommand = new AsyncRelayCommand(() => SetSelectedEnabledAsync(false));
+        BatchRemoveCommand = new AsyncRelayCommand(BatchRemoveAsync);
         BatchDeleteCommand = new AsyncRelayCommand(BatchDeleteAsync);
         SelectAllCommand = new RelayCommand(ToggleSelectAll);
         ClearSelectionCommand = new RelayCommand(ExitBatch);
@@ -83,6 +85,7 @@ public sealed class LibraryViewModel : ObservableObject
     public ICommand MoveBottomCommand { get; }
     public ICommand BatchEnableCommand { get; }
     public ICommand BatchDisableCommand { get; }
+    public ICommand BatchRemoveCommand { get; }
     public ICommand BatchDeleteCommand { get; }
     public ICommand SelectAllCommand { get; }
     public ICommand ClearSelectionCommand { get; }
@@ -233,6 +236,10 @@ public sealed class LibraryViewModel : ObservableObject
 
         RefreshProfiles();
         RaiseCounts();
+
+        // 列表被整份换掉（切配置、新建/删除配置、导入、刷新）时，批选里那批对象已经不在了：
+        // 批量条还挂着的话，点「停用」会改到列表里看不见的模组，所以直接退出。
+        if (BatchMode) ExitBatch();
     }
 
     private ModItemViewModel Materialize(ModRecord record)
@@ -283,6 +290,17 @@ public sealed class LibraryViewModel : ObservableObject
         if (_bulkSelecting) return;   // 批量改选中状态时先别刷新，循环结束统一来一次
 
         RaiseCounts();
+    }
+
+    /// <summary>
+    /// 刷选（按住左键往下滑）时用：先把逐行刷新压住，划过的行全部改完再统一刷一次。
+    /// </summary>
+    public void BeginBulkSelection() => _bulkSelecting = true;
+
+    public void EndBulkSelection(bool changed)
+    {
+        _bulkSelecting = false;
+        if (changed) RaiseCounts();
     }
 
     private void RaiseCounts()
@@ -345,7 +363,7 @@ public sealed class LibraryViewModel : ObservableObject
         }
 
         _workspace.Library.Save();
-        SyncFromLibrary();
+        _workspace.NotifyLibraryChanged();   // 模组库页的「已加入」标记要一起变
 
         // 新加进来的条目还没有格式/适配信息，只补查缺的
         await RefreshHealthAsync(onlyMissing: true);
@@ -472,6 +490,43 @@ public sealed class LibraryViewModel : ObservableObject
         if (_workspace.Game.IsValid) await _ui.DeployAsync(silent: true);
 
         _ui.Toast(L.F("已{0} {1} 个模组", L.T(enabled ? "启用" : "停用"), selected.Count), true);
+        ExitBatch();
+    }
+
+    /// <summary>批量把选中项从当前配置里摘掉，文件仍留在模组库。</summary>
+    private async Task BatchRemoveAsync()
+    {
+        var selected = SelectedItems;
+        if (selected.Count == 0)
+        {
+            _ui.Toast("先选中模组", false);
+            return;
+        }
+
+        var confirm = _ui.Confirm(L.F("从当前配置移出 {0} 个模组", selected.Count),
+            L.F("这 {0} 个模组会从「{1}」里摘掉，文件仍留在模组库，随时可以再加回来。", selected.Count, ActiveProfileName),
+            L.T("移出配置"));
+
+        if (confirm != ConfirmResult.Primary) return;
+
+        var removed = 0;
+        foreach (var item in selected)
+        {
+            if (_workspace.Library.RemoveFromActiveProfile(item.Record)) removed++;
+        }
+
+        if (removed == 0)
+        {
+            _ui.Toast("这些模组不在当前配置里", false);
+            return;
+        }
+
+        _workspace.Library.Save();
+        _workspace.NotifyLibraryChanged();
+
+        if (_workspace.Game.IsValid) await _ui.DeployAsync(silent: true);
+
+        _ui.Toast(L.F("已移出 {0} 个模组，回到模组库", removed), true);
         ExitBatch();
     }
 
@@ -647,7 +702,7 @@ public sealed class LibraryViewModel : ObservableObject
         _workspace.Library.SetActiveProfile(profile.Id);
         _workspace.Library.Save();
 
-        SyncFromLibrary();
+        _workspace.NotifyLibraryChanged();
         _ui.Toast(L.F("已新建「{0}」，复制了 {1} 个模组{2}", profile.Name, profile.Entries.Count,
             TruncatedHint(truncated)), true);
     }
@@ -662,7 +717,7 @@ public sealed class LibraryViewModel : ObservableObject
         var missing = _workspace.Library.MissingProfileEntries(profile);
         var changed = _workspace.Library.SetActiveProfile(profile.Id);
 
-        SyncFromLibrary();
+        _workspace.NotifyLibraryChanged();
 
         // 切到「无模组」会把缓存里的条目全丢掉，切回来是新对象，格式/适配都是空的。
         // 这里补查一遍，已经查过的直接跳过。
@@ -736,7 +791,7 @@ public sealed class LibraryViewModel : ObservableObject
 
         _workspace.Library.RemoveProfile(profile);
         _workspace.Library.Save();
-        SyncFromLibrary();
+        _workspace.NotifyLibraryChanged();
         _ui.Toast(L.F("已删除「{0}」，当前配置：{1}", profile.Name, ActiveProfileName), true);
     }
 
@@ -784,7 +839,7 @@ public sealed class LibraryViewModel : ObservableObject
         }
 
         _workspace.Library.Save();
-        SyncFromLibrary();
+        _workspace.NotifyLibraryChanged();
 
         if (_workspace.Game.IsValid) await _ui.DeployAsync(silent: true);
 
