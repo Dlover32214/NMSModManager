@@ -90,10 +90,10 @@ public sealed class ModLibrary
             }
         }
 
-        // 第一次升级到「配置」模型：老库里只有一份启停状态，把它收成一套「默认」配置，
-        // 免得升级后所有模组都掉进模组库、部署时被整体停用。
+        // 库里一套配置都没有时补一套「默认」：新装用户不该先面对一个空的配置菜单，
+        // 老库升级上来也只有一份启停状态，正好收进这套配置，免得模组全掉进模组库。
         var seeded = false;
-        if (_profiles.Count == 0 && _mods.Any(m => m.Enabled))
+        if (_profiles.Count == 0)
         {
             var profile = new ModProfile { Name = L.T("默认") };
             foreach (var record in _mods)

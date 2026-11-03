@@ -24,6 +24,11 @@ public partial class LibraryView : UserControl
     private bool _armed;
     private bool _dragging;
     private bool _lifted;
+
+    /// <summary>批量模式下按住左键拖动：从起始行一路刷到光标所在行。</summary>
+    private bool _painting;
+    private bool _paintValue;
+    private int _paintAnchor;
     private DragGhostAdorner? _ghost;
 
     /// <summary>
@@ -64,6 +69,7 @@ public partial class LibraryView : UserControl
     {
         if (ViewModel != null) ViewModel.IsProfileMenuOpen = false;
         _pressTimer.Stop();
+        _painting = false;
         EndGhost();
     }
 
@@ -86,6 +92,7 @@ public partial class LibraryView : UserControl
     {
         _pressTimer.Stop();
         _armed = false;
+        _painting = false;
 
         if (!_dragging && _lifted && _dragItem != null) ResetLift(_dragItem);
         _lifted = false;
@@ -99,6 +106,13 @@ public partial class LibraryView : UserControl
         if (IsInteractiveSource(e.OriginalSource)) return;
 
         item.IsSelected = !item.IsSelected;
+
+        // 按下这一行的结果就是「刷」的目标状态：往下滑时经过的行都跟它对齐，
+        // 而不是每行各翻一次，否则连成一片就成了斑马纹。
+        _painting = true;
+        _paintValue = item.IsSelected;
+        _paintAnchor = Math.Max(0, ModList.Items.IndexOf(item));
+
         _armed = false;   // 批量点选之后不要接着触发拖拽
         _dragItem = null;
         e.Handled = true;
@@ -106,6 +120,21 @@ public partial class LibraryView : UserControl
 
     private void ModList_PreviewMouseMove(object sender, MouseEventArgs e)
     {
+        if (_painting)
+        {
+            // 松手在列表外时收不到 MouseUp，这里用按键状态兜底；
+            // 批量模式中途退出也不能继续刷。
+            if (e.LeftButton != MouseButtonState.Pressed || ViewModel is not { BatchMode: true })
+            {
+                _painting = false;
+            }
+            else
+            {
+                PaintTo(e.GetPosition(ModList));
+                return;
+            }
+        }
+
         if (!_armed || _dragging || _dragItem == null) return;
 
         if (e.LeftButton != MouseButtonState.Pressed)
@@ -204,6 +233,40 @@ public partial class LibraryView : UserControl
 
         // 等这一帧的布局跑完再量位置，容器刚重建时拿到的坐标可能还是旧的
         Dispatcher.BeginInvoke(new Action(() => AnimatePositions(before)), DispatcherPriority.Loaded);
+    }
+
+    /// <summary>
+    /// 把起始行到光标所在行之间整段设成同一个状态。用索引区间而不是逐帧命中，
+    /// 快速甩鼠标时中间被跳过的那几行也不会漏掉。
+    /// </summary>
+    private void PaintTo(Point position)
+    {
+        if (ViewModel is not { } vm) return;
+        if (ItemAt(position) is not { } item) return;
+
+        var index = ModList.Items.IndexOf(item);
+        if (index < 0) return;
+
+        var start = Math.Min(_paintAnchor, index);
+        var end = Math.Max(_paintAnchor, index);
+
+        var changed = false;
+        vm.BeginBulkSelection();
+        try
+        {
+            for (var i = start; i <= end && i < ModList.Items.Count; i++)
+            {
+                if (ModList.Items[i] is not ModItemViewModel row) continue;
+                if (row.IsSelected == _paintValue) continue;
+
+                row.IsSelected = _paintValue;
+                changed = true;
+            }
+        }
+        finally
+        {
+            vm.EndBulkSelection(changed);
+        }
     }
 
     private ModItemViewModel? ItemAt(Point point)

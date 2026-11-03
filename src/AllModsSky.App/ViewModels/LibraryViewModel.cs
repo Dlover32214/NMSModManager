@@ -285,6 +285,17 @@ public sealed class LibraryViewModel : ObservableObject
         RaiseCounts();
     }
 
+    /// <summary>
+    /// 刷选（按住左键往下滑）时用：先把逐行刷新压住，划过的行全部改完再统一刷一次。
+    /// </summary>
+    public void BeginBulkSelection() => _bulkSelecting = true;
+
+    public void EndBulkSelection(bool changed)
+    {
+        _bulkSelecting = false;
+        if (changed) RaiseCounts();
+    }
+
     private void RaiseCounts()
     {
         Reindex();
@@ -345,7 +356,7 @@ public sealed class LibraryViewModel : ObservableObject
         }
 
         _workspace.Library.Save();
-        SyncFromLibrary();
+        _workspace.NotifyLibraryChanged();   // 模组库页的「已加入」标记要一起变
 
         // 新加进来的条目还没有格式/适配信息，只补查缺的
         await RefreshHealthAsync(onlyMissing: true);
@@ -647,7 +658,7 @@ public sealed class LibraryViewModel : ObservableObject
         _workspace.Library.SetActiveProfile(profile.Id);
         _workspace.Library.Save();
 
-        SyncFromLibrary();
+        _workspace.NotifyLibraryChanged();
         _ui.Toast(L.F("已新建「{0}」，复制了 {1} 个模组{2}", profile.Name, profile.Entries.Count,
             TruncatedHint(truncated)), true);
     }
@@ -662,7 +673,7 @@ public sealed class LibraryViewModel : ObservableObject
         var missing = _workspace.Library.MissingProfileEntries(profile);
         var changed = _workspace.Library.SetActiveProfile(profile.Id);
 
-        SyncFromLibrary();
+        _workspace.NotifyLibraryChanged();
 
         // 切到「无模组」会把缓存里的条目全丢掉，切回来是新对象，格式/适配都是空的。
         // 这里补查一遍，已经查过的直接跳过。
@@ -736,7 +747,7 @@ public sealed class LibraryViewModel : ObservableObject
 
         _workspace.Library.RemoveProfile(profile);
         _workspace.Library.Save();
-        SyncFromLibrary();
+        _workspace.NotifyLibraryChanged();
         _ui.Toast(L.F("已删除「{0}」，当前配置：{1}", profile.Name, ActiveProfileName), true);
     }
 
@@ -784,7 +795,7 @@ public sealed class LibraryViewModel : ObservableObject
         }
 
         _workspace.Library.Save();
-        SyncFromLibrary();
+        _workspace.NotifyLibraryChanged();
 
         if (_workspace.Game.IsValid) await _ui.DeployAsync(silent: true);
 

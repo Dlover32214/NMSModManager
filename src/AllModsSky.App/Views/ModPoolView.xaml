@@ -180,10 +180,13 @@
 
         <!-- 列表 -->
         <Grid Grid.Row="4">
-            <ListBox Style="{StaticResource PlainListBox}"
+            <ListBox x:Name="PoolList"
+                     Style="{StaticResource PlainListBox}"
                      ItemsSource="{Binding View}"
                      ItemContainerStyle="{StaticResource PoolRowContainer}"
                      SelectionMode="Single"
+                     PreviewMouseMove="PoolList_PreviewMouseMove"
+                     PreviewMouseLeftButtonUp="PoolList_PreviewMouseLeftButtonUp"
                      VirtualizingPanel.IsVirtualizing="True"
                      VirtualizingPanel.VirtualizationMode="Recycling"
                      ScrollViewer.CanContentScroll="True">
