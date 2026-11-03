@@ -300,7 +300,8 @@ The toolbar has a **Batch Select** button:
 - No `Ctrl` key is needed.
 - Toggles, buttons and scrollbars do not accidentally toggle selection.
 - The batch bar stays visible even with zero selected.
-- Exit with **Exit Batch**, **Clear Selection**, or `Esc`.
+- Exit with **Exit Batch**, **Clear Selection**, or `Esc`;
+- Switching profile, changing the filter or refreshing the list exits batch mode automatically, so a batch action can never hit mods you cannot see.
 
 Batch actions:
 
