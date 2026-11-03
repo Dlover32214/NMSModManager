@@ -7,7 +7,6 @@
 # 临时 / 工具目录
 /.tmp
 /finacheck
-/tests
 /tools
 
 # 中间构建产物
