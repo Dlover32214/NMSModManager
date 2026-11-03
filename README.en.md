@@ -165,7 +165,7 @@ The app separates the mods you have from the mods you are currently using:
 
 #### Adding mods
 
-**+ Add mods** in the Mods toolbar lists the library mods that are not in this profile yet; tick them and they are appended to the list (you can drag them afterwards).
+**+ Add mods** in the Mods toolbar lists the library mods that are not in this profile yet: click a row to toggle it, or hold the left button and drag to paint a whole range, then add them in one go (they are appended to the list; you can drag them afterwards). The list scrolls with the mouse wheel.
 
 **Remove from profile** at the end of a row only takes the mod out of this profile. Files are untouched and the mod can be added back later.
 
@@ -307,7 +307,8 @@ Batch actions:
 - enable selected;
 - disable selected;
 - move to top/bottom;
-- permanently delete selected.
+- remove selected from profile (the files stay in the mod library);
+- permanently delete selected (including the files on disk).
 
 #### Drag reordering
 
@@ -505,6 +506,7 @@ The UI language is stored in the `Language` field of `settings.json` (`system`, 
   - the satellite passes behind the badge on the far side and reappears on the near side;
   - subtitle `A NMS MOD MANAGER`;
   - the planet palette follows the theme: bright cyan on dark, one step darker on light so it stays readable on white.
+- App icon (`app.svg` → `app.ico`, seven sizes from 16 to 256): a holographic planet in deep space with an empty orbit — the ring is still there, nothing rides it;
 - Keyboard shortcuts:
   - `Ctrl+O` import
   - `Ctrl+1` Mods
