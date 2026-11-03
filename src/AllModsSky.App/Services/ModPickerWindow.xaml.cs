@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
+using AllModsSky.App.Behaviors;
 using AllModsSky.App.Mvvm;
 
 namespace AllModsSky.App.Services;
@@ -10,11 +11,6 @@ namespace AllModsSky.App.Services;
 public partial class ModPickerWindow : Window
 {
     private readonly ObservableCollection<PickerItem> _visible = new();
-
-    /// <summary>按住左键拖动：从起始行一路刷到光标所在行。</summary>
-    private bool _painting;
-    private bool _paintValue;
-    private int _paintAnchor;
 
     public ModPickerWindow(IEnumerable<ModRecord> candidates, string profileName)
     {
@@ -71,71 +67,6 @@ public partial class ModPickerWindow : Window
     private void SearchBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e) =>
         Filter(SearchBox.Text);
 
-    /// <summary>没有勾选框了：点整行就是切换选中，靠行底色高亮表示。按住往下滑会整段刷。</summary>
-    private void Row_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        if (sender is not System.Windows.Controls.ListBoxItem { DataContext: PickerItem item }) return;
-
-        item.IsSelected = !item.IsSelected;
-
-        // 按下这一行的结果就是「刷」的目标状态：往下滑时经过的行都跟它对齐。
-        _painting = true;
-        _paintValue = item.IsSelected;
-        _paintAnchor = Math.Max(0, ModList.Items.IndexOf(item));
-
-        e.Handled = true;
-    }
-
-    private void ModList_PreviewMouseMove(object sender, MouseEventArgs e)
-    {
-        if (!_painting) return;
-
-        // 松手在列表外时收不到 MouseUp，这里用按键状态兜底。
-        if (e.LeftButton != MouseButtonState.Pressed)
-        {
-            _painting = false;
-            return;
-        }
-
-        PaintTo(e.GetPosition(ModList));
-    }
-
-    private void ModList_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e) => _painting = false;
-
-    /// <summary>起始行到光标所在行整段设成同一个状态，快速甩鼠标也不会漏行。</summary>
-    private void PaintTo(Point position)
-    {
-        if (ItemAt(position) is not { } item) return;
-
-        var index = ModList.Items.IndexOf(item);
-        if (index < 0) return;
-
-        var start = Math.Min(_paintAnchor, index);
-        var end = Math.Max(_paintAnchor, index);
-
-        for (var i = start; i <= end && i < ModList.Items.Count; i++)
-        {
-            if (ModList.Items[i] is not PickerItem row) continue;
-            if (row.IsSelected == _paintValue) continue;
-
-            row.IsSelected = _paintValue;   // PropertyChanged 里会顺带刷新按钮上的计数
-        }
-    }
-
-    private PickerItem? ItemAt(Point point)
-    {
-        if (ModList.InputHitTest(point) is not DependencyObject hit) return null;
-
-        while (hit != null && hit is not System.Windows.Controls.ListBoxItem)
-        {
-            hit = hit is System.Windows.Media.Visual or System.Windows.Media.Media3D.Visual3D
-                ? System.Windows.Media.VisualTreeHelper.GetParent(hit)
-                : LogicalTreeHelper.GetParent(hit);
-        }
-
-        return (hit as System.Windows.Controls.ListBoxItem)?.DataContext as PickerItem;
-    }
-
     private void SelectAll_Click(object sender, RoutedEventArgs e)
     {
         foreach (var item in _visible) item.IsSelected = true;
@@ -162,7 +93,7 @@ public partial class ModPickerWindow : Window
     }
 }
 
-public sealed class PickerItem : ObservableObject
+public sealed class PickerItem : ObservableObject, ISelectableItem
 {
     private bool _isSelected;
 

@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows.Data;
 using System.Windows.Input;
+using AllModsSky.App.Behaviors;
 using AllModsSky.App.Mvvm;
 using AllModsSky.App.Services;
 
@@ -11,7 +12,7 @@ namespace AllModsSky.App.ViewModels;
 /// 模组页。列表只显示当前配置里的模组（顺序即加载顺序）；
 /// 不在配置里的模组待在「模组库」页，点「添加模组」挑进来。
 /// </summary>
-public sealed class LibraryViewModel : ObservableObject
+public sealed class LibraryViewModel : ObservableObject, IBulkSelectionSink
 {
     private readonly Workspace _workspace;
     private readonly IShellUi _ui;
