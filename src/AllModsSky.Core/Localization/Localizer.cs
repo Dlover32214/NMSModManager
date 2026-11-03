@@ -8,12 +8,21 @@ namespace AllModsSky.Core.Localization;
 ///
 /// 约定：
 ///   · 源字符串（中文）就是资源 key，和 gettext 的 msgid 一样；
+<<<<<<< HEAD
+///   · 每种语言一个 JSON 目录，放在 Localization/Translations/ 下；
+///   · 中文目录可以只保留覆盖项，找不到翻译时回退中文源字符串；
+=======
 ///   · 中文是默认语言，找不到英文翻译时原样返回中文；
+>>>>>>> 6576be8bf42bc977aa5dec75e25c09d16bffd31c
 ///   · 所有用户页面上的新字符串都必须经过 <see cref="T"/> 或 <see cref="F"/>，
 ///     不要再把中文直接写进 XAML / ViewModel；
 ///   · 日志和异常技术细节可以保持中文，不进入用户界面目录。
 ///
+<<<<<<< HEAD
+/// 切换语言时调用 <see cref="Apply"/>，界面由 App 重新加载；不需要退出进程。
+=======
 /// 语言只在启动时应用一次，修改语言后重启程序生效，避免 WPF 已生成文本的刷新问题。
+>>>>>>> 6576be8bf42bc977aa5dec75e25c09d16bffd31c
 /// </summary>
 public static class L
 {
@@ -21,7 +30,16 @@ public static class L
     public const string ChineseLanguage = "zh-CN";
     public const string EnglishLanguage = "en-US";
 
+<<<<<<< HEAD
+    private const string ResourcePrefix = "AllModsSky.Core.Localization.Translations.";
+
+    private static readonly Dictionary<string, Dictionary<string, string>> Catalogs = LoadCatalogs();
+
+    /// <summary>语言或格式化文化变化后触发；界面层据此刷新。</summary>
+    public static event Action? LanguageChanged;
+=======
     private static readonly Dictionary<string, string> English = LoadEnglish();
+>>>>>>> 6576be8bf42bc977aa5dec75e25c09d16bffd31c
 
     /// <summary>当前实际生效的语言：zh-CN 或 en-US。</summary>
     public static string CurrentLanguage { get; private set; } = ChineseLanguage;
@@ -49,15 +67,45 @@ public static class L
         // 日期、数字和排序也跟着界面语言走；不改变文件的 UTF-8 读写。
         CultureInfo.CurrentCulture = culture;
         CultureInfo.DefaultThreadCurrentCulture = culture;
+<<<<<<< HEAD
+
+        LanguageChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// 取用户可见字符串。key 是中文源字符串，也是各语言目录里的 msgid。
+=======
     }
 
     /// <summary>
     /// 取用户可见字符串。key 是中文源字符串，也是英文目录里的 msgid。
+>>>>>>> 6576be8bf42bc977aa5dec75e25c09d16bffd31c
     /// </summary>
     public static string T(string source)
     {
         if (string.IsNullOrEmpty(source)) return source;
+<<<<<<< HEAD
+        if (Catalogs.TryGetValue(CurrentLanguage, out var catalog))
+        {
+            if (catalog.TryGetValue(source, out var exact))
+                return exact;
+
+            // 调用方常把 "\n" 留在本地化字符串末尾；目录里不保存这些纯排版换行。
+            // 命中时把首尾换行原样补回，保证对话框/日志的排版不丢。
+            var start = 0;
+            while (start < source.Length && (source[start] == '\r' || source[start] == '\n')) start++;
+            var end = source.Length;
+            while (end > start && (source[end - 1] == '\r' || source[end - 1] == '\n')) end--;
+
+            if ((start > 0 || end < source.Length) &&
+                catalog.TryGetValue(source[start..end], out var trimmed))
+                return source[..start] + trimmed + source[end..];
+        }
+
+        return source;
+=======
         return IsEnglish && English.TryGetValue(source, out var translated) ? translated : source;
+>>>>>>> 6576be8bf42bc977aa5dec75e25c09d16bffd31c
     }
 
     /// <summary>带格式参数的本地化字符串；参数顺序与源字符串中的 {0}、{1} 一致。</summary>
@@ -83,6 +131,41 @@ public static class L
         return EnglishLanguage;
     }
 
+<<<<<<< HEAD
+    private static Dictionary<string, Dictionary<string, string>> LoadCatalogs()
+    {
+        var catalogs = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var language in new[] { ChineseLanguage, EnglishLanguage })
+            catalogs[language] = LoadCatalog(language);
+        return catalogs;
+    }
+
+    private static Dictionary<string, string> LoadCatalog(string language)
+    {
+        var empty = new Dictionary<string, string>(StringComparer.Ordinal);
+        try
+        {
+            var assembly = typeof(L).Assembly;
+            var names = assembly.GetManifestResourceNames();
+            var exact = ResourcePrefix + language + ".json";
+            var resourceName = names.FirstOrDefault(n => n.Equals(exact, StringComparison.OrdinalIgnoreCase))
+                               ?? names.FirstOrDefault(n =>
+                                   n.EndsWith(".Translations." + language + ".json",
+                                       StringComparison.OrdinalIgnoreCase));
+            if (resourceName == null) return empty;
+
+            using var stream = assembly.GetManifestResourceStream(resourceName);
+            if (stream == null) return empty;
+
+            using var reader = new StreamReader(stream);
+            var json = reader.ReadToEnd();
+            return JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? empty;
+        }
+        catch
+        {
+            // 单个语言目录损坏不应阻止程序启动；回退中文源字符串。
+            return empty;
+=======
     private static Dictionary<string, string> LoadEnglish()
     {
         const string resourceName = "AllModsSky.Core.Localization.Strings.english.json";
@@ -101,6 +184,7 @@ public static class L
         {
             // 资源损坏不应阻止程序启动；退化为中文。
             return new Dictionary<string, string>(StringComparer.Ordinal);
+>>>>>>> 6576be8bf42bc977aa5dec75e25c09d16bffd31c
         }
     }
 }

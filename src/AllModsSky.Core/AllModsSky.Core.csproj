@@ -20,7 +20,13 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Resources\mapping.json" />
+<<<<<<< HEAD
+    <EmbeddedResource Include="Localization\Translations\*.json">
+      <WithCulture>false</WithCulture>
+    </EmbeddedResource>
+=======
     <EmbeddedResource Include="Localization\Strings.english.json" />
+>>>>>>> 6576be8bf42bc977aa5dec75e25c09d16bffd31c
   </ItemGroup>
 
 </Project>
