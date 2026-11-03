@@ -48,4 +48,7 @@ public interface IShellUi
     Task ImportAsync(IReadOnlyList<string> paths);
 
     Task RefreshAllAsync();
+
+    /// <summary>语言变更后立即重建主界面，不退出进程。</summary>
+    void RebuildShell();
 }

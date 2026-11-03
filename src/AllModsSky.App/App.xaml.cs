@@ -65,7 +65,7 @@ public partial class App : Application
             MainWindow = window;
             window.Show();
 
-            _ = _shell.InitializeAsync();
+            _ = _shell.InitializeAsync(GetStartPage());
         }
         catch (Exception ex)
         {
@@ -74,6 +74,52 @@ public partial class App : Application
                 "All Mod's Sky", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
         }
+    }
+
+    /// <summary>
+    /// 语言保存后立即换一套窗口和 ViewModel，保留当前页面与窗口位置。
+    /// 进程不退出，所以比“改完语言请重启”少一次完整启动。
+    /// </summary>
+    public void RebuildShell(PageKey page, string? notice = null)
+    {
+        AppPaths.Ensure();
+        L.Apply(SettingsStore.Current.Language);
+        ThemeManager.Apply(SettingsStore.Current.IsDark);
+
+        var oldShell = _shell;
+        var oldWindow = MainWindow;
+
+        var shell = new MainViewModel();
+        var window = new MainWindow { DataContext = shell };
+
+        if (oldWindow is { IsLoaded: true })
+        {
+            window.WindowStartupLocation = WindowStartupLocation.Manual;
+            window.Left = oldWindow.Left;
+            window.Top = oldWindow.Top;
+            window.Width = oldWindow.Width;
+            window.Height = oldWindow.Height;
+            window.WindowState = oldWindow.WindowState;
+        }
+
+        MainWindow = window;
+        _shell = shell;
+        window.Show();
+
+        // 先显示新窗口，再关闭旧窗口，避免 ShutdownMode=OnLastWindowClose 把进程带走。
+        oldWindow?.Close();
+        oldShell?.Dispose();
+
+        _ = shell.InitializeAsync(page, notice);
+    }
+
+    private static PageKey GetStartPage()
+    {
+        var pageArg = Environment.GetCommandLineArgs()
+            .FirstOrDefault(a => a.StartsWith("--page=", StringComparison.OrdinalIgnoreCase));
+        return pageArg != null && Enum.TryParse<PageKey>(pageArg[7..], true, out var page)
+            ? page
+            : PageKey.Library;
     }
 
     protected override void OnExit(ExitEventArgs e)

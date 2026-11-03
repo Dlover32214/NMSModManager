@@ -1,6 +1,10 @@
 <Window x:Class="AllModsSky.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+<<<<<<< HEAD
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+=======
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+>>>>>>> 6576be8bf42bc977aa5dec75e25c09d16bffd31c
              xmlns:loc="clr-namespace:AllModsSky.App.Localization"
         xmlns:vm="clr-namespace:AllModsSky.App.ViewModels"
         xmlns:views="clr-namespace:AllModsSky.App.Views"

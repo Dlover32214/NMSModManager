@@ -305,8 +305,19 @@ public sealed class SettingsViewModel : ObservableObject, IActivatable
         IsDirty = false;
         SaveStateText = L.F("已保存 {0}", DateTime.Now.ToString("HH:mm:ss"));
 
+<<<<<<< HEAD
+        if (!string.Equals(previousLanguage, Language, StringComparison.OrdinalIgnoreCase))
+        {
+            // 语言不用重启进程：App 会用新语言重建主窗口，并恢复到当前设置页。
+            _ui.RebuildShell();
+            return;
+        }
+
+        _ui.Toast("设置已保存", true);
+=======
         var languageChanged = !string.Equals(previousLanguage, Language, StringComparison.OrdinalIgnoreCase);
         _ui.Toast(languageChanged ? "语言设置已保存，重启程序后生效" : "设置已保存", true);
+>>>>>>> 6576be8bf42bc977aa5dec75e25c09d16bffd31c
         _ = _ui.RefreshAllAsync();
     }
 

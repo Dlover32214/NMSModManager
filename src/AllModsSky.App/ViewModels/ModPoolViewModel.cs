@@ -19,7 +19,11 @@ public sealed class PoolItemViewModel : ObservableObject
     public ModRecord Record { get; }
     public string Id => Record.Id;
     public string Name => Record.Name;
+<<<<<<< HEAD
+    public string MetaText => $"{Record.VersionText} · {Record.SizeText} · {L.T(Record.Source)}";
+=======
     public string MetaText => $"{Record.VersionText} · {Record.SizeText} · {Record.Source}";
+>>>>>>> 6576be8bf42bc977aa5dec75e25c09d16bffd31c
     public string FolderText => Record.EffectiveFolder;
     public bool IsLegacyPak => Record.IsLegacyPak;
     public string SizeText => Record.SizeText;

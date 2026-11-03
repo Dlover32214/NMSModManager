@@ -147,7 +147,13 @@ public sealed class AboutViewModel : ObservableObject, IActivatable
 
             ReleaseNotes = string.IsNullOrWhiteSpace(result.Notes)
                 ? L.T("这个 Release 没有填写更新说明。")
+<<<<<<< HEAD
+                : L.IsEnglish && result.Notes.Any(IsCjk)
+                    ? L.T("更新说明由 GitHub Release 提供，当前只有中文；请点「打开发布页」查看。")
+                    : result.Notes.Trim();
+=======
                 : result.Notes.Trim();
+>>>>>>> 6576be8bf42bc977aa5dec75e25c09d16bffd31c
 
             StatusText = !result.HasUpdate
                 ? L.F("已是最新版本（v{0}）。", CurrentVersion)
@@ -227,4 +233,9 @@ public sealed class AboutViewModel : ObservableObject, IActivatable
             IsDownloading = false;
         }
     }
+<<<<<<< HEAD
+
+    private static bool IsCjk(char c) => c >= '\u4e00' && c <= '\u9fff';
+=======
+>>>>>>> 6576be8bf42bc977aa5dec75e25c09d16bffd31c
 }

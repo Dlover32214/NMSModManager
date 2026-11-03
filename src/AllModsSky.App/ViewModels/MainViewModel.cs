@@ -1,3 +1,4 @@
+using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 using AllModsSky.App.Mvvm;
@@ -211,7 +212,7 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
     public int ModCount => Library.TotalCount;
     public int EnabledCount => Library.EnabledCount;
 
-    public async Task InitializeAsync()
+    public async Task InitializeAsync(PageKey startPage = PageKey.Library, string? notice = null)
     {
         try
         {
@@ -258,10 +259,12 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
             if (!_workspace.Game.IsValid)
                 ShowToast("没找到游戏目录，请到「设置」里指定", false);
 
-            var pageArg = Environment.GetCommandLineArgs()
-                .FirstOrDefault(a => a.StartsWith("--page=", StringComparison.OrdinalIgnoreCase));
-            if (pageArg != null && Enum.TryParse<PageKey>(pageArg[7..], true, out var page) && page != PageKey.Library)
-                Navigate(page);
+            if (startPage != PageKey.Library)
+                Navigate(startPage);
+
+            // 语言切换后新界面已经加载，再给出提示，避免旧窗口的提示一起消失。
+            if (!string.IsNullOrEmpty(notice))
+                ShowToast(notice, true);
         }
         catch (Exception ex)
         {
@@ -287,6 +290,13 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
 
         if (CurrentPageViewModel is IActivatable activatable)
             _ = activatable.OnActivatedAsync();
+    }
+
+    /// <summary>语言保存后由设置页调用：App 重建窗口，当前页面保持不变。</summary>
+    public void RebuildShell()
+    {
+        if (Application.Current is App app)
+            app.RebuildShell(CurrentPage, "界面语言已切换");
     }
 
     public void Toast(string message, bool success = true) => ShowToast(message, success);

@@ -109,7 +109,11 @@ public sealed class PickerItem : ObservableObject
 
     public ModRecord Record { get; }
     public string Name => Record.Name;
+<<<<<<< HEAD
+    public string MetaText => $"{Record.VersionText} · {Record.SizeText} · {L.T(Record.Source)}";
+=======
     public string MetaText => $"{Record.VersionText} · {Record.SizeText} · {Record.Source}";
+>>>>>>> 6576be8bf42bc977aa5dec75e25c09d16bffd31c
 
     public bool IsSelected
     {

@@ -223,11 +223,20 @@
                 <Border Style="{StaticResource Card}" Margin="0,0,0,14">
                     <StackPanel>
                         <TextBlock Text="{loc:T 界面语言}" Style="{StaticResource H2}" />
+<<<<<<< HEAD
+                        <TextBlock Text="{loc:T 保存后立即切换界面，无需重启。}" Style="{StaticResource MutedText}"
+                                   Margin="0,6,0,10" TextWrapping="Wrap" />
+                        <ComboBox ItemsSource="{Binding Languages}" DisplayMemberPath="Name"
+                                  SelectedValuePath="Code" SelectedValue="{Binding Language, Mode=TwoWay}"
+                                  AutomationProperties.Name="{loc:T 界面语言}"
+                                  Style="{StaticResource SelectBox}" Width="220" HorizontalAlignment="Left" />
+=======
                         <TextBlock Text="{loc:T 更改后需要重启程序才能生效。}" Style="{StaticResource MutedText}"
                                    Margin="0,6,0,10" TextWrapping="Wrap" />
                         <ComboBox ItemsSource="{Binding Languages}" DisplayMemberPath="Name"
                                   SelectedValuePath="Code" SelectedValue="{Binding Language, Mode=TwoWay}"
                                   MinWidth="220" HorizontalAlignment="Left" />
+>>>>>>> 6576be8bf42bc977aa5dec75e25c09d16bffd31c
                     </StackPanel>
                 </Border>
 
