@@ -1,6 +1,7 @@
 <Window x:Class="AllModsSky.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="clr-namespace:AllModsSky.App.Localization"
         xmlns:vm="clr-namespace:AllModsSky.App.ViewModels"
         xmlns:views="clr-namespace:AllModsSky.App.Views"
         Title="All Mod's Sky"
@@ -24,6 +25,9 @@
         <DataTemplate DataType="{x:Type vm:LibraryViewModel}">
             <views:LibraryView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ModPoolViewModel}">
+            <views:ModPoolView />
+        </DataTemplate>
         <DataTemplate DataType="{x:Type vm:DiscoverViewModel}">
             <views:DiscoverView />
         </DataTemplate>
@@ -32,6 +36,9 @@
         </DataTemplate>
         <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
             <views:SettingsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:AboutViewModel}">
+            <views:AboutView />
         </DataTemplate>
     </Window.Resources>
 
@@ -56,14 +63,10 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <!-- 品牌：放大的全息行星 + 可越出徽章的拖尾光点卫星 -->
+                <!-- 品牌：放大的全息行星 + 可越出球体的拖尾光点卫星（无底板，直接浮在侧栏上） -->
                 <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="4,0,0,26">
                     <Grid Width="64" Height="64">
-                        <!-- 徽章背景；轨道 Canvas 比它大，卫星可以飞到背景外 -->
-                        <Border Width="46" Height="46" CornerRadius="14"
-                                Background="{DynamicResource BrandGradient}"
-                                HorizontalAlignment="Center" VerticalAlignment="Center" />
-
+                        <!-- 轨道 Canvas 比球体大，卫星可以飞到球体外 -->
                         <Canvas Width="64" Height="64" ClipToBounds="False">
                             <Canvas.Triggers>
                                 <EventTrigger RoutedEvent="FrameworkElement.Loaded">
@@ -159,14 +162,7 @@
                                 </Grid>
                             </Grid>
 
-                            <!-- 远侧遮罩：与徽章同色，盖住飞到背面的卫星/拖尾 -->
-                            <Border x:Name="BackCover" Width="46" Height="46"
-                                    Canvas.Left="9" Canvas.Top="9"
-                                    CornerRadius="14"
-                                    Background="{DynamicResource BrandGradient}"
-                                    Opacity="1" IsHitTestVisible="False" />
-
-                            <!-- 越出徽章的透视轨道（在遮罩之上，避免闪烁） -->
+                            <!-- 越出球体的透视轨道 -->
                             <Ellipse Width="58" Height="28" Canvas.Left="3" Canvas.Top="18"
                                      Stroke="#5538BDF8" StrokeThickness="1" StrokeDashArray="1.5 2.5" />
 
@@ -220,7 +216,7 @@
                                      Stroke="#5548D7FF" StrokeThickness="0.8" />
                         </Canvas>
                     </Grid>
-                    <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                    <StackPanel Margin="6,0,0,0" VerticalAlignment="Center">
                         <TextBlock Text="All Mod's Sky" FontSize="15" FontWeight="SemiBold" />
                         <TextBlock Text="A NMS MOD MANAGER" FontSize="9.5" Foreground="{DynamicResource TextFaint}"
                                    Margin="0,3,0,0" />
@@ -234,7 +230,16 @@
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource EnumEquals}, ConverterParameter=Library, Mode=OneWay}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE8F1;" Style="{StaticResource Glyph}" Margin="0,0,12,0" />
-                            <TextBlock Text="模组库" VerticalAlignment="Center" />
+                            <TextBlock Text="{loc:T 模组}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </RadioButton>
+
+                    <RadioButton Style="{StaticResource NavItem}" GroupName="nav"
+                                 Command="{Binding NavigateCommand}" CommandParameter="Pool"
+                                 IsChecked="{Binding CurrentPage, Converter={StaticResource EnumEquals}, ConverterParameter=Pool, Mode=OneWay}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE8B7;" Style="{StaticResource Glyph}" Margin="0,0,12,0" />
+                            <TextBlock Text="{loc:T 模组库}" VerticalAlignment="Center" />
                         </StackPanel>
                     </RadioButton>
 
@@ -243,7 +248,7 @@
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource EnumEquals}, ConverterParameter=Discover, Mode=OneWay}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE774;" Style="{StaticResource Glyph}" Margin="0,0,12,0" />
-                            <TextBlock Text="发现模组" VerticalAlignment="Center" />
+                            <TextBlock Text="{loc:T 发现模组}" VerticalAlignment="Center" />
                         </StackPanel>
                     </RadioButton>
 
@@ -252,7 +257,7 @@
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource EnumEquals}, ConverterParameter=Tools, Mode=OneWay}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE90F;" Style="{StaticResource Glyph}" Margin="0,0,12,0" />
-                            <TextBlock Text="工具" VerticalAlignment="Center" />
+                            <TextBlock Text="{loc:T 工具}" VerticalAlignment="Center" />
                         </StackPanel>
                     </RadioButton>
 
@@ -261,7 +266,16 @@
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource EnumEquals}, ConverterParameter=Settings, Mode=OneWay}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE713;" Style="{StaticResource Glyph}" Margin="0,0,12,0" />
-                            <TextBlock Text="设置" VerticalAlignment="Center" />
+                            <TextBlock Text="{loc:T 设置}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </RadioButton>
+
+                    <RadioButton Style="{StaticResource NavItem}" GroupName="nav"
+                                 Command="{Binding NavigateCommand}" CommandParameter="About"
+                                 IsChecked="{Binding CurrentPage, Converter={StaticResource EnumEquals}, ConverterParameter=About, Mode=OneWay}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE946;" Style="{StaticResource Glyph}" Margin="0,0,12,0" />
+                            <TextBlock Text="{loc:T 关于}" VerticalAlignment="Center" />
                         </StackPanel>
                     </RadioButton>
                 </StackPanel>
@@ -269,12 +283,13 @@
                 <!-- 启动游戏 + 游戏状态卡 -->
                 <StackPanel Grid.Row="3">
                     <Button Style="{StaticResource PrimaryButton}"
-                            Command="{Binding LaunchGameCommand}"
-                            HorizontalAlignment="Stretch" Padding="12,9" Margin="0,0,0,10"
-                            ToolTip="通过 Steam 启动无人深空；未检测到 Steam 时直接运行 NMS.exe">
+                            Command="{Binding LaunchCommand}"
+                            AutomationProperties.Name="{loc:T 启动游戏}"
+                            HorizontalAlignment="Stretch" Padding="7,10" Margin="0,0,0,10"
+                            ToolTip="{loc:T 同步当前启停状态后启动游戏；想玩原版就先切到「无模组」配置}">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                            <TextBlock Text="▶" FontSize="11" Margin="0,0,8,0" VerticalAlignment="Center" />
-                            <TextBlock Text="启动游戏" VerticalAlignment="Center" />
+                            <TextBlock Text="▶" FontSize="10" Margin="0,0,6,0" VerticalAlignment="Center" />
+                            <TextBlock Text="{loc:T 启动游戏}" FontSize="12.5" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
 
@@ -282,11 +297,11 @@
                             Padding="0" Background="Transparent" BorderThickness="0"
                             HorizontalContentAlignment="Stretch"
                             Command="{Binding NavigateCommand}" CommandParameter="Settings"
-                            ToolTip="打开设置">
+                            ToolTip="{loc:T 打开设置}">
                         <Border Style="{StaticResource CardSoft}" Padding="12,10" Background="{DynamicResource Surface2}">
                             <StackPanel>
                                 <Grid>
-                                    <TextBlock Text="游戏" FontSize="10.5" Foreground="{DynamicResource TextFaint}" />
+                                    <TextBlock Text="{loc:T 游戏}" FontSize="10.5" Foreground="{DynamicResource TextFaint}" />
                                     <Ellipse Width="7" Height="7" Fill="{DynamicResource Ok}" HorizontalAlignment="Right"
                                              VerticalAlignment="Center" Visibility="{Binding HasGame, Converter={StaticResource BoolToVisibility}}" />
                                     <Ellipse Width="7" Height="7" Fill="{DynamicResource Danger}" HorizontalAlignment="Right"
@@ -305,7 +320,7 @@
 
                 <!-- 主题 -->
                 <Grid Grid.Row="4" Margin="2,12,2,0">
-                    <TextBlock Text="深色模式" FontSize="12" Foreground="{DynamicResource TextMuted}"
+                    <TextBlock Text="{loc:T 深色模式}" FontSize="12" Foreground="{DynamicResource TextMuted}"
                                VerticalAlignment="Center" />
                     <CheckBox Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right"
                               VerticalAlignment="Center" IsChecked="{Binding IsDark, Mode=TwoWay}" />
@@ -315,11 +330,17 @@
                 <StackPanel Grid.Row="5" Margin="2,16,2,0">
                     <Border Style="{StaticResource Divider}" Margin="0,0,0,10" />
                     <Grid>
-                        <TextBlock Text="v2.0.0" FontSize="10.5" Foreground="{DynamicResource TextFaint}"
+                        <TextBlock Text="{Binding AppVersion}" FontSize="10.5" Foreground="{DynamicResource TextFaint}"
                                    VerticalAlignment="Center" />
-                        <Button Content="数据目录" Style="{StaticResource LinkButton}"
-                                HorizontalAlignment="Right" FontSize="10.5"
-                                Command="{Binding OpenDataFolderCommand}" />
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Content="{loc:T 日志}" Style="{StaticResource LinkButton}"
+                                    FontSize="10.5" Margin="0,0,12,0"
+                                    ToolTip="{loc:T latest.log 与历史归档都在这里}"
+                                    Command="{Binding OpenLogFolderCommand}" />
+                            <Button Content="{loc:T 数据目录}" Style="{StaticResource LinkButton}"
+                                    FontSize="10.5"
+                                    Command="{Binding OpenDataFolderCommand}" />
+                        </StackPanel>
                     </Grid>
                 </StackPanel>
             </Grid>
@@ -349,7 +370,7 @@
                         <TextBlock Text="{Binding StatusRight}" FontSize="11"
                                    Foreground="{DynamicResource TextMuted}" />
                         <Border Width="1" Height="12" Background="{DynamicResource Border}" Margin="14,0" />
-                        <TextBlock Text="v2.0.0" FontSize="11" Foreground="{DynamicResource TextFaint}" />
+                        <TextBlock Text="{Binding AppVersion}" FontSize="11" Foreground="{DynamicResource TextFaint}" />
                     </StackPanel>
                 </Grid>
             </Border>

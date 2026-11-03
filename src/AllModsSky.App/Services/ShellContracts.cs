@@ -3,9 +3,11 @@ namespace AllModsSky.App.Services;
 public enum PageKey
 {
     Library,
+    Pool,
     Discover,
     Tools,
-    Settings
+    Settings,
+    About
 }
 
 public enum ConfirmResult
@@ -41,9 +43,12 @@ public interface IShellUi
 
     void Navigate(PageKey page);
 
-    Task<Core.DeployReport?> DeployAsync(bool silent = false);
+    Task<DeployReport?> DeployAsync(bool silent = false);
 
     Task ImportAsync(IReadOnlyList<string> paths);
 
     Task RefreshAllAsync();
+
+    /// <summary>语言变更后立即重建主界面，不退出进程。</summary>
+    void RebuildShell();
 }

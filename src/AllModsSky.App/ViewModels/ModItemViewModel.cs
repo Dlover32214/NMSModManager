@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using AllModsSky.Core;
 using AllModsSky.App.Mvvm;
 
 namespace AllModsSky.App.ViewModels;
@@ -28,7 +27,7 @@ public sealed class ModItemViewModel : ObservableObject
 
     public string Id => Record.Id;
     public string Name => Record.Name;
-    public string Source => Record.Source;
+    public string Source => L.T(Record.Source);
     public string VersionText => Record.VersionText;
     public string SizeText => Record.SizeText;
     public bool IsLegacyPak => Record.IsLegacyPak;
@@ -104,9 +103,9 @@ public sealed class ModItemViewModel : ObservableObject
 
     public void ApplyHealth(ModHealth health)
     {
-        FormatText = health.Summary;
-        WarningText = health.Warning;
-        CompatText = health.CompatText;
+        FormatText = L.T(health.Summary);
+        WarningText = L.T(health.Warning);
+        CompatText = L.T(health.CompatText);
         _hasWarning = health.HasWarning;
         IsHealthReady = true;
         Raise(nameof(HasWarning));
@@ -117,9 +116,9 @@ public sealed class ModItemViewModel : ObservableObject
         get
         {
             var lines = new List<string> { Name };
-            lines.Add("目录：" + Record.EffectiveFolder);
-            lines.Add("格式：" + (string.IsNullOrEmpty(FormatText) ? "正在检查…" : FormatText));
-            if (!string.IsNullOrEmpty(CompatText)) lines.Add("适配：" + CompatText);
+            lines.Add(L.F("目录：{0}", Record.EffectiveFolder));
+            lines.Add(L.F("格式：{0}", string.IsNullOrEmpty(FormatText) ? L.T("正在检查…") : FormatText));
+            if (!string.IsNullOrEmpty(CompatText)) lines.Add(L.F("适配：{0}", CompatText));
             if (!string.IsNullOrEmpty(WarningText)) lines.Add("⚠ " + WarningText);
             return string.Join(Environment.NewLine, lines);
         }

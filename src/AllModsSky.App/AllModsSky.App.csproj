@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -10,10 +10,8 @@
     <AssemblyName>AllModsSky</AssemblyName>
     <RootNamespace>AllModsSky.App</RootNamespace>
     <ApplicationIcon>app.ico</ApplicationIcon>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>2.0.0</Version>
-    <AssemblyVersion>2.0.0.0</AssemblyVersion>
-    <FileVersion>2.0.0.0</FileVersion>
+    <_AppManifestPath>$(MSBuildProjectDirectory)\obj\$(Configuration)\$(TargetFramework)\app.manifest</_AppManifestPath>
+    <ApplicationManifest>$(_AppManifestPath)</ApplicationManifest>
     <Product>All Mod's Sky</Product>
     <AssemblyTitle>All Mod's Sky</AssemblyTitle>
     <Company>built for personal use</Company>
@@ -23,11 +21,37 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Using Include="System.IO" />
+    <Using Include="System.Net.Http" />
+    <Using Include="AllModsSky.Core.Models" />
+    <Using Include="AllModsSky.Core.Infrastructure" />
+    <Using Include="AllModsSky.Core.Services" />
+    <Using Include="AllModsSky.Core.Integrations" />
+    <Using Include="AllModsSky.Core.Localization" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\AllModsSky.Core\AllModsSky.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Resource Include="app.ico" />
   </ItemGroup>
+
+  <!--
+    app.manifest 里只放 __APP_VERSION__ 占位符，构建时从 Directory.Build.props
+    的 AppVersion 生成 obj 下的真实清单。这样版本号仍然只有一处。
+  -->
+  <Target Name="GenerateAppManifest" BeforeTargets="PrepareForBuild">
+    <MakeDir Directories="$([System.IO.Path]::GetDirectoryName('$(_AppManifestPath)'))" />
+    <PropertyGroup>
+      <_AppManifestTemplate>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)\app.manifest'))</_AppManifestTemplate>
+      <_AppManifestText>$(_AppManifestTemplate.Replace('__APP_VERSION__', '$(AppVersion)'))</_AppManifestText>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(_AppManifestPath)"
+                      Lines="$(_AppManifestText)"
+                      Overwrite="true"
+                      WriteOnlyWhenDifferent="true" />
+  </Target>
 
 </Project>

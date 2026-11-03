@@ -1,0 +1,19 @@
+<Project>
+
+  <!--
+    全项目唯一版本号入口。
+    只改下面这一行，然后正常构建即可：
+      - exe / dll 的 Version、AssemblyVersion、FileVersion
+      - 界面页脚、设置页、关于页显示的版本
+      - 更新器 User-Agent
+    都由这里派生，业务代码不要再写版本字面量。
+  -->
+  <PropertyGroup>
+    <AppVersion>2.1.0</AppVersion>
+    <Version>$(AppVersion)</Version>
+    <AssemblyVersion>$(AppVersion).0</AssemblyVersion>
+    <FileVersion>$(AppVersion).0</FileVersion>
+    <InformationalVersion>$(AppVersion)</InformationalVersion>
+  </PropertyGroup>
+
+</Project>

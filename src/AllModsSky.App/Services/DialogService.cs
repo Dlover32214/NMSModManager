@@ -1,5 +1,4 @@
 using System.Windows;
-using AllModsSky.Core;
 using Microsoft.Win32;
 
 namespace AllModsSky.App.Services;
@@ -9,7 +8,7 @@ public static class DialogService
 {
     public static string? PickFolder(string title, string? initial = null)
     {
-        var dialog = new OpenFolderDialog { Title = title, Multiselect = false };
+        var dialog = new OpenFolderDialog { Title = L.T(title), Multiselect = false };
         if (!string.IsNullOrWhiteSpace(initial) && Directory.Exists(initial))
             dialog.InitialDirectory = initial;
 
@@ -22,9 +21,9 @@ public static class DialogService
     {
         var dialog = new OpenFileDialog
         {
-            Title = "选择要导入的模组（可多选）",
+            Title = L.T("选择要导入的模组（可多选）"),
             Multiselect = true,
-            Filter = "模组压缩包|*.zip;*.rar;*.7z;*.pak|所有文件|*.*"
+            Filter = L.T("模组压缩包|*.zip;*.rar;*.7z;*.tar;*.gz;*.tgz;*.bz2;*.tbz2;*.xz;*.txz;*.zst;*.tzst;*.cab;*.pak|所有文件|*.*")
         };
 
         var owner = Application.Current?.MainWindow;
@@ -36,16 +35,36 @@ public static class DialogService
     {
         var dialog = new DialogWindow();
         AttachOwner(dialog);
-        dialog.Configure(title, message, primary, danger, alertOnly: false);
+        dialog.Configure(L.T(title), L.T(message), L.T(primary),
+            danger == null ? null : L.T(danger), alertOnly: false);
         dialog.ShowDialog();
         return dialog.Result;
+    }
+
+    /// <summary>带输入框的确认框，返回去空白后的文本；取消返回 null。</summary>
+    public static string? Prompt(string title, string message, string initial = "")
+    {
+        var dialog = new DialogWindow();
+        AttachOwner(dialog);
+        dialog.Configure(L.T(title), L.T(message), L.T("确定"), null, alertOnly: false, input: initial);
+
+        var ok = dialog.ShowDialog();
+        return ok == true ? dialog.InputText.Trim() : null;
+    }
+
+    /// <summary>从模组库里挑模组加进配置；取消返回 null。</summary>
+    public static IReadOnlyList<ModRecord>? PickMods(IEnumerable<ModRecord> candidates, string profileName)
+    {
+        var dialog = new ModPickerWindow(candidates, profileName);
+        AttachOwner(dialog);
+        return dialog.ShowDialog() == true ? dialog.Selected : null;
     }
 
     public static void Alert(string title, string message)
     {
         var dialog = new DialogWindow();
         AttachOwner(dialog);
-        dialog.Configure(title, message, "知道了", null, alertOnly: true);
+        dialog.Configure(L.T(title), L.T(message), L.T("知道了"), null, alertOnly: true);
         dialog.ShowDialog();
     }
 

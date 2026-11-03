@@ -1,0 +1,318 @@
+<UserControl x:Class="AllModsSky.App.Views.ModPoolView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="clr-namespace:AllModsSky.App.Localization"
+             xmlns:vm="clr-namespace:AllModsSky.App.ViewModels"
+             d:DataContext="{d:DesignInstance Type=vm:ModPoolViewModel}"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DesignHeight="760" d:DesignWidth="1040">
+
+    <UserControl.Resources>
+        <Style x:Key="PoolRowContainer" TargetType="ListBoxItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <EventSetter Event="PreviewMouseLeftButtonDown" Handler="PoolRow_PreviewMouseLeftButtonDown" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Root"
+                                Background="{DynamicResource Surface}"
+                                BorderBrush="{DynamicResource BorderSoft}"
+                                BorderThickness="1"
+                                CornerRadius="12"
+                                Padding="10,0"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Surface2}" />
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Border}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- 标题 -->
+        <Grid Grid.Row="0" Margin="0,0,0,14">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom">
+                <TextBlock Text="{loc:T 模组库}" Style="{StaticResource H1}" />
+                <TextBlock Text="{Binding CountText}" Style="{StaticResource MutedText}"
+                           VerticalAlignment="Bottom" Margin="12,0,0,5" />
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <Button Style="{StaticResource SecondaryButton}" Content="{loc:T 添加文件夹}"
+                        Command="{Binding ImportFolderCommand}" Margin="0,0,8,0" />
+                <Button Style="{StaticResource PrimaryButton}"
+                        Command="{Binding ImportFilesCommand}" Margin="0,0,8,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="＋" Margin="0,0,6,0" FontSize="14" VerticalAlignment="Center" />
+                        <TextBlock Text="{loc:T 导入模组}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button Style="{StaticResource IconButton}"
+                        Command="{Binding RefreshCommand}" ToolTip="{loc:T 刷新 (F5)}">
+                    <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="14" />
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- 搜索 + 筛选 -->
+        <Grid Grid.Row="1" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="200" MaxWidth="360" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBox Style="{StaticResource InputBox}" HorizontalAlignment="Stretch"
+                     Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                     Tag="{loc:T 搜索模组名、版本或来源…}" />
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="14,0,0,0" VerticalAlignment="Center">
+                <RadioButton Style="{StaticResource Chip}" Content="{Binding UnusedButtonText}" GroupName="poolFilter"
+                             IsChecked="{Binding OnlyUnused, Mode=OneWay}"
+                             Command="{Binding ToggleUnusedCommand}" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Style="{StaticResource GhostButton}" Content="{Binding BatchButtonText}"
+                        Command="{Binding ToggleBatchCommand}" Margin="0,0,6,0"
+                        ToolTip="{loc:T 批量选取后可以一次加入配置或一次移出模组库}" />
+                <Button Style="{StaticResource GhostButton}" Content="{Binding ExternalButtonText}"
+                        Command="{Binding ToggleExternalPanelCommand}" />
+            </StackPanel>
+        </Grid>
+
+        <!-- 批量条 -->
+        <Border Grid.Row="2" Style="{StaticResource CardSoft}" Padding="12,8" Margin="0,0,0,10"
+                Visibility="{Binding ShowBatchBar, Converter={StaticResource BoolToVisibility}}">
+            <Grid>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding SelectedText}" FontSize="12" FontWeight="SemiBold"
+                               VerticalAlignment="Center" Margin="0,0,14,0" />
+                    <!-- 全选 / 取消全选共用一个按钮，MinWidth 挡住文字变化带来的宽度跳动 -->
+                    <Button Style="{StaticResource GhostButton}" Content="{Binding SelectAllText}"
+                            Padding="11,5" MinWidth="72"
+                            ToolTip="{Binding SelectAllTooltip}"
+                            Command="{Binding SelectAllCommand}" />
+                    <Button Style="{StaticResource GhostButton}" Content="{loc:T 加入配置}" Padding="11,5" Margin="4,0,0,0"
+                            Command="{Binding BatchAddCommand}" />
+                    <Button Style="{StaticResource GhostButton}" Content="{loc:T 移出模组库}" Padding="11,5" Margin="4,0,0,0"
+                            ToolTip="{loc:T 文件移到 MODS_disabled，不会删除}"
+                            Foreground="{DynamicResource Danger}"
+                            Command="{Binding BatchRemoveCommand}" />
+                </StackPanel>
+                <Button Style="{StaticResource LinkButton}" Content="{loc:T 取消选择}"
+                        HorizontalAlignment="Right" VerticalAlignment="Center"
+                        Command="{Binding ClearSelectionCommand}" />
+            </Grid>
+        </Border>
+
+        <!-- 外部模组 -->
+        <Border Grid.Row="3" Style="{StaticResource CardSoft}" Padding="14,12" Margin="0,0,0,10"
+                Visibility="{Binding ShowExternal, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel>
+                <Grid Margin="0,0,0,7">
+                    <TextBlock Text="{loc:T MODS 里不由本管理器管理的模组}" Style="{StaticResource MutedText}" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Style="{StaticResource LinkButton}" Content="{loc:T 全部收编}"
+                                Margin="0,0,14,0"
+                                ToolTip="{loc:T 把这些模组一次性登记进模组库并加入当前配置；失败的会单独提示}"
+                                Command="{Binding AdoptAllExternalCommand}" />
+                        <Button Style="{StaticResource LinkButton}" Content="{loc:T 刷新}"
+                                Command="{Binding RefreshExternalCommand}" />
+                    </StackPanel>
+                </Grid>
+
+                <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding External}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,3">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="1" Text="{Binding KindText}" Style="{StaticResource CaptionText}"
+                                               Margin="10,0" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="2" Text="{Binding StateText}" Style="{StaticResource CaptionText}"
+                                               Margin="0,0,10,0" VerticalAlignment="Center" />
+                                    <Button Grid.Column="3" Style="{StaticResource GhostButton}" Padding="10,4"
+                                            Content="{Binding ActionText}" Margin="0,0,6,0" FontSize="11.5"
+                                            Command="{Binding DataContext.ToggleExternalItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}" />
+                                    <Button Grid.Column="4" Style="{StaticResource GhostButton}" Padding="10,4"
+                                            Content="{loc:T 收编}" FontSize="11.5"
+                                            Command="{Binding DataContext.AdoptExternalCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </StackPanel>
+        </Border>
+
+        <!-- 列表 -->
+        <Grid Grid.Row="4">
+            <ListBox Style="{StaticResource PlainListBox}"
+                     ItemsSource="{Binding View}"
+                     ItemContainerStyle="{StaticResource PoolRowContainer}"
+                     SelectionMode="Single"
+                     VirtualizingPanel.IsVirtualizing="True"
+                     VirtualizingPanel.VirtualizationMode="Recycling"
+                     ScrollViewer.CanContentScroll="True">
+
+                <ListBox.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:PoolItemViewModel}">
+                        <!-- 批量模式下选中行整块高亮，不额外加勾选框 -->
+                        <Border x:Name="Row" CornerRadius="11" Background="Transparent"
+                                BorderThickness="1" BorderBrush="Transparent">
+                            <Grid Height="60" Margin="4,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="4,0,10,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Name}" FontSize="13.5" FontWeight="SemiBold"
+                                                   TextTrimming="CharacterEllipsis" MaxWidth="480" />
+                                        <Border Style="{StaticResource BadgeWarn}" Margin="8,0,0,0"
+                                                Visibility="{Binding IsLegacyPak, Converter={StaticResource BoolToVisibility}}">
+                                            <TextBlock Text="{loc:T 旧式 pak}" FontSize="9.5" Foreground="{DynamicResource Warn}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding MetaText}" Style="{StaticResource SmallText}"
+                                               Margin="0,5,0,0" TextTrimming="CharacterEllipsis" MaxWidth="560"
+                                               HorizontalAlignment="Left" />
+                                </StackPanel>
+
+                                <TextBlock Grid.Column="1" Text="{Binding StateText}" Style="{StaticResource CaptionText}"
+                                           VerticalAlignment="Center" Margin="0,0,14,0" />
+
+                                <Button Grid.Column="2"
+                                        Content="{Binding AddText}"
+                                        Command="{Binding DataContext.AddCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource GhostButton}">
+                                            <Setter Property="Padding" Value="12,5" />
+                                            <Setter Property="FontSize" Value="11.5" />
+                                            <Setter Property="Margin" Value="0,0,8,0" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding InProfile}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+
+                                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <!-- 链接：没设过就弹出输入框，设过就打开页面 -->
+                                    <Button Style="{StaticResource IconButton}"
+                                            ToolTip="{Binding LinkTooltip}"
+                                            Command="{Binding DataContext.LinkCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}">
+                                        <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" FontSize="13" />
+                                    </Button>
+                                    <Button Style="{StaticResource IconButton}" Margin="2,0,0,0"
+                                            ToolTip="{loc:T 修改 / 清除链接}"
+                                            Visibility="{Binding HasLink, Converter={StaticResource BoolToVisibility}}"
+                                            Command="{Binding DataContext.EditLinkCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}">
+                                        <TextBlock Text="&#xE70F;" FontFamily="Segoe MDL2 Assets" FontSize="12" />
+                                    </Button>
+                                    <Button Style="{StaticResource IconButton}" Margin="2,0,0,0"
+                                            ToolTip="{loc:T 打开模组文件夹}"
+                                            Command="{Binding DataContext.OpenFolderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}">
+                                        <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="13" />
+                                    </Button>
+                                    <Button Style="{StaticResource IconButton}"
+                                            ToolTip="{loc:T 从模组库移除 / 永久删除}"
+                                            Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}" Margin="2,0,0,0">
+                                        <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="12" />
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                <Setter TargetName="Row" Property="Background" Value="{DynamicResource Selection}" />
+                                <Setter TargetName="Row" Property="BorderBrush" Value="{DynamicResource Accent}" />
+                            </DataTrigger>
+                        </DataTemplate.Triggers>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <!-- 空库 -->
+            <Border Style="{StaticResource CardSoft}" Padding="36"
+                    HorizontalAlignment="Center" VerticalAlignment="Center" MinWidth="460"
+                    Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisibility}}">
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Text="&#xE7B8;" FontFamily="Segoe MDL2 Assets" FontSize="30"
+                               Foreground="{DynamicResource TextFaint}" HorizontalAlignment="Center" />
+                    <TextBlock Text="{loc:T 模组库还是空的}" FontSize="13" HorizontalAlignment="Center" Margin="0,14,0,0" />
+                    <TextBlock Text="{loc:T 把 zip / 文件夹拖进窗口，或点「导入模组」。导入后会自动加入当前配置。}"
+                               Style="{StaticResource SmallText}" HorizontalAlignment="Center" Margin="0,6,0,0"
+                               MaxWidth="460" TextWrapping="Wrap" TextAlignment="Center" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,16,0,0">
+                        <Button Style="{StaticResource PrimaryButton}" Content="{loc:T 导入模组}"
+                                Command="{Binding ImportFilesCommand}" />
+                        <Button Style="{StaticResource SecondaryButton}" Content="{loc:T 添加文件夹}" Margin="8,0,0,0"
+                                Command="{Binding ImportFolderCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="{loc:T 没有匹配的模组，换个关键词试试}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock" BasedOn="{StaticResource MutedText}">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsEmpty}" Value="False" />
+                                    <Condition Binding="{Binding HasVisibleMods}" Value="False" />
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Visibility" Value="Visible" />
+                            </MultiDataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </Grid>
+    </Grid>
+</UserControl>

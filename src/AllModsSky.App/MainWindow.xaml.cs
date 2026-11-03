@@ -3,19 +3,17 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using AllModsSky.App.Services;
 using AllModsSky.App.ViewModels;
-using AllModsSky.Core;
 
 namespace AllModsSky.App;
 
 public partial class MainWindow : Window
 {
     private MainViewModel? _viewModel;
-    private DispatcherTimer? _logoOcclusionTimer;
-    private DateTime _logoStartedUtc;
 
     public MainWindow()
     {
@@ -28,38 +26,10 @@ public partial class MainWindow : Window
 
         DataContextChanged += OnDataContextChanged;
         SourceInitialized += (_, _) => ApplyTitleBarTheme();
-        Loaded += (_, _) => StartLogoOcclusion();
         Closed += (_, _) =>
         {
-            _logoOcclusionTimer?.Stop();
             if (_viewModel != null) _viewModel.PropertyChanged -= ViewModel_PropertyChanged;
         };
-    }
-
-    /// <summary>
-    /// 卫星在远侧（上半圈）时，用与徽章同色的遮罩盖住它；
-    /// 直接用动画的实际角度驱动，避免关键帧和主旋转不同步。
-    /// </summary>
-    private void StartLogoOcclusion()
-    {
-        _logoOcclusionTimer ??= new DispatcherTimer(DispatcherPriority.Render)
-        {
-            Interval = TimeSpan.FromMilliseconds(33)
-        };
-
-        _logoOcclusionTimer.Tick -= LogoOcclusionTick;
-        _logoOcclusionTimer.Tick += LogoOcclusionTick;
-        _logoStartedUtc = DateTime.UtcNow;
-        _logoOcclusionTimer.Start();
-    }
-
-    private void LogoOcclusionTick(object? sender, EventArgs e)
-    {
-        // 主旋转是 20 秒一圈；用启动时刻推算，避免读取动画属性时拿到基础值。
-        var elapsed = (DateTime.UtcNow - _logoStartedUtc).TotalSeconds;
-        var angle = (elapsed / 20.0 * 360.0) % 360.0;
-        var farSide = angle <= 90 || angle >= 270;
-        BackCover.Opacity = farSide ? 1 : 0;
     }
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
@@ -81,9 +51,16 @@ public partial class MainWindow : Window
 
     private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MainViewModel.IsDark)) ApplyTitleBarTheme();
+        if (e.PropertyName == nameof(MainViewModel.IsDark))
+        {
+            // ThemeManager.Apply 在 SetProperty 之后执行；延后到本轮消息末尾，
+            // 保证 DWM 读到的是新主题的资源颜色，避免黑白配/白黑配。
+            Dispatcher.BeginInvoke(DispatcherPriority.Render, new Action(ApplyTitleBarTheme));
+        }
         else if (e.PropertyName == nameof(MainViewModel.IsToastVisible) && _viewModel?.IsToastVisible == false)
+        {
             HideToastAnimated();
+        }
     }
 
     private void OnToastShown()
@@ -162,7 +139,7 @@ public partial class MainWindow : Window
 
         if (usable.Length == 0)
         {
-            _viewModel.Toast("拖入 zip / 文件夹 / pak 才能导入", false);
+            _viewModel.Toast(L.T("拖入 zip / 文件夹 / pak 才能导入"), false);
             return;
         }
 
@@ -194,15 +171,23 @@ public partial class MainWindow : Window
                     e.Handled = true;
                     return;
                 case Key.D2:
-                    _viewModel.Navigate(PageKey.Discover);
+                    _viewModel.Navigate(PageKey.Pool);
                     e.Handled = true;
                     return;
                 case Key.D3:
-                    _viewModel.Navigate(PageKey.Tools);
+                    _viewModel.Navigate(PageKey.Discover);
                     e.Handled = true;
                     return;
                 case Key.D4:
+                    _viewModel.Navigate(PageKey.Tools);
+                    e.Handled = true;
+                    return;
+                case Key.D5:
                     _viewModel.Navigate(PageKey.Settings);
+                    e.Handled = true;
+                    return;
+                case Key.D6:
+                    _viewModel.Navigate(PageKey.About);
                     e.Handled = true;
                     return;
             }
@@ -215,7 +200,12 @@ public partial class MainWindow : Window
         }
         else if (e.Key == Key.Escape)
         {
-            if (_viewModel.Library.BatchMode)
+            if (_viewModel.Library.IsProfileMenuOpen)
+            {
+                _viewModel.Library.IsProfileMenuOpen = false;
+                e.Handled = true;
+            }
+            else if (_viewModel.Library.BatchMode)
             {
                 _viewModel.Library.ExitBatch();
                 e.Handled = true;
@@ -234,14 +224,41 @@ public partial class MainWindow : Window
             var handle = new WindowInteropHelper(this).Handle;
             if (handle == IntPtr.Zero) return;
 
-            var dark = ThemeManager.IsDark ? 1 : 0;
-            if (DwmSetWindowAttribute(handle, 20, ref dark, sizeof(int)) != 0)
-                DwmSetWindowAttribute(handle, 19, ref dark, sizeof(int));
+            var dark = ThemeManager.IsDark;
+            var darkMode = dark ? 1 : 0;
+            if (DwmSetWindowAttribute(handle, 20, ref darkMode, sizeof(int)) != 0)
+                DwmSetWindowAttribute(handle, 19, ref darkMode, sizeof(int));
+
+            // Windows 11 下显式设置标题栏底色/文字/边框，避免只切 dark mode 时
+            // 出现深色标题栏配浅色文字、或浅色标题栏配深色按钮的错配。
+            var caption = ThemeColor("BgElevColor", dark
+                ? Color.FromRgb(0x0E, 0x14, 0x1B)
+                : Colors.White);
+            var text = ThemeColor("TextColor", dark
+                ? Color.FromRgb(0xE9, 0xEF, 0xF7)
+                : Color.FromRgb(0x11, 0x1A, 0x24));
+            var border = ThemeColor("BorderColor", dark
+                ? Color.FromRgb(0x25, 0x32, 0x42)
+                : Color.FromRgb(0xDC, 0xE3, 0xED));
+
+            SetDwmColor(handle, 35, caption); // DWMWA_CAPTION_COLOR
+            SetDwmColor(handle, 36, text);    // DWMWA_TEXT_COLOR
+            SetDwmColor(handle, 34, border);  // DWMWA_BORDER_COLOR
         }
         catch
         {
-            // 老系统不支持深色标题栏，忽略
+            // 老系统不支持这些 DWM 属性，忽略
         }
+    }
+
+    private static Color ThemeColor(string key, Color fallback) =>
+        Application.Current?.TryFindResource(key) is Color color ? color : fallback;
+
+    private static void SetDwmColor(IntPtr handle, int attribute, Color color)
+    {
+        // DWM 的颜色属性使用 COLORREF：0x00BBGGRR。
+        var value = color.R | (color.G << 8) | (color.B << 16);
+        DwmSetWindowAttribute(handle, attribute, ref value, sizeof(int));
     }
 
     [DllImport("dwmapi.dll")]

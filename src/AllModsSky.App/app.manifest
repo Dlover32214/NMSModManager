@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
-  <assemblyIdentity version="2.0.0.0" name="AllModsSky.app" />
+  <!-- __APP_VERSION__ 由构建目标从根目录 Directory.Build.props 替换。 -->
+  <assemblyIdentity version="__APP_VERSION__.0" name="AllModsSky.app" />
 
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
     <security>

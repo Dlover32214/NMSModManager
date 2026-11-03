@@ -3,7 +3,6 @@ using System.Net;
 using System.Net.Http;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using AllModsSky.Core;
 
 namespace AllModsSky.App.Services;
 

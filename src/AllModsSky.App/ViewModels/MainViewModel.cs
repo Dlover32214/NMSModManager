@@ -1,8 +1,8 @@
+using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 using AllModsSky.App.Mvvm;
 using AllModsSky.App.Services;
-using AllModsSky.Core;
 
 namespace AllModsSky.App.ViewModels;
 
@@ -10,6 +10,16 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
 {
     private readonly Workspace _workspace = new();
     private readonly DispatcherTimer _toastTimer;
+
+    /// <summary>忙等遮罩延迟显示：半秒内跑完的操作不该闪一下遮罩。</summary>
+    private static readonly TimeSpan BusyShowDelay = TimeSpan.FromMilliseconds(500);
+
+    /// <summary>遮罩一旦显示出来，至少留这么久——否则 0.5~0.7 秒的任务只闪 100 毫秒，比不显示更难受。</summary>
+    private static readonly TimeSpan BusyMinVisible = TimeSpan.FromMilliseconds(200);
+
+    private readonly DispatcherTimer _busyShowTimer;
+    private readonly DispatcherTimer _busyHideTimer;
+    private DateTime _busyShownUtc;
 
     private PageKey _currentPage = PageKey.Library;
     private object _currentPageViewModel;
@@ -23,13 +33,16 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
     private string _statusLeft = "";
     private string _statusRight = "";
     private bool _initialized;
+    private bool _launching;
 
     public MainViewModel()
     {
         Library = new LibraryViewModel(_workspace, this);
+        Pool = new ModPoolViewModel(_workspace, this);
         Discover = new DiscoverViewModel(_workspace, this);
         Tools = new ToolsViewModel(_workspace, this);
         SettingsPage = new SettingsViewModel(_workspace, this);
+        AboutPage = new AboutViewModel(this);
         _currentPageViewModel = Library;
         _isDark = _workspace.Settings.IsDark;
 
@@ -50,13 +63,14 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
             if (paths is { Count: > 0 }) _ = ImportAsync(paths);
         });
 
-        LaunchGameCommand = new RelayCommand(LaunchGame);
+        LaunchCommand = new AsyncRelayCommand(LaunchAsync);
         OpenModsFolderCommand = new RelayCommand(() =>
         {
             if (_workspace.Game.IsValid) Launcher.OpenFolder(_workspace.ModsDir);
             else ShowToast("还没有设置游戏目录", false);
         });
         OpenDataFolderCommand = new RelayCommand(() => Launcher.OpenFolder(AppPaths.Root));
+        OpenLogFolderCommand = new RelayCommand(() => Launcher.OpenFolder(AppPaths.LogsDir));
         RefreshCommand = new AsyncRelayCommand(() => RefreshAllAsync());
 
         _toastTimer = new DispatcherTimer();
@@ -64,6 +78,24 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
         {
             _toastTimer.Stop();
             IsToastVisible = false;
+        };
+
+        // 忙等遮罩：先等 0.5 秒，还没跑完才显示；显示后至少留 200 毫秒再收
+        _busyShowTimer = new DispatcherTimer { Interval = BusyShowDelay };
+        _busyShowTimer.Tick += (_, _) =>
+        {
+            _busyShowTimer.Stop();
+            if (_busyCount == 0 || IsBusy) return;
+
+            _busyShownUtc = DateTime.UtcNow;
+            IsBusy = true;
+        };
+
+        _busyHideTimer = new DispatcherTimer();
+        _busyHideTimer.Tick += (_, _) =>
+        {
+            _busyHideTimer.Stop();
+            if (_busyCount == 0) HideBusy();
         };
 
         _workspace.LibraryChanged += OnLibraryChanged;
@@ -75,15 +107,18 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
 
     public Workspace Workspace => _workspace;
     public LibraryViewModel Library { get; }
+    public ModPoolViewModel Pool { get; }
     public DiscoverViewModel Discover { get; }
     public ToolsViewModel Tools { get; }
     public SettingsViewModel SettingsPage { get; }
+    public AboutViewModel AboutPage { get; }
 
     public ICommand NavigateCommand { get; }
     public ICommand ImportCommand { get; }
-    public ICommand LaunchGameCommand { get; }
+    public ICommand LaunchCommand { get; }
     public ICommand OpenModsFolderCommand { get; }
     public ICommand OpenDataFolderCommand { get; }
+    public ICommand OpenLogFolderCommand { get; }
     public ICommand RefreshCommand { get; }
 
     public event Action? ToastShown;
@@ -94,7 +129,8 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
         private set
         {
             if (!SetProperty(ref _currentPage, value)) return;
-            Raise(nameof(IsLibraryPage), nameof(IsDiscoverPage), nameof(IsToolsPage), nameof(IsSettingsPage));
+            Raise(nameof(IsLibraryPage), nameof(IsPoolPage), nameof(IsDiscoverPage), nameof(IsToolsPage),
+                nameof(IsSettingsPage), nameof(IsAboutPage));
         }
     }
 
@@ -105,9 +141,11 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
     }
 
     public bool IsLibraryPage => CurrentPage == PageKey.Library;
+    public bool IsPoolPage => CurrentPage == PageKey.Pool;
     public bool IsDiscoverPage => CurrentPage == PageKey.Discover;
     public bool IsToolsPage => CurrentPage == PageKey.Tools;
     public bool IsSettingsPage => CurrentPage == PageKey.Settings;
+    public bool IsAboutPage => CurrentPage == PageKey.About;
 
     public bool IsDark
     {
@@ -166,15 +204,15 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
     }
 
     public bool HasGame => _workspace.Game.IsValid;
-    public string GamePath => _workspace.Game.IsValid ? _workspace.Game.GamePath : "未设置游戏目录";
-    public string GameVersionLine => _workspace.Game.IsValid ? _workspace.Game.VersionLine : "去「设置」里指定游戏目录";
+    public string GamePath => _workspace.Game.IsValid ? _workspace.Game.GamePath : L.T("未设置游戏目录");
+    public string GameVersionLine => _workspace.Game.IsValid ? _workspace.Game.VersionLine : L.T("去「设置」里指定游戏目录");
     public string ModsPath => _workspace.Game.ModsPath;
-    public string AppVersion => "2.0.0";
+    public string AppVersion => AppInfo.DisplayVersion;
     public string DataPath => AppPaths.Root;
     public int ModCount => Library.TotalCount;
     public int EnabledCount => Library.EnabledCount;
 
-    public async Task InitializeAsync()
+    public async Task InitializeAsync(PageKey startPage = PageKey.Library, string? notice = null)
     {
         try
         {
@@ -201,20 +239,32 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
 
             if (_workspace.Game.IsValid)
             {
-                await Library.RefreshExternalAsync();
+                await Pool.RefreshExternalAsync();
                 await Library.RefreshHealthAsync();
             }
 
             _initialized = true;
 
-            if (!string.IsNullOrEmpty(loadMessage)) ShowToast(loadMessage, true);
+            // 库损坏时写入被锁死，必须让用户明确知道，否则会以为程序坏了、且永远存不进去。
+            if (_workspace.Library.IsCorrupt)
+            {
+                Confirm("模组库损坏", loadMessage ?? "library.json 无法解析。", "以空库继续");
+                _workspace.Library.AcknowledgeCorruption();
+            }
+            else if (!string.IsNullOrEmpty(loadMessage))
+            {
+                ShowToast(loadMessage, true);
+            }
+
             if (!_workspace.Game.IsValid)
                 ShowToast("没找到游戏目录，请到「设置」里指定", false);
 
-            var pageArg = Environment.GetCommandLineArgs()
-                .FirstOrDefault(a => a.StartsWith("--page=", StringComparison.OrdinalIgnoreCase));
-            if (pageArg != null && Enum.TryParse<PageKey>(pageArg[7..], true, out var page) && page != PageKey.Library)
-                Navigate(page);
+            if (startPage != PageKey.Library)
+                Navigate(startPage);
+
+            // 语言切换后新界面已经加载，再给出提示，避免旧窗口的提示一起消失。
+            if (!string.IsNullOrEmpty(notice))
+                ShowToast(notice, true);
         }
         catch (Exception ex)
         {
@@ -230,14 +280,23 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
         CurrentPage = page;
         CurrentPageViewModel = page switch
         {
+            PageKey.Pool => Pool,
             PageKey.Discover => Discover,
             PageKey.Tools => Tools,
             PageKey.Settings => SettingsPage,
+            PageKey.About => AboutPage,
             _ => Library
         };
 
         if (CurrentPageViewModel is IActivatable activatable)
             _ = activatable.OnActivatedAsync();
+    }
+
+    /// <summary>语言保存后由设置页调用：App 重建窗口，当前页面保持不变。</summary>
+    public void RebuildShell()
+    {
+        if (Application.Current is App app)
+            app.RebuildShell(CurrentPage, "界面语言已切换");
     }
 
     public void Toast(string message, bool success = true) => ShowToast(message, success);
@@ -250,7 +309,7 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
 
     private void ShowToast(string message, bool success)
     {
-        ToastMessage = message;
+        ToastMessage = L.T(message);
         IsToastError = !success;
         IsToastVisible = true;
         Raise(nameof(ToastIcon));
@@ -262,29 +321,60 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
     }
 
     public ConfirmResult Confirm(string title, string message, string primary, string? danger = null) =>
-        DialogService.Confirm(title, message, primary, danger);
+        DialogService.Confirm(L.T(title), L.T(message), L.T(primary),
+            danger == null ? null : L.T(danger));
 
-    public void Alert(string title, string message) => DialogService.Alert(title, message);
+    public void Alert(string title, string message) => DialogService.Alert(L.T(title), L.T(message));
 
-    public string? PickFolder(string title, string? initial = null) => DialogService.PickFolder(title, initial);
+    public string? PickFolder(string title, string? initial = null) =>
+        DialogService.PickFolder(L.T(title), initial);
 
     public IReadOnlyList<string>? PickArchives() => DialogService.PickArchives();
 
     public void BeginBusy(string text = "处理中…")
     {
         _busyCount++;
-        BusyText = text;
-        IsBusy = true;
+        BusyText = L.T(text);
+
+        // 已经有一套流程在跑：共用同一个遮罩，不重新计时
+        if (_busyCount > 1) return;
+
+        _busyHideTimer.Stop();   // 上一轮还在等最短展示时间，取消掉
+        if (IsBusy) return;      // 遮罩已经在屏幕上，不用再等
+
+        _busyShowTimer.Stop();
+        _busyShowTimer.Start();
     }
 
     public void EndBusy()
     {
         _busyCount = Math.Max(0, _busyCount - 1);
-        if (_busyCount == 0)
+        if (_busyCount > 0) return;
+
+        _busyShowTimer.Stop();
+
+        // 没等到 0.5 秒就结束了：遮罩根本没出现，什么都不用做
+        if (!IsBusy)
         {
-            IsBusy = false;
             BusyText = "";
+            return;
         }
+
+        var remain = BusyMinVisible - (DateTime.UtcNow - _busyShownUtc);
+        if (remain <= TimeSpan.Zero)
+        {
+            HideBusy();
+            return;
+        }
+
+        _busyHideTimer.Interval = remain;
+        _busyHideTimer.Start();
+    }
+
+    private void HideBusy()
+    {
+        IsBusy = false;
+        BusyText = "";
     }
 
     public async Task<DeployReport?> DeployAsync(bool silent = false)
@@ -308,7 +398,7 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
                         (report.Messages.Count > 0 ? "；" + string.Join("；", report.Messages.Take(6)) : ""));
 
             _workspace.RefreshGame();
-            await Library.RefreshExternalAsync();
+            await Pool.RefreshExternalAsync();
             UpdateStatus();
 
             if (!silent)
@@ -320,7 +410,7 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
             }
             else if (report.Failed > 0)
             {
-                ShowToast($"同步有 {report.Failed} 项失败", false);
+                ShowToast(L.F("同步有 {0} 项失败", report.Failed), false);
             }
 
             return report;
@@ -372,12 +462,14 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
 
             var imported = 0;
             var failures = new List<string>();
+            var importedRecords = new List<ModRecord>();
 
             foreach (var outcome in outcomes)
             {
                 if (outcome.Ok && outcome.Record != null)
                 {
                     _workspace.Library.Add(outcome.Record);
+                    importedRecords.Add(outcome.Record);
                     imported++;
                     AppLog.Info($"导入成功：{outcome.DisplayName}（{outcome.Record.FolderName}）");
                 }
@@ -388,17 +480,28 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
                 }
             }
 
+            // 新导入的模组直接进当前配置，否则会掉进模组库、部署时被停用。
+            // 「无模组」不放模组，这时只进库，由提示告诉用户去新建配置。
+            var joined = 0;
+            if (importedRecords.Count > 0)
+                (joined, _) = _workspace.Library.AddToActiveProfile(importedRecords);
+
             if (imported > 0)
             {
                 _workspace.Library.Save();
                 _workspace.NotifyLibraryChanged();
                 await DeployAsync(silent: true);
                 await Library.RefreshHealthAsync();
-                await Library.RefreshExternalAsync();
+                await Pool.RefreshExternalAsync();
                 UpdateStatus();
             }
 
-            ShowToast(imported > 0 ? $"已导入 {imported} 个模组" : "没有导入任何模组", imported > 0);
+            ShowToast(imported == 0
+                ? L.T("没有导入任何模组")
+                : joined > 0
+                    ? L.F("已导入 {0} 个模组，加入配置「{1}」", imported, _workspace.Library.ActiveProfile.Name)
+                    : L.F("已导入 {0} 个模组到模组库（当前是「无模组」，新建配置后再加）", imported),
+                imported > 0);
 
             if (failures.Count > 0)
                 Alert("部分导入失败", string.Join(Environment.NewLine, failures.Take(8)));
@@ -422,7 +525,7 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
             _workspace.RefreshGame();
             Library.SyncFromLibrary();
             SettingsPage.RefreshDerived();
-            await Library.RefreshExternalAsync();
+            await Pool.RefreshExternalAsync();
             await Library.RefreshHealthAsync();
             UpdateStatus();
         }
@@ -436,17 +539,78 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
         }
     }
 
-    private void LaunchGame()
+    /// <summary>
+    /// 启动游戏。带不带模组由当前启停状态决定：切到「无模组」配置就是原版，
+    /// 不再单独做一个原版按钮——两套状态各记一份反而容易对不上。
+    /// </summary>
+    private async Task LaunchAsync()
     {
-        if (!_workspace.Game.IsValid)
+        if (_launching || !EnsureGame()) return;
+
+        _launching = true;
+        try
         {
-            ShowToast("先设置游戏目录", false);
-            Navigate(PageKey.Settings);
-            return;
+            if (!await PrepareLaunchAsync()) return;
+
+            var anyEnabled = _workspace.Library.Mods.Any(m => m.Enabled) || AnyExternalEnabled();
+            ApplyLaunchDisableFlag(anyEnabled);
+
+            ShowToast(anyEnabled ? L.T("正在启动游戏…") : L.T("全部模组已停用，正在启动原版…"), true);
+            Launcher.LaunchGame(_workspace.Game);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error(ex, "启动游戏");
+            ShowToast(L.F("启动失败：{0}", ex.Message), false);
+        }
+        finally
+        {
+            _launching = false;
+        }
+    }
+
+    private bool EnsureGame()
+    {
+        if (_workspace.Game.IsValid) return true;
+
+        ShowToast("先设置游戏目录", false);
+        Navigate(PageKey.Settings);
+        return false;
+    }
+
+    private async Task<bool> PrepareLaunchAsync()
+    {
+        var report = await DeployAsync(silent: true);
+        if (report == null)
+        {
+            ShowToast("同步失败，未启动游戏", false);
+            return false;
         }
 
-        Launcher.LaunchGame(_workspace.Game);
-        ShowToast("正在启动无人深空…", true);
+        if (report.Failed > 0)
+        {
+            ShowToast(L.F("同步有 {0} 项失败，未启动游戏", report.Failed), false);
+            return false;
+        }
+
+        return true;
+    }
+
+    private void ApplyLaunchDisableFlag(bool anyEnabled)
+    {
+        if (!_workspace.Game.IsValid) return;
+
+        DeploymentService.ApplyDisableModsFlag(_workspace.Game.GamePath, true, anyEnabled);
+        _workspace.RefreshGame();
+    }
+
+    private bool AnyExternalEnabled()
+    {
+        if (!_workspace.Game.IsValid) return false;
+
+        var external = _workspace.Deployment.ListExternal(
+            _workspace.Game.GamePath, _workspace.Library.Mods);
+        return external.Any(e => e.Enabled);
     }
 
     private void OnLibraryChanged()
@@ -473,13 +637,15 @@ public sealed class MainViewModel : ObservableObject, IShellUi, IDisposable
             ? "MODS  ·  " + _workspace.Game.ModsPath
             : "未设置游戏目录";
 
-        StatusRight = $"{Library.TotalCount} 个模组  ·  已启用 {Library.EnabledCount}" +
-                      (_workspace.Game.IsValid && !_workspace.Game.ModsWritable ? "  ·  MODS 不可写" : "");
+        StatusRight = L.F("{0} 个模组  ·  已启用 {1}", Library.TotalCount, Library.EnabledCount) +
+                      (_workspace.Game.IsValid && !_workspace.Game.ModsWritable ? "  ·  " + L.T("MODS 不可写") : "");
     }
 
     public void Dispose()
     {
         _toastTimer.Stop();
+        _busyShowTimer.Stop();
+        _busyHideTimer.Stop();
         _workspace.Dispose();
     }
 }

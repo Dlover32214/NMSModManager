@@ -1,0 +1,31 @@
+# AI
+/.workbuddy-ai
+
+# IDE / 本地配置
+/.vs/
+/.idea/
+*.user
+*.suo
+
+# 临时 / 工具目录
+/.tmp
+/finacheck
+/tests
+/tools
+
+# 中间构建产物（保留在本地，不提交）
+/src/**/bin/
+/src/**/obj/
+/tests/**/bin/
+/tests/**/obj/
+
+# 最终发布产物（保留 README，其余不提交）
+/release/*
+!/release/README.txt
+
+# 旧版便携包
+/dist/
+
+# Remotion 视频工程的依赖和导出
+/video/node_modules/
+/video/out/
