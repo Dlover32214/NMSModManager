@@ -1,4 +1,4 @@
-# All Mod's Sky 2.1.0
+# All Mod's Sky 2.1.2
 
 [简体中文](README.md) | **English**
 
@@ -681,7 +681,7 @@ Produced by the build script:
 
 Added when cutting a public release (not part of the build):
 
-- `release\AllModsSky-2.1.0-win-x64.zip`
+- `release\AllModsSky-2.1.2-win-x64.zip`
 - `release\README.txt` (quick-start guide)
 - `README.en.md` (this full guide)
 

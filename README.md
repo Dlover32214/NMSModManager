@@ -1,4 +1,4 @@
-# All Mod's Sky 2.1.0
+# All Mod's Sky 2.1.2
 
 [English](README.en.md) | **简体中文**
 
@@ -681,7 +681,7 @@ AllModsSky.exe --data "D:\NMSData"
 
 对外发版时再补两样（不参与构建）：
 
-- `release\AllModsSky-2.1.0-win-x64.zip`
+- `release\AllModsSky-2.1.2-win-x64.zip`
 - `release\README.txt`（快速上手版）
 
 ---

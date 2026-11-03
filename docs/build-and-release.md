@@ -169,7 +169,7 @@ CI 只做构建和上传，**不跑测试**——因为仓库里没有测试项�
 **唯一入口：根目录 `Directory.Build.props` 的 `<AppVersion>`。**
 
 ```xml
-<AppVersion>2.1.0</AppVersion>
+<AppVersion>2.1.2</AppVersion>
 ```
 
 改版本只改这一行，然后正常构建。其余位置全部自动派生：
@@ -183,7 +183,7 @@ CI 只做构建和上传，**不跑测试**——因为仓库里没有测试项�
 
 `app.manifest` 里保留的是 `__APP_VERSION__` 占位符，不要手动改成数字；构建时会在 `obj\<Configuration>\<TargetFramework>\app.manifest` 生成真实清单。
 
-`AppInfo` 从当前程序集元数据读取版本，不保存版本字符串；因此代码里不应再出现 `2.1.0` 这类字面量。
+`AppInfo` 从当前程序集元数据读取版本，不保存版本字符串；因此代码里不应再出现 `2.1.2` 这类字面量。
 
 ---
 
