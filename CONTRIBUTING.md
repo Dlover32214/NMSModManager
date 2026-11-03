@@ -52,10 +52,17 @@
 
 - XAML：`{loc:T 中文源字符串}`；
 - C#：`L.T("中文源字符串")`，带参数用 `L.F("... {0}", arg)`；
+<<<<<<< HEAD
+- 所有新增用户可见文案都要同步补 `src/AllModsSky.Core/Localization/Translations/zh-CN.json` 和 `en-US.json`；
+- 翻译条目缺失时会回退中文，不会阻塞启动；日志和异常技术细节不要求翻译。
+
+语言由 `AppSettings.Language`（`system` / `zh-CN` / `en-US`）控制。设置页保存语言后会立即重建主窗口并保持当前页面，不需要退出进程；启动时仍由 `L.Apply` 先应用一次。
+=======
 - 所有新增用户可见文案都要同步补 `src/AllModsSky.Core/Localization/Strings.english.json`；
 - 英文条目缺失时会回退中文，不会阻塞启动；日志和异常技术细节不要求翻译。
 
 语言在启动时读取 `AppSettings.Language`（`system` / `zh-CN` / `en-US`），切换后需要重启。
+>>>>>>> 6576be8bf42bc977aa5dec75e25c09d16bffd31c
 
 ---
 

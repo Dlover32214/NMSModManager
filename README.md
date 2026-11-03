@@ -479,14 +479,22 @@ magic(0xFEEDA1E5) / 压缩长度 / 解压长度 / 保留
 - Nexus API Key；
 - 深色/浅色主题；
 - 是否自动创建 `DISABLEMODS.TXT`；
+<<<<<<< HEAD
+- 界面语言：跟随系统 / 简体中文 / English（保存后立即切换）；
+=======
 - 界面语言：跟随系统 / 简体中文 / English（重启后生效）；
+>>>>>>> 6576be8bf42bc977aa5dec75e25c09d16bffd31c
 - 存档读取；
 - 打开 MODS / 数据目录 / 日志；
 - 以管理员身份重启（仅在该环境确实需要时使用）。
 
 API Key 会保存到数据目录的 `settings.json`。如果 API Key 无法保存，优先检查数据目录是否可写，以及 `settings.json` 是否被其他程序占用。
 
+<<<<<<< HEAD
+界面语言也保存在 `settings.json` 的 `Language` 字段：`system`、`zh-CN` 或 `en-US`。程序读取该字段后应用语言；在设置页保存语言时会立即重建主窗口并停留在当前页面，不需要退出进程。语言目录位于 `src/AllModsSky.Core/Localization/Translations/`，每种语言一个 JSON：`zh-CN.json` 与 `en-US.json`，以中文源字符串为 key；新增界面文案时必须同时补两种语言，否则回退显示中文。
+=======
 界面语言也保存在 `settings.json` 的 `Language` 字段：`system`、`zh-CN` 或 `en-US`。程序启动时读取一次；切换语言后需要重启。英文目录位于 `src/AllModsSky.Core/Localization/Strings.english.json`，以中文源字符串为 key；新增界面文案时必须同时补英文条目，否则回退显示中文。
+>>>>>>> 6576be8bf42bc977aa5dec75e25c09d16bffd31c
 
 ### 3.11 界面与交互
 
@@ -929,8 +937,13 @@ AllModsSky.exe --data "D:\NMSData"
 8. **单文件发布不是自包含**  
    体积小是以“系统已有 .NET 10”为代价的；如果需要完全离线自包含，体积会显著增加。
 
+<<<<<<< HEAD
+9. **界面语言保存后即时切换**  
+   支持跟随系统、简体中文和 English；保存后会立即重建主窗口，进程不退出，当前页面保持不变。语言写入 `settings.json` 的 `Language` 字段；缺少翻译的条目会回退到中文源字符串。
+=======
 9. **界面语言重启后生效**  
    支持跟随系统、简体中文和 English；切换会写入 `settings.json`，重启程序后应用。缺少翻译的条目会回退到中文源字符串。
+>>>>>>> 6576be8bf42bc977aa5dec75e25c09d16bffd31c
 
 10. **不主动修改系统设置**  
     程序只管理游戏模组目录和自己的数据目录；不会改系统终端、开始菜单等设置。

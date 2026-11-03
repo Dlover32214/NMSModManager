@@ -479,14 +479,22 @@ Settings include:
 - Nexus API key;
 - dark/light theme;
 - whether to create `DISABLEMODS.TXT` automatically;
+<<<<<<< HEAD
+- UI language: System / Simplified Chinese / English (applies immediately after saving);
+=======
 - UI language: System / Simplified Chinese / English (takes effect after restart);
+>>>>>>> 6576be8bf42bc977aa5dec75e25c09d16bffd31c
 - save metadata reader;
 - open `MODS` / data directory / logs;
 - restart as administrator (only if that environment truly requires it).
 
 The API key is saved to `settings.json` in the data directory. If it cannot be saved, check whether the data directory is writable and whether another process is holding `settings.json`.
 
+<<<<<<< HEAD
+The UI language is stored in the `Language` field of `settings.json` (`system`, `zh-CN`, or `en-US`). Saving a language in Settings rebuilds the main window in place and keeps the current page, so the process does not need to exit. Catalogs live in `src/AllModsSky.Core/Localization/Translations/`, one JSON per language (`zh-CN.json`, `en-US.json`), keyed by the Chinese source string; add both languages whenever you add user-facing text, otherwise the UI falls back to Chinese.
+=======
 The UI language is stored in the `Language` field of `settings.json` (`system`, `zh-CN`, or `en-US`). It is read once at startup, so a restart is required after changing it. The English catalog is `src/AllModsSky.Core/Localization/Strings.english.json`, keyed by the Chinese source string; add an English entry whenever you add user-facing text, otherwise the UI falls back to Chinese.
+>>>>>>> 6576be8bf42bc977aa5dec75e25c09d16bffd31c
 
 ### 3.11 UI and Interaction
 
@@ -934,8 +942,13 @@ The application UI is currently Chinese. This repository provides English and Ch
 8. **Single-file is not self-contained**  
    The small size is paid for by requiring the system .NET 10 runtime; a fully offline self-contained build would be much larger.
 
+<<<<<<< HEAD
+9. **UI language changes apply immediately**  
+   The UI supports System, Simplified Chinese, and English. Saving the setting rebuilds the main window in place without restarting the process and keeps you on the current page. The choice is saved in `settings.json`; missing translations fall back to the Chinese source string.
+=======
 9. **UI language changes take effect after restart**  
    The UI supports System, Simplified Chinese, and English. The choice is saved in `settings.json` and applied on the next launch. Missing translations fall back to the Chinese source string.
+>>>>>>> 6576be8bf42bc977aa5dec75e25c09d16bffd31c
 
 10. **It does not modify system settings**  
     The app only manages game mod directories and its own data directory. It does not change the system terminal, Start menu, etc.
