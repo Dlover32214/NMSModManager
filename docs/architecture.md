@@ -201,12 +201,12 @@ if (CurrentPageViewModel is IActivatable activatable)
 
 | 文件 | 行数 | 内容 |
 |---|---|---|
-| `Views/LibraryView.xaml.cs` | 437 | 整套拖拽排序（`_pressTimer`、`DragGhostAdorner`、`AnimatePositions`） |
-| `MainWindow.xaml.cs` | 267 | 标题栏主题、窗口拖放、快捷键 |
-| `Services/ModPickerWindow.xaml.cs` | 126 | 内含 `PickerItem : ObservableObject` |
+| `Views/LibraryView.xaml.cs` | 500 | 整套拖拽排序（`_pressTimer`、`DragGhostAdorner`、`AnimatePositions`）与批量刷选 |
+| `MainWindow.xaml.cs` | 266 | 标题栏主题、窗口拖放、快捷键 |
+| `Services/ModPickerWindow.xaml.cs` | 186 | 添加模组弹窗的批量刷选，内含 `PickerItem : ObservableObject` |
 | 其余 5 个 View | 11–47 | 纯事件转发 |
 
-**只有拖拽突破了 MVVM。** 其余 code-behind 只做事件转发和焦点处理。
+**只有拖拽和批量刷选突破了 MVVM**（模组页、模组库页、添加模组弹窗各有一份刷选，逻辑相同）。其余 code-behind 只做事件转发和焦点处理。
 
 ---
 

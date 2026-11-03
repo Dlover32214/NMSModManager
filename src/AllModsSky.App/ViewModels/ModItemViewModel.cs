@@ -1,10 +1,11 @@
 using System.ComponentModel;
+using AllModsSky.App.Behaviors;
 using AllModsSky.App.Mvvm;
 
 namespace AllModsSky.App.ViewModels;
 
 /// <summary>列表里的一行模组。</summary>
-public sealed class ModItemViewModel : ObservableObject
+public sealed class ModItemViewModel : ObservableObject, ISelectableItem
 {
     private readonly Action<ModItemViewModel>? _onEnabledChanged;
     private bool _enabled;

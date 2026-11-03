@@ -157,6 +157,7 @@ The app separates the mods you have from the mods you are currently using:
 #### Profiles
 
 - There is a built-in **No mods** profile: always first in the menu, cannot be renamed or deleted. Switching to it disables everything, so **Launch game** starts vanilla.
+- On first run a **Default** profile is created automatically, so you can start adding mods right away.
 - Other profiles can be created (copying the current one), renamed and deleted.
 - The last remaining profile cannot be deleted — there always has to be somewhere to put mods.
 - Deleting a profile only deletes the list; the mods and their files stay and return to the mod library.
@@ -164,7 +165,7 @@ The app separates the mods you have from the mods you are currently using:
 
 #### Adding mods
 
-**+ Add mods** in the Mods toolbar lists the library mods that are not in this profile yet; tick them and they are appended to the list (you can drag them afterwards).
+**+ Add mods** in the Mods toolbar lists the library mods that are not in this profile yet: click a row to toggle it, or hold the left button and drag to paint a whole range, then add them in one go (they are appended to the list; you can drag them afterwards). The list scrolls with the mouse wheel.
 
 **Remove from profile** at the end of a row only takes the mod out of this profile. Files are untouched and the mod can be added back later.
 
@@ -295,17 +296,20 @@ When the library is empty, this panel opens automatically.
 The toolbar has a **Batch Select** button:
 
 - In batch mode, click anywhere on a row except interactive controls to select/deselect it.
+- Hold the left button and drag down: every row between the anchor and the cursor follows the same state, even when the pointer moves fast.
 - No `Ctrl` key is needed.
 - Toggles, buttons and scrollbars do not accidentally toggle selection.
 - The batch bar stays visible even with zero selected.
-- Exit with **Exit Batch**, **Clear Selection**, or `Esc`.
+- Exit with **Exit Batch**, **Clear Selection**, or `Esc`;
+- Switching profile, changing the filter or refreshing the list exits batch mode automatically, so a batch action can never hit mods you cannot see.
 
 Batch actions:
 
 - enable selected;
 - disable selected;
 - move to top/bottom;
-- permanently delete selected.
+- remove selected from profile (the files stay in the mod library);
+- permanently delete selected (including the files on disk).
 
 #### Drag reordering
 
@@ -490,18 +494,20 @@ The UI language is stored in the `Language` field of `settings.json` (`system`, 
 
 ### 3.11 UI and Interaction
 
-- Left navigation: Mods / Mod library / Discover / Tools / Settings / About.
-- Bottom-left: **Launch game** button, game status card, dark-mode switch.
-- Top status bar: `MODS` path, counts, version.
-- Dark and light themes.
+- Left navigation: Mods / Mod library / Discover / Tools / Settings / About, with 20×20 line icons and a rounded glow bar on the selected item.
+- Bottom-left: **Launch game** button, dark-mode switch, version.
+- Bottom status bar: `MODS` path and counts, no border, separated by background shade only.
+- Dark and light themes, accent `#00A0FF`.
 - Global toasts with scale/fade, glow and an outer shadow.
 - Busy overlay for long operations.
 - Skeleton loading on Discover.
-- 64×64 animated logo in the top-left:
+- 64×64 animated logo in the top-left (`Controls/HoloLogo`, reused on the About page):
   - holographic planet;
   - a glowing satellite with a trail, orbiting once every 20 seconds;
   - the satellite passes behind the badge on the far side and reappears on the near side;
-  - subtitle `A NMS MOD MANAGER`.
+  - subtitle `A NMS MOD MANAGER`;
+  - the planet palette follows the theme: bright cyan on dark, one step darker on light so it stays readable on white.
+- App icon (`app.svg` → `app.ico`, seven sizes from 16 to 256): a holographic planet in deep space with an empty orbit — the ring is still there, nothing rides it;
 - Keyboard shortcuts:
   - `Ctrl+O` import
   - `Ctrl+1` Mods
@@ -515,12 +521,13 @@ The UI language is stored in the `Language` field of `settings.json` (`system`, 
 
 ### 3.12 About and Updates
 
-A new **About** page appears below Settings in the left navigation:
+A new **About** page appears below Settings in the left navigation; the content column stretches with the window:
 
+- a program card at the top with the holographic planet, name, version badge and project URL;
 - shows the current version and links to the project/release pages;
 - shows the program directory (exe location) and data directory (settings/library), with open buttons;
 - automatically checks the latest GitHub Release when the page opens;
-- shows latest version, publication time and release notes;
+- shows latest version, publication time and release notes (the notes box uses a hairline scrollbar that only appears on hover);
 - if a new version exists, prompts the user to click **Download update**;
 - after download, verifies SHA256 when the release provides a digest, replaces the current exe and restarts;
 - asks for confirmation before installing; a background PowerShell helper waits for the app to exit and performs the replacement;

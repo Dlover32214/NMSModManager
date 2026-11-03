@@ -55,6 +55,11 @@ jobs:
     - name: Build
       run: dotnet build AllModsSky.slnx -c Release --nologo -v minimal -tl:off
 
+    # 测试项目是 xunit.v3 + Microsoft.Testing.Platform 的可执行程序，直接跑 dll 即可，
+    # 不经过 vstest 的进程/管道握手。失败时进程返回非 0，这一步就会红。
+    - name: Test
+      run: dotnet run --project tests/AllModsSky.Core.Tests/AllModsSky.Core.Tests.csproj -c Release --no-build
+
     # .NET 10 SDK 直接支持 net10.0-windows 的单文件发布。
     # PR 只验证能不能编译，不产出 exe：publish 加传 artifact 每次白花几十秒和存储。
     - name: Publish single file

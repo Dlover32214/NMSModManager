@@ -10,11 +10,11 @@
     <Color x:Key="BorderColor">#FF253242</Color>
     <Color x:Key="BorderSoftColor">#FF1B2635</Color>
     <Color x:Key="TextColor">#FFE9EFF7</Color>
-    <Color x:Key="TextMutedColor">#FF9BAABC</Color>
+    <Color x:Key="TextMutedColor">#FFA6B0BE</Color>
     <Color x:Key="TextFaintColor">#FF6C7C90</Color>
-    <Color x:Key="AccentColor">#FF4C8DFF</Color>
-    <Color x:Key="AccentHoverColor">#FF6BA0FF</Color>
-    <Color x:Key="AccentSoftColor">#FF16263D</Color>
+    <Color x:Key="AccentColor">#FF00A0FF</Color>
+    <Color x:Key="AccentHoverColor">#FF3DB8FF</Color>
+    <Color x:Key="AccentSoftColor">#FF0E2637</Color>
     <Color x:Key="AccentTextColor">#FFFFFFFF</Color>
     <Color x:Key="OkColor">#FF3DDC97</Color>
     <Color x:Key="OkSoftColor">#FF14302A</Color>
@@ -50,9 +50,16 @@
     <SolidColorBrush x:Key="PressOverlay" Color="#22FFFFFF" />
     <SolidColorBrush x:Key="ShadowBrush" Color="#80000000" />
 
+    <!-- 品牌标志（全息行星）配色 -->
+    <Color x:Key="HoloGlowColor">#6638BDF8</Color>
+    <Color x:Key="HoloBodyHighColor">#E6F8FFFF</Color>
+    <Color x:Key="HoloBodyMidColor">#CC59D8FF</Color>
+    <Color x:Key="HoloBodyLowColor">#B32D8FD6</Color>
+    <Color x:Key="HoloBodyDeepColor">#99204A8F</Color>
+
     <LinearGradientBrush x:Key="BrandGradient" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#FF4C8DFF" Offset="0" />
-        <GradientStop Color="#FF9B6BFF" Offset="1" />
+        <GradientStop Color="#FF00A0FF" Offset="0" />
+        <GradientStop Color="#FF6E7BFF" Offset="1" />
     </LinearGradientBrush>
 
     <LinearGradientBrush x:Key="HeroGradient" StartPoint="0,0" EndPoint="1,0">

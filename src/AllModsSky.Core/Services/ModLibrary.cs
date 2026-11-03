@@ -15,6 +15,10 @@ public sealed class ModLibrary
 
     private string _activeId = ModProfile.NoneId;
 
+    private readonly ILibraryStore _store;
+
+    public ModLibrary(ILibraryStore? store = null) => _store = store ?? FileLibraryStore.Instance;
+
     public IReadOnlyList<ModRecord> Mods => _mods;
     public IReadOnlyList<ModProfile> Profiles => _profiles;
     public string? LoadMessage { get; private set; }
@@ -37,22 +41,10 @@ public sealed class ModLibrary
         LoadMessage = null;
 
         // 解析失败时先备份原文件并锁死写入，避免空列表被 Save() 覆盖回去。
-        if (!JsonStore.TryLoad<LibraryState>(AppPaths.DataFile, out var state, out _))
+        if (!_store.TryLoad(out var state))
         {
-            var backup = NextBackupPath();
-            try
-            {
-                File.Move(AppPaths.DataFile, backup);
-                AppLog.Warn("library.json 无法解析，已备份到 " + backup);
-            }
-            catch (Exception ex)
-            {
-                AppLog.Error(ex, "备份损坏的 library.json");
-                backup = AppPaths.DataFile;
-            }
-
             _corrupt = true;
-            LoadMessage = $"library.json 无法解析，已备份到 {backup}。本次以空库启动，不会覆盖原文件。";
+            LoadMessage = $"library.json 无法解析，已备份到 {_store.BackupCorrupt()}。本次以空库启动，不会覆盖原文件。";
             return;
         }
 
@@ -60,12 +52,11 @@ public sealed class ModLibrary
 
         if (state == null)
         {
-            var legacy = LegacyDataMigrator.Read();
-            if (legacy.Mods.Count > 0)
+            state = _store.LoadLegacy();
+            if (state != null)
             {
-                state = new LibraryState { Mods = legacy.Mods };
                 migrated = true;
-                LoadMessage = $"已从旧版迁移 {legacy.Mods.Count} 个模组记录";
+                LoadMessage = $"已从旧版迁移 {state.Mods.Count} 个模组记录";
             }
         }
 
@@ -90,14 +81,17 @@ public sealed class ModLibrary
             }
         }
 
-        // 第一次升级到「配置」模型：老库里只有一份启停状态，把它收成一套「默认」配置，
-        // 免得升级后所有模组都掉进模组库、部署时被整体停用。
+        var normalized = Normalize() + PruneMissingEntries();
+
+        // 库里一套配置都没有时补一套「默认」：新装用户不该先面对一个空的配置菜单。
+        // 只把启用中的模组收进配置——停用的留在模组库里，配置里不该凭空多出一堆关闭项。
+        // 必须排在 Normalize 之后：Id 可能刚被补齐/去重，先建条目就会指向旧 Id，随后被 Prune 掉。
         var seeded = false;
-        if (_profiles.Count == 0 && _mods.Any(m => m.Enabled))
+        if (_profiles.Count == 0)
         {
             var profile = new ModProfile { Name = L.T("默认") };
-            foreach (var record in _mods)
-                profile.Entries.Add(new ConfigEntry { ModId = record.Id, Enabled = record.Enabled });
+            foreach (var record in _mods.Where(m => m.Enabled))
+                profile.Entries.Add(new ConfigEntry { ModId = record.Id, Enabled = true });
             _profiles.Add(profile);
             seeded = true;
         }
@@ -107,7 +101,6 @@ public sealed class ModLibrary
             _activeId = _profiles.Count > 0 ? _profiles[0].Id : ModProfile.NoneId;
 
         RefreshDeletable();
-        var normalized = Normalize() + PruneMissingEntries();
 
         // 配置是唯一真相：启动时把启停状态对齐到当前配置，避免「配置里没有、磁盘上却开着」的模组。
         var changed = Project();
@@ -160,19 +153,6 @@ public sealed class ModLibrary
         return changed;
     }
 
-    /// <summary>损坏备份名：backup_library_20261102125300.json.bak，与 library.json 同目录。</summary>
-    private static string NextBackupPath()
-    {
-        var dir = Path.GetDirectoryName(AppPaths.DataFile) ?? AppPaths.Root;
-        var stamp = DateTime.Now.ToString("yyyyMMddHHmmss");
-        var path = Path.Combine(dir, $"backup_library_{stamp}.json.bak");
-
-        for (var n = 2; File.Exists(path); n++)
-            path = Path.Combine(dir, $"backup_library_{stamp}_{n}.json.bak");
-
-        return path;
-    }
-
     public bool Save()
     {
         if (_corrupt)
@@ -183,8 +163,7 @@ public sealed class ModLibrary
 
         try
         {
-            AppPaths.Ensure();
-            JsonStore.Save(AppPaths.DataFile, new LibraryState
+            _store.Save(new LibraryState
             {
                 Mods = _mods.ToList(),
                 Profiles = _profiles.ToList(),

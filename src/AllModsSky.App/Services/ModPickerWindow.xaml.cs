@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
+using AllModsSky.App.Behaviors;
 using AllModsSky.App.Mvvm;
 
 namespace AllModsSky.App.Services;
@@ -66,15 +67,6 @@ public partial class ModPickerWindow : Window
     private void SearchBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e) =>
         Filter(SearchBox.Text);
 
-    /// <summary>没有勾选框了：点整行就是切换选中，靠行底色高亮表示。</summary>
-    private void Row_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        if (sender is not System.Windows.Controls.ListBoxItem { DataContext: PickerItem item }) return;
-
-        item.IsSelected = !item.IsSelected;
-        e.Handled = true;
-    }
-
     private void SelectAll_Click(object sender, RoutedEventArgs e)
     {
         foreach (var item in _visible) item.IsSelected = true;
@@ -101,7 +93,7 @@ public partial class ModPickerWindow : Window
     }
 }
 
-public sealed class PickerItem : ObservableObject
+public sealed class PickerItem : ObservableObject, ISelectableItem
 {
     private bool _isSelected;
 

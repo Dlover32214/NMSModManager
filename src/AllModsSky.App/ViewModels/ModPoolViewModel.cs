@@ -2,13 +2,14 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows.Data;
 using System.Windows.Input;
+using AllModsSky.App.Behaviors;
 using AllModsSky.App.Mvvm;
 using AllModsSky.App.Services;
 
 namespace AllModsSky.App.ViewModels;
 
 /// <summary>模组库里的一行：池子里的模组 + 它是否已经在当前配置里。</summary>
-public sealed class PoolItemViewModel : ObservableObject
+public sealed class PoolItemViewModel : ObservableObject, ISelectableItem
 {
     private bool _inProfile;
     private bool _isSelected;
@@ -68,7 +69,7 @@ public sealed class PoolItemViewModel : ObservableObject
 /// 模组库页：整个池子的模组都在这儿（不管在不在当前配置里），
 /// 导入、收编外部模组、往配置里加、从库里删，都在这一页做。
 /// </summary>
-public sealed class ModPoolViewModel : ObservableObject, IActivatable
+public sealed class ModPoolViewModel : ObservableObject, IActivatable, IBulkSelectionSink
 {
     private readonly Workspace _workspace;
     private readonly IShellUi _ui;
@@ -215,6 +216,14 @@ public sealed class ModPoolViewModel : ObservableObject, IActivatable
     public string SelectAllTooltip => AllSelected
         ? L.T("取消当前搜索/筛选结果里的全部选中")
         : L.T("选中当前搜索/筛选结果里的全部模组");
+
+    /// <summary>批量刷选期间不用逐行刷新；刷完一次性通知。</summary>
+    public void BeginBulkSelection() { }
+
+    public void EndBulkSelection(bool changed)
+    {
+        if (changed) NotifySelectionChanged();
+    }
 
     /// <summary>行点击之后由视图调用，避免每行都挂一个 PropertyChanged。</summary>
     public void NotifySelectionChanged() =>
