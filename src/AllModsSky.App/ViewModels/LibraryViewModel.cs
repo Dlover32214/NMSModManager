@@ -235,6 +235,10 @@ public sealed class LibraryViewModel : ObservableObject
 
         RefreshProfiles();
         RaiseCounts();
+
+        // 列表被整份换掉（切配置、新建/删除配置、导入、刷新）时，批选里那批对象已经不在了：
+        // 批量条还挂着的话，点「停用」会改到列表里看不见的模组，所以直接退出。
+        if (BatchMode) ExitBatch();
     }
 
     private ModItemViewModel Materialize(ModRecord record)
