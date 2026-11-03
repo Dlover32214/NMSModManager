@@ -282,6 +282,9 @@
                             Command="{Binding MoveTopCommand}" />
                     <Button Style="{StaticResource GhostButton}" Content="{loc:T 置底}" Padding="11,5" Margin="4,0,0,0"
                             Command="{Binding MoveBottomCommand}" />
+                    <Button Style="{StaticResource GhostButton}" Content="{loc:T 移出配置}" Padding="11,5" Margin="4,0,0,0"
+                            ToolTip="{loc:T 从当前配置移除，文件保留在模组库}"
+                            Command="{Binding BatchRemoveCommand}" />
                     <Button Style="{StaticResource GhostButton}" Content="{loc:T 删除所选}" Padding="11,5" Margin="4,0,0,0"
                             Foreground="{DynamicResource Danger}" Command="{Binding BatchDeleteCommand}" />
                 </StackPanel>

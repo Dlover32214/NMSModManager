@@ -46,6 +46,7 @@ public sealed class LibraryViewModel : ObservableObject
         MoveBottomCommand = new AsyncRelayCommand(() => MoveSelectedAsync(false));
         BatchEnableCommand = new AsyncRelayCommand(() => SetSelectedEnabledAsync(true));
         BatchDisableCommand = new AsyncRelayCommand(() => SetSelectedEnabledAsync(false));
+        BatchRemoveCommand = new AsyncRelayCommand(BatchRemoveAsync);
         BatchDeleteCommand = new AsyncRelayCommand(BatchDeleteAsync);
         SelectAllCommand = new RelayCommand(ToggleSelectAll);
         ClearSelectionCommand = new RelayCommand(ExitBatch);
@@ -83,6 +84,7 @@ public sealed class LibraryViewModel : ObservableObject
     public ICommand MoveBottomCommand { get; }
     public ICommand BatchEnableCommand { get; }
     public ICommand BatchDisableCommand { get; }
+    public ICommand BatchRemoveCommand { get; }
     public ICommand BatchDeleteCommand { get; }
     public ICommand SelectAllCommand { get; }
     public ICommand ClearSelectionCommand { get; }
@@ -483,6 +485,43 @@ public sealed class LibraryViewModel : ObservableObject
         if (_workspace.Game.IsValid) await _ui.DeployAsync(silent: true);
 
         _ui.Toast(L.F("已{0} {1} 个模组", L.T(enabled ? "启用" : "停用"), selected.Count), true);
+        ExitBatch();
+    }
+
+    /// <summary>批量把选中项从当前配置里摘掉，文件仍留在模组库。</summary>
+    private async Task BatchRemoveAsync()
+    {
+        var selected = SelectedItems;
+        if (selected.Count == 0)
+        {
+            _ui.Toast("先选中模组", false);
+            return;
+        }
+
+        var confirm = _ui.Confirm(L.F("从当前配置移出 {0} 个模组", selected.Count),
+            L.F("这 {0} 个模组会从「{1}」里摘掉，文件仍留在模组库，随时可以再加回来。", selected.Count, ActiveProfileName),
+            L.T("移出配置"));
+
+        if (confirm != ConfirmResult.Primary) return;
+
+        var removed = 0;
+        foreach (var item in selected)
+        {
+            if (_workspace.Library.RemoveFromActiveProfile(item.Record)) removed++;
+        }
+
+        if (removed == 0)
+        {
+            _ui.Toast("这些模组不在当前配置里", false);
+            return;
+        }
+
+        _workspace.Library.Save();
+        _workspace.NotifyLibraryChanged();
+
+        if (_workspace.Game.IsValid) await _ui.DeployAsync(silent: true);
+
+        _ui.Toast(L.F("已移出 {0} 个模组，回到模组库", removed), true);
         ExitBatch();
     }
 
